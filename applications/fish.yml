@@ -1,0 +1,6 @@
+name: Fish
+labels: ['lin', 'mac']
+root: .config/fish
+files:
+- config.fish
+- functions

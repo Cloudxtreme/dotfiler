@@ -1,0 +1,8 @@
+name: Vim
+files:
+- .vimrc
+- .gvimrc
+- .vim/syntax
+- .vim/settings
+- .vim/vundles
+- .vim/vimrc

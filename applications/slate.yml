@@ -1,0 +1,4 @@
+name: Slate
+labels: ['<mac>', '<lin>']
+files:
+- .slate

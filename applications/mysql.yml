@@ -1,0 +1,5 @@
+name: MySql
+root: /usr/local/etc
+files:
+- my.cnf
+- my.cnf.d

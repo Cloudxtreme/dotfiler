@@ -1,0 +1,6 @@
+name: Bash
+files:
+- .bashrc
+- .bash_profile
+- .bash_functions
+- .bash_aliases
