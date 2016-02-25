@@ -1,4 +1,5 @@
 require 'fileutils'
+require_relative './labels'
 
 module Setup
 
@@ -12,15 +13,10 @@ class CopyTask
     @label = label
 
     @config = config
-    @root = resolve_value(config['root']) || ''
+    @root = Setup::get_config_value(config['root'], label) || ''
     @name = config['name']
     @labels = config['labels']
     @files = config['files'].map(&method(:resolve_file))
-  end
-
-  # Resolves a value which may either be a value of a dictionary label => value.
-  def resolve_value(config_value)
-    config_value.is_a?(Hash) ? config_value[@label] : config_value
   end
 
   # Returns whether a task should be executed given the set of labels.
