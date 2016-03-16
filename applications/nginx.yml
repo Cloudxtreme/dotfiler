@@ -1,5 +1,5 @@
 name: Nginx
-labels: ['<mac>', '<lin>']
+platforms: ['<mac>', '<lin>']
 root: /usr/local/etc
 files:
 - nginx

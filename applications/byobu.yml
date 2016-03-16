@@ -1,5 +1,5 @@
 name: Byobu
-labels: ['<mac>', '<lin>']
+platforms: ['<mac>', '<lin>']
 root: .byobu
 files:
 - profile.tmux

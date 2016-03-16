@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+# An IRB console to use setup interactively.
+
+require 'bundler/setup'
+require 'setup/app'
+
+require 'awesome_print'
+require 'irb'
+
+IRB.start

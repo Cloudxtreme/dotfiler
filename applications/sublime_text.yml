@@ -1,9 +1,10 @@
 name: Sublime Text 3
-labels: ['<mac>', '<win>']
+platforms: ['<mac>', '<win>']
 root:
   <mac>: ~/Library/Application Support/Sublime Text 3
   <win>: ~/AppData/Roaming/Sublime Text 3
 files:
-- "Packages/User/Default (OSX).sublime-keymap"
+- <mac>: "Packages/User/Default (OSX).sublime-keymap"
+- <win>: "Packages/User/Default (Windows).sublime-keymap"
 - "Packages/User/Preferences.sublime-settings"
 - "Packages/User/Package Control.sublime-settings"

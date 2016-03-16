@@ -1,5 +1,5 @@
 name: Fish
-labels: ['lin', 'mac']
+platforms: ['<lin>', '<mac>']
 root: .config/fish
 files:
 - config.fish

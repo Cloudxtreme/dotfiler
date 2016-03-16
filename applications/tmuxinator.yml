@@ -1,3 +1,4 @@
 name: Tmuxinator
+platforms: ['<max>', '<lin>']
 files:
 - ".tmuxinator"

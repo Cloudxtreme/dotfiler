@@ -1,4 +1,4 @@
 name: IntelliJ IDEA
 root:
 files:
-- file1.file
+- .IntelliJIdea15/config

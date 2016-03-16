@@ -1,30 +1,37 @@
+# coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'setup/version'
+require 'setup/about'
 
-Gem::Specification.new do |s|
-  s.name = 'setup'
-  s.version = Setup::VERSION
-  s.authors     = %w(Drognanar)
-  s.email       = 'drognanar@gmail.com'
+Gem::Specification.new do |spec|
+  spec.name        = Setup::About::APP_NAME
+  spec.version     = Setup::About::VERSION
+  spec.authors     = %w(Drognanar)
+  spec.email       = 'drognanar@gmail.com'
 
-  s.summary     = 'Settings manager'
-  s.description = 'Gem to manage setup'
-  s.license     = 'MIT'
+  spec.summary     = 'Settings manager'
+  spec.description = 'Gem to manage setup'
+  spec.license     = 'MIT'
 
   if spec.respond_to?(:metadata)
     spec.metadata['allowed_push_host'] = ''
   else
-    raise 'RubyGems 2.0 or newer is required to protect against public gem pushes.'
+    raise 'RubyGems 2.0 or newer is required to protect against public gem pushespec.'
   end
 
-  s.files       = Dir.glob('{lib, bin}/**/*')
-  s.bindir      = 'bin'
-  s.executables = ['setup']
-  s.require_paths = ['lib']
+  spec.files         = Dir.glob('{lib, exe}/**/*')
+  spec.bindir        = 'exe'
+  spec.executables   = ['setup']
+  spec.require_paths = ['lib']
 
-  s.add_dependency 'safe_yaml', ['~> 1.0']
-  s.add_dependency 'thread', ['~> 0.1']
-  s.add_dependency 'rspec', ['~> 3.2']
-  s.add_dependency 'attr_extras', ['~> 4.4']
+  spec.metadata['allowed_push_host'] = 'http://localhost'
+
+  spec.add_dependency 'thor', ['~> 0.19']
+  spec.add_dependency 'safe_yaml', ['~> 1.0']
+  spec.add_dependency 'attr_extras', ['~> 4.4']
+  spec.add_dependency 'highline', ['~> 1.7']
+  spec.add_dependency 'ruby-progressbar', ['~> 1.7']
+
+  spec.add_development_dependency 'rspec', ['~> 3.4']
+  spec.add_development_dependency 'awesome_print', ['~> 1.6']
 end
