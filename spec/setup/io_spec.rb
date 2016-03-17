@@ -3,18 +3,10 @@ require 'setup/io'
 module Setup
 
 module AssertDelegate
+# Asserts that an instance delegates a mthod call.
 def assert_delegates(instance, delegate, method, *args)
   expect(delegate).to receive(method).with(*args).and_return nil
   instance.send method, *args
-end
-
-def capture_stdout(&block)
-  old_stdout = $stdout
-  $stdout = StringIO.new
-  block.call
-  $stdout.string
-rescue
-  $stdout = old_stdout
 end
 end
 
@@ -52,6 +44,7 @@ RSpec.describe 'Dry_IO' do
   include AssertDelegate
 
   it 'prints all write io operations' do
+    # TODO: should stdout be 
     expect($stdout).to receive(:puts).with('link source: path1 dest: path2')
     DRY_IO.link 'path1', 'path2'
 
