@@ -1,4 +1,4 @@
-require 'setup/platforms'
+require 'setup/sync_task.platforms'
 
 module Setup
 
@@ -10,19 +10,20 @@ RSpec.describe 'Config' do
     end
 
     it 'should get dictionaries' do
-      expect(Config.get_config_value({a: 12}, 'a')).to eq({a: 12})
+      config = { a: 12 }
+      expect(Config.get_config_value(config, 'a')).to eq(config)
     end
 
     it 'should return label results' do
-      example_dict = {'<a>' => 12, '<b>' => 15}
+      example_dict = { '<a>' => 12, '<b>' => 15 }
       expect(Config.get_config_value(example_dict, '<a>')).to eq(12)
       expect(Config.get_config_value(example_dict, '<b>')).to eq(15)
       expect(Config.get_config_value(example_dict, '<c>')).to eq(nil)
     end
 
     it 'should not expand results recursively' do
-      value = {'<a>' => 12}
-      example_dict = {'<a>' => value}
+      value = { '<a>' => 12 }
+      example_dict = { '<a>' => value }
       expect(Config.get_config_value(example_dict, '<a>')).to eq(value)
     end
   end

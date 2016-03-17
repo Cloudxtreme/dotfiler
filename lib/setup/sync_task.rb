@@ -1,6 +1,6 @@
 require 'setup/file_sync'
-require 'setup/platforms'
 require 'setup/io'
+require 'setup/sync_task.platforms'
 
 require 'pathname'
 
@@ -76,8 +76,9 @@ class SyncTask
     if resolved.is_a? String
       restore_path = File.expand_path(Pathname(restore_root).join(resolved), default_restore_root)
       backup_path = File.expand_path(Pathname(default_backup_root).join(name, escape_dotfile_path(resolved)))
-      {restore_path: restore_path, backup_path: backup_path}
+      { restore_path: restore_path, backup_path: backup_path }
     else
+      # TODO: permit regular expressions?
       # TODO: do we not need to expand paths here as well?
       # TODO: just resolve the conversion type.
       # TODO: are keys strings?

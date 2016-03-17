@@ -22,34 +22,30 @@ class Config
     task_labels.empty? or task_labels.include? machine_label
   end
 
-  def Config.is_label(name)
-    /<.*>/.match name
-  end
-
   def Config.get_platform
     case RUBY_PLATFORM
-      when /darwin/
-        return :MAC_OS
-      when /cygwin|mswin|mingw|bccwin|wince|emx/
-        return :WINDOWS
-      else
-        return :LINUX
+    when /darwin/ then :MAC_OS
+    when /cygwin|mswin|mingw|bccwin|wince|emx/ then :WINDOWS
+    else :LINUX
     end
   end
 
   # Gets the machine specific labels.
   # Produces labels for the os, screen resolution.
   def Config.machine_labels
-    labels = []
-
-    if get_platform == :MAC_OS
-      labels << 'unix' << 'osx' << 'max'
-    elsif get_platform == :LINUX
-      labels << 'unix' << 'linux'
-    else
-      labels << 'win'
-    end
-    labels
+    os_labels =
+      case get_platform
+      when :MAC_OS then ['unix', 'osx', 'mac']
+      when :LINUX then ['unix', 'linux']
+      else ['win']
+      end
+    os_labels
+  end
+  
+  private
+  
+  def Config.is_label(name)
+    /<.*>/.match name
   end
 end
 
