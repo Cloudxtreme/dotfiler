@@ -5,25 +5,27 @@ require 'setup/io'
 module Setup
 
 RSpec.describe Cli::SetupCLI do
+  let(:setup_cli) { Cli::SetupCLI.new }
   describe 'get_io' do
     it 'should dry run when passing the dry option' do
-      expect(Cli::SetupCLI.new.get_io dry: true).to eq(DRY_IO)
+      expect(setup_cli.get_io dry: true).to eq(DRY_IO)
     end
 
     it 'should concrete run without passing the dry option' do
-      expect(Cli::SetupCLI.new.get_io).to eq(CONCRETE_IO)
+      expect(setup_cli.get_io).to eq(CONCRETE_IO)
     end
   end
-
-  describe 'resolve_backups' do
+  
+  describe 'get_tasks' do
   end
 end
 
 # Integration tests.
 RSpec.describe './setup' do
+  let(:setup_cli) { Cli::SetupCLI.new }
+  
   describe 'init' do
-    setup_cli = Cli::SetupCLI.new
-    puts setup_cli
+    it 'should work'
     # setup_cli.options = {output: ''}
     # setup_cli.init 'file:///drognanar/field', 'b'
     # setup_cli.init 'git://url'

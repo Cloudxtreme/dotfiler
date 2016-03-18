@@ -10,24 +10,33 @@ require 'thor'
 module Setup
 module Cli
 
-DEFAULT_BACKUP_ROOT = File.expand_path "~/dotfiles/home_profile"
-DEFAULT_OPTIONS = { dry: false }
+DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles/local'
 Commandline = HighLine.new
 
 class AppCLI < Thor
+  no_commands {
+    def get_io(options = {})
+      options[:dry] ? DRY_IO : CONCRETE_IO
+    end
+    
+    def get_backups_manager(options = {})
+      Setup::BackupManager.new io: get_io(options)
+    end
+  }
+  
   desc 'add [<names>...]', 'Adds app\' settings to the backup.'
   def add(*names)
-    Setup::backups_add_tasks names
+    get_backups_manager(options).backups_add_tasks names
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
-    Setup::backups_remove_tasks names
+    get_backups_manager(options).backups_remove_tasks names
   end
 
   desc 'list', 'Lists apps for which settings can be backed up.'
   def list
-    Setup::backups_print_new_tasks
+    get_backups_manager(options).backups_print_new_tasks
   end
 end
 
@@ -36,14 +45,18 @@ class SetupCLI < Thor
     def get_io(options = {})
       options[:dry] ? DRY_IO : CONCRETE_IO
     end
+    
+    def get_backups_manager(options = {})
+      Setup::BackupManager.new io: get_io(options)
+    end
 
     # Get the list of tasks to execute.
     # @param Hash options the options to get the tasks with.
     def get_tasks(options = {})
-      options = DEFAULT_OPTIONS.merge options
-      backups = Setup::get_backups (get_io options)
+      backups_manager = get_backups_manager(options)
+      backups = backups_manager.get_backups
       unless options[:skip_new_tasks]
-        Setup::classify_new_tasks(backups) { Commandline.agree 'Backup all of these applications? [y/n]' }
+        backups_manager.classify_new_tasks(backups) { Commandline.agree 'Backup all of these applications? [y/n]' }
       end
       backups.map(&:tasks_to_run).map(&:values).flatten
     end
@@ -70,26 +83,12 @@ class SetupCLI < Thor
       pb.finish
       puts "Finished #{name}"
     end
-
-    def resolve_backup(backup_str, options)
-      # TODO: resolve the path.
-      # TODO: implement.
-      # TODO: how to interpret the path (download url/location on disk)?
-      # TODO: I don't know
-    end
-
-    def resolve_backups(backup_strs, options)
-      # TODO: case no backup_strs
-      # TODO: case when only one backup_str given
-      # TODO: case when multiple backup_strs given
-      backup_strs.map { |backup_str| resolve_backup(backup_str, options) }
-    end
   }
 
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', :type => :string, :default => ''
-  def init(*backups)
-    init_backups resolve_backups(backup_str, options)
+  def init(*backup_strs)
+    get_backups_manager(options).init_backups backup_strs, options
   end
 
   desc 'backup', 'Backup your settings'
