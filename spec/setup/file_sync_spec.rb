@@ -45,11 +45,6 @@ RSpec.describe 'FileSync' do
     instance_double 'FileSyncInfo', options
   end
 
-  def get_enabled_sync_info(options)
-    settings = { enabled: true, errors: nil, backup_path: 'backup/path', restore_path: 'restore/path' }
-    get_sync_info settings.merge options
-  end
-
   describe 'info' do
     it 'should return the sync info' do
       sync_info = get_sync_info({})
