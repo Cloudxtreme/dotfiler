@@ -18,37 +18,26 @@ RSpec.describe 'FileSync' do
   include MockIo
   let(:io)   { instance_double('File_IO') }
   let(:time) { instance_double('Time') }
-  let(:enabled_info)       { { enabled: true, errors: nil, backup_path: 'backup/path', restore_path: 'restore/path' } }
-  let(:info_disabled)      { get_sync_info enabled: false }
-  let(:info_with_errors)   { get_sync_info enabled: true, errors: 'err' }
-  let(:info_up_to_date)    { get_sync_info enabled: true, errors: nil, status: :up_to_date }
-  let(:info_symlink_files) { get_sync_info enabled_info.merge status: :sync, copy: false, is_directory: false }
-  let(:info_symlink_dirs)  { get_sync_info enabled_info.merge status: :sync, copy: false, is_directory: true }
-  let(:info_copy_files)    { get_sync_info enabled_info.merge status: :sync, copy: true }
-  let(:info_overwrite)     { get_sync_info enabled_info.merge status: :overwrite_data, copy: true }
-  let(:info_resync)        { get_sync_info enabled_info.merge status: :resync, copy: true }
+  let(:symlink_sync_options) { { backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
+  let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
+  let(:info_with_errors)     { get_sync_info errors: 'err' }
+  let(:info_up_to_date)      { get_sync_info errors: nil, status: :up_to_date }
+  let(:info_sync_files)      { get_sync_info errors: nil, status: :sync, is_directory: false }
+  let(:info_sync_dirs)       { get_sync_info errors: nil, status: :sync, is_directory: true }
+  let(:info_overwrite)       { get_sync_info errors: nil, status: :overwrite_data }
+  let(:info_resync)          { get_sync_info errors: nil, status: :resync }
 
-
-  def get_sync_task(file_sync, sync_time = nil)
+  def sync_task(file_sync = nil)
     expect(time).to receive(:strftime).once.and_return '20160404111213'
-    expect(FileSyncInfo).to receive(:new).and_return file_sync
-    FileSync.new nil, time, io
-  end
-
-  describe 'initialize' do
-    it 'should initialize default values' do
-      file_sync = FileSync.new nil
-      expect(file_sync.options).to eq(DEFAULT_FILESYNC_OPTIONS)
-    end
+    expect(FileSyncInfo).to receive(:new).once.and_return file_sync unless file_sync.nil?
+    FileSync.new time, io
   end
 
   describe 'cleanup' do
     it 'should remove any backup files' do
-      sync_info = instance_double 'FileSync', backup_path: 'backup/path', restore_path: 'restore/path'
-      sync_task = get_sync_task sync_info
       expect(io).to receive(:glob).with('backup/setup-backup-*').once.and_return ['file1', 'file2']
       expect(io).to receive(:glob).with('restore/setup-backup-*').once.and_return ['file3']
-      expect(sync_task.cleanup).to eq(['file1', 'file2', 'file3'])
+      expect(sync_task.cleanup symlink_sync_options).to eq(['file1', 'file2', 'file3'])
     end
   end
 
@@ -61,31 +50,31 @@ RSpec.describe 'FileSync' do
     get_sync_info settings.merge options
   end
 
-  describe 'status' do
+  describe 'info' do
     it 'should return the sync info' do
       sync_info = get_sync_info({})
-      expect((get_sync_task sync_info).info).to eq(sync_info)
+      expect((sync_task sync_info).info).to eq(sync_info)
     end
   end
 
   describe 'reset!' do
     it 'should not remove concrete files' do
       sync_info = get_sync_info symlinked: false
-      (get_sync_task sync_info).reset!
+      (sync_task sync_info).reset!
     end
 
     it 'should remove restored symlinks' do
       sync_info = get_sync_info symlinked: true, restore_path: 'restore/path'
       expect(io).to receive(:rm_rf).with('restore/path').once
-      (get_sync_task sync_info).reset!
+      (sync_task sync_info).reset!
     end
   end
 
   describe 'backup!' do
     it 'should not backup when FileSync disabled, has errors or up to date' do
-      (get_sync_task info_disabled).backup!
-      (get_sync_task info_with_errors).backup!
-      (get_sync_task info_up_to_date).backup!
+      (sync_task info_sync_files).backup! symlink_sync_options.merge(enabled: false)
+      (sync_task info_with_errors).backup! symlink_sync_options
+      (sync_task info_up_to_date).backup! symlink_sync_options
     end
 
     def assert_backup_steps(restore_method)
@@ -97,42 +86,42 @@ RSpec.describe 'FileSync' do
 
     it 'should create backup file and restore link' do
       assert_backup_steps :link
-      (get_sync_task info_symlink_files).backup!
+      (sync_task info_sync_files).backup! symlink_sync_options
 
       assert_backup_steps :junction
-      (get_sync_task info_symlink_dirs).backup!
+      (sync_task info_sync_dirs).backup! symlink_sync_options
 
       assert_backup_steps :cp_r
-      (get_sync_task info_copy_files).backup!
+      (sync_task info_sync_files).backup! copy_sync_options
     end
 
     it 'should rename file if overriden' do
       expect(io).to receive(:mkdir_p).with('backup').once.ordered
       expect(io).to receive(:mv).with('backup/path', 'backup/setup-backup-20160404111213-path').once.ordered
       assert_backup_steps :cp_r
-      (get_sync_task info_overwrite).backup!
+      (sync_task info_overwrite).backup! copy_sync_options
     end
   end
 
   describe 'restore!' do
     it 'should not restore when FileSync disabled, has errors or up to date' do
-      (get_sync_task info_disabled).restore!
-      (get_sync_task info_with_errors).restore!
-      (get_sync_task info_up_to_date).restore!
+      (sync_task info_sync_files).restore! symlink_sync_options.merge(enabled: false) 
+      (sync_task info_with_errors).restore! symlink_sync_options
+      (sync_task info_up_to_date).restore! symlink_sync_options
     end
 
     it 'should create restore link' do
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:link).with('backup/path', 'restore/path').once.ordered
-      (get_sync_task info_symlink_files).restore!
+      (sync_task info_sync_files).restore! symlink_sync_options
 
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:junction).with('backup/path', 'restore/path').once.ordered
-      (get_sync_task info_symlink_dirs).restore!
+      (sync_task info_sync_dirs).restore! symlink_sync_options
 
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (get_sync_task info_copy_files).restore!      
+      (sync_task info_sync_files).restore! copy_sync_options      
     end
 
     it 'should rename file if overriden' do
@@ -140,14 +129,14 @@ RSpec.describe 'FileSync' do
       expect(io).to receive(:mv).with('restore/path', 'restore/setup-backup-20160404111213-path').once.ordered
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (get_sync_task info_overwrite).restore!
+      (sync_task info_overwrite).restore! copy_sync_options
     end
 
     it 'should delete previous restore under resync' do
       expect(io).to receive(:rm_rf).with('restore/path').once.ordered
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (get_sync_task info_resync).restore!
+      (sync_task info_resync).restore! copy_sync_options
     end
   end
 end
@@ -158,20 +147,6 @@ RSpec.describe 'FileSyncInfo' do
   let(:example_options1)  { { enabled: true, backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
   let(:example_options2)  { { enabled: false, backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
   let(:example_options3)  { { enabled: false, backup_path: 'backup/path2', restore_path: 'restore/path2', copy: true } }
-
-  it 'should extract options' do
-    expect(io).to receive(:exist?).with('backup/path').once.and_return false
-    info = FileSyncInfo.new :restore, example_options1, io
-    expect(info.enabled).to be true
-    expect(info.backup_path).to eq('backup/path')
-    expect(info.restore_path).to eq('restore/path')
-
-    expect(io).to receive(:exist?).with('restore/path2').once.and_return false
-    info = FileSyncInfo.new :backup, example_options3, io
-    expect(info.enabled).to be false
-    expect(info.backup_path).to eq('backup/path2')
-    expect(info.restore_path).to eq('restore/path2')
-  end
 
   it 'should return errors when files missing' do
     mock_files io, 'backup/path' => nil
@@ -200,7 +175,6 @@ RSpec.describe 'FileSyncInfo' do
     mock_files io, 'backup/path' => data1, 'restore/path' => data2
     allow(io).to receive(:identical?).and_return symlinked
     info = FileSyncInfo.new action_type, options, io
-    expect(info.enabled).to eq(options[:enabled])
     expect(info.errors).to be_nil
     expect(info.symlinked).to be symlinked
     expect(info.is_directory).to eq(action_type == :restore ? data1 == :directory : data2 == :directory)

@@ -24,31 +24,31 @@ class SyncTask
     @should_execute = Config::has_matching_label label, @platforms
     @sync_items = (config['files'] || [])
       .map { |file_config| SyncTask.resolve_sync_item file_config, restore_root, @name, host_info, io }
-      .compact
+      .flatten(1)
+  end
+  
+  def has_data(options = {})
+    @sync_items.any? { |sync_item, sync_options| sync_item.has_data sync_options.merge(options) }
   end
 
-  def has_data(options = nil)
-    @sync_items.any? { |sync_item| sync_item.has_data options }
+  def backup!(options = {})
+    @sync_items.each { |sync_item, sync_options| sync_item.backup! sync_options.merge(options) }
   end
 
-  def backup!(options = nil)
-    @sync_items.each { |sync_item| sync_item.backup! options }
+  def restore!(options = {})
+    @sync_items.each { |sync_item, sync_options| sync_item.restore! sync_options.merge(options) }
   end
 
-  def restore!(options = nil)
-    @sync_items.each { |sync_item| sync_item.restore! options }
+  def reset!(options = {})
+    @sync_items.each { |sync_item, sync_options| sync_item.reset! sync_options.merge(options) }
   end
 
-  def reset!
-    @sync_items.each(&:reset!)
+  def cleanup(options = {})
+    @sync_items.map { |sync_item, sync_options| sync_item.cleanup sync_options.merge(options) }
   end
 
-  def cleanup
-    @sync_items.map(&:cleanup)
-  end
-
-  def info
-    @sync_items.map(&:info)
+  def info(options = {})
+    @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options) }
   end
 
   def SyncTask.escape_dotfile_path(restore_path)
@@ -63,7 +63,7 @@ class SyncTask
   # Resolve `file_config` into a `FileSyncStatus`.
   def SyncTask.resolve_sync_item(file_config, restore_root, name, host_info, io = IO)
     resolved = resolve_sync_item_config(file_config, restore_root, name, host_info)
-    resolved ? FileSync.new(resolved, host_info[:sync_time], io) : nil
+    resolved ? [[FileSync.new(host_info[:sync_time], io), resolved]] : []
   end
 
   # Resolve `file_config` into `FileSyncStatus` configuration.

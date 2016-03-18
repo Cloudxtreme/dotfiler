@@ -8,13 +8,14 @@ module Setup
 RSpec.describe 'SyncTask' do
   let(:io) { instance_double('File_IO') }
   let(:host_info) { { label: '<win>', restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
+  let(:resolver) { instance_double('SyncTaskResolver') }
 
   def get_sync_task(config, expected_sync_items)
     sync_items = expected_sync_items.map do |sync_item|
       sync_item[:backup_path] = File.expand_path(sync_item[:backup_path]) if sync_item[:backup_path]
       sync_item[:restore_path] = File.expand_path(sync_item[:restore_path]) if sync_item[:restore_path]
       item = instance_double('FileSync')
-      expect(FileSync).to receive(:new).with(sync_item, 'sync_time', io).and_return item
+      expect(FileSync).to receive(:new).with('sync_time', io).and_return item
       item
     end
     [SyncTask.new(config, host_info, io), sync_items]
@@ -78,26 +79,27 @@ RSpec.describe 'SyncTask' do
 
   it 'should forward the message to all sync items' do
     task_config = {'name' => 'task', 'files' => ['a']}
-    expected_sync_items = [{backup_path: '/backup/root/task/a', restore_path: '/restore/root/a'}]
+    options = {backup_path: '/backup/root/task/a', restore_path: '/restore/root/a'}
+    expected_sync_items = [options]
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
-    sync_items.each { |item| expect(item).to receive(:backup!).with('opt').once }
-    sync_task.backup! 'opt'
+    sync_items.each { |item, _| expect(item).to receive(:backup!).with(options).once }
+    sync_task.backup!
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
-    sync_items.each { |item| expect(item).to receive(:restore!).with('opt').once }
-    sync_task.restore! 'opt'
+    sync_items.each { |item, _| expect(item).to receive(:restore!).with(options).once }
+    sync_task.restore!
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
-    sync_items.each { |item| expect(item).to receive(:reset!).once }
+    sync_items.each { |item, _| expect(item).to receive(:reset!).once }
     sync_task.reset!
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
-    sync_items.each { |item| expect(item).to receive(:cleanup).once }
+    sync_items.each { |item, _| expect(item).to receive(:cleanup).once }
     sync_task.cleanup
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
-    sync_items.each { |item| expect(item).to receive(:info).once }
+    sync_items.each { |item, _| expect(item).to receive(:info).once }
     sync_task.info
   end
   
