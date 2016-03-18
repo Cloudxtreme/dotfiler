@@ -44,6 +44,17 @@ RSpec.describe 'FileSync' do
   def get_sync_info(options)
     instance_double 'FileSyncInfo', options
   end
+  
+  describe 'has_data' do
+    it 'should have data if there are no errors' do
+      expect((sync_task info_with_errors).has_data symlink_sync_options).to be false
+      expect((sync_task info_up_to_date).has_data symlink_sync_options).to be true 
+      expect((sync_task info_sync_files).has_data symlink_sync_options).to be true 
+      expect((sync_task info_sync_dirs).has_data symlink_sync_options).to be true 
+      expect((sync_task info_overwrite).has_data symlink_sync_options).to be true 
+      expect((sync_task info_resync).has_data symlink_sync_options).to be true 
+    end
+  end
 
   describe 'info' do
     it 'should return the sync info' do

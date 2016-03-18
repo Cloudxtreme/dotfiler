@@ -101,6 +101,10 @@ RSpec.describe 'SyncTask' do
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
     sync_items.each { |item, _| expect(item).to receive(:info).once }
     sync_task.info
+    
+    sync_task, sync_items = get_sync_task(task_config, expected_sync_items)
+    sync_items.each { |item, _| expect(item).to receive(:has_data).once }
+    sync_task.has_data
   end
   
   describe 'escape_dotfile_path' do
