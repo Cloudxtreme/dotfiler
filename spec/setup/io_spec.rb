@@ -32,6 +32,8 @@ RSpec.describe 'File_IO' do
     assert_delegates CONCRETE_IO, FileUtils, :mkdir_p, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :mv, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :rm_rf, 'path1', 'path2'
+    expect(CONCRETE_IO).to receive(:`).with('echo hello world').once
+    CONCRETE_IO.shell 'echo hello world'
   end
 
   it 'sends junction for execution to shell' do
@@ -44,7 +46,8 @@ RSpec.describe 'Dry_IO' do
   include AssertDelegate
 
   it 'prints all write io operations' do
-    # TODO: should stdout be 
+    # TODO: should stdout be pushed to the class?
+    # TODO: get rid of stdout actually being called.
     expect($stdout).to receive(:puts).with('link source: path1 dest: path2')
     DRY_IO.link 'path1', 'path2'
 
@@ -59,6 +62,9 @@ RSpec.describe 'Dry_IO' do
 
     expect($stdout).to receive(:puts).with('cmd /c "mklink /J "path2" "path1""')
     DRY_IO.junction 'path1', 'path2'
+    
+    expect($stdout).to receive(:puts).with('echo hello world')
+    DRY_IO.shell 'echo hello world'
   end
 end
 
