@@ -5,8 +5,6 @@ module Setup
 DEFAULT_FILESYNC_OPTIONS = { enabled: true, copy: false, backup_prefix: 'setup-backup' }
 
 # Class that synchronizes files.
-# TODO: improve backup. Move all files into backup dir. easier cleanup
-# TODO: improve cleanup_globs to match only the file name.
 class FileSync
   def initialize(sync_time = nil, io = IO)
     @sync_time = (sync_time || Time.new).strftime '%Y%m%d%H%M%S'
@@ -55,8 +53,8 @@ class FileSync
 
   private
 
-  def get_backup_path(path, options)
-    dir_part, file_part = File.split path
+  def get_backup_path(options)
+    dir_part, file_part = File.split options[:backup_path]
     File.join dir_part, "#{options[:backup_prefix]}-#{@sync_time}-#{file_part}"
   end
 
@@ -67,13 +65,11 @@ class FileSync
   def cleanup_globs(options)
     backup_dir, _ = File.split options[:backup_path]
     backup_files_glob = File.join backup_dir, 'setup-backup-*'
-    restore_dir, _ = File.split options[:restore_path]
-    restore_files_glob = File.join restore_dir, 'setup-backup-*'
-    [backup_files_glob, restore_files_glob]
+    [backup_files_glob]
   end
 
   def save_existing_file!(path, options)
-    backup_path = get_backup_path(path, options)
+    backup_path = get_backup_path(options)
     @io.mkdir_p File.dirname backup_path
     @io.mv path, backup_path
   end
@@ -110,8 +106,10 @@ class FileSyncInfo
       @status = get_status options, io
     end
   end
+  
+  private
 
-  def get_errors(sync_action, options, io = IO)
+  def get_errors(sync_action, options, io)
     if sync_action == :backup and not io.exist? @restore_path
       "Cannot backup: missing #{@restore_path}"
     elsif sync_action == :restore and not io.exist? @backup_path
@@ -119,7 +117,7 @@ class FileSyncInfo
     end
   end
 
-  def get_status(options, io = IO)
+  def get_status(options, io)
     if not io.exist?(@restore_path) or not io.exist?(@backup_path)
       :sync
     elsif files_differ? @backup_path, @restore_path, io
@@ -133,7 +131,7 @@ class FileSyncInfo
 
   # Returns true if two paths might not have the same content.
   # Returns false if the files have the same content.
-  def files_differ?(path1, path2, io = IO)
+  def files_differ?(path1, path2, io)
     not @symlinked and (io.directory?(path1) or io.directory?(path2) or io.read(path1) != io.read(path2))
   end
 end

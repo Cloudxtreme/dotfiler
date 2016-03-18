@@ -36,8 +36,7 @@ RSpec.describe 'FileSync' do
   describe 'cleanup' do
     it 'should remove any backup files' do
       expect(io).to receive(:glob).with('backup/setup-backup-*').once.and_return ['file1', 'file2']
-      expect(io).to receive(:glob).with('restore/setup-backup-*').once.and_return ['file3']
-      expect(sync_task.cleanup symlink_sync_options).to eq(['file1', 'file2', 'file3'])
+      expect(sync_task.cleanup symlink_sync_options).to eq(['file1', 'file2'])
     end
   end
 
@@ -131,8 +130,8 @@ RSpec.describe 'FileSync' do
     end
 
     it 'should rename file if overriden' do
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:mv).with('restore/path', 'restore/setup-backup-20160404111213-path').once.ordered
+      expect(io).to receive(:mkdir_p).with('backup').once.ordered
+      expect(io).to receive(:mv).with('restore/path', 'backup/setup-backup-20160404111213-path').once.ordered
       expect(io).to receive(:mkdir_p).with('restore').once.ordered
       expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
       (sync_task info_overwrite).restore! copy_sync_options
