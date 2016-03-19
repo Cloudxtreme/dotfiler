@@ -16,8 +16,8 @@ end
 
 RSpec.describe 'FileSync' do
   include MockIo
-  let(:io)   { instance_double('File_IO') }
-  let(:time) { instance_double('Time') }
+  let(:io)   { instance_double(InputOutput::File_IO) }
+  let(:time) { instance_double(Time) }
   let(:symlink_sync_options) { { backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
   let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
   let(:info_with_errors)     { get_sync_info errors: 'err' }
@@ -41,7 +41,7 @@ RSpec.describe 'FileSync' do
   end
 
   def get_sync_info(options)
-    instance_double 'FileSyncInfo', options
+    instance_double FileSyncInfo, options
   end
   
   describe 'has_data' do
@@ -69,9 +69,9 @@ RSpec.describe 'FileSync' do
     end
 
     it 'should remove restored symlinks' do
-      sync_info = get_sync_info symlinked: true, restore_path: 'restore/path'
+      sync_info = get_sync_info symlinked: true
       expect(io).to receive(:rm_rf).with('restore/path').once
-      (sync_task sync_info).reset!
+      (sync_task sync_info).reset! restore_path: 'restore/path'
     end
   end
 

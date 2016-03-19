@@ -6,9 +6,8 @@ require 'setup/io'
 module Setup
 
 RSpec.describe 'SyncTask' do
-  let(:io) { instance_double('File_IO') }
+  let(:io) { instance_double(InputOutput::File_IO) }
   let(:host_info) { { label: '<win>', restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
-  let(:resolver) { instance_double('SyncTaskResolver') }
 
   def get_sync_task(config, expected_sync_items)
     sync_items = expected_sync_items.map { |sync_item| instance_double('FileSync') }

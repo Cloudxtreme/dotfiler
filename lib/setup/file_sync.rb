@@ -30,7 +30,7 @@ class FileSync
   def reset!(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     sync_info = get_sync_info :backup, options
-    @io.rm_rf sync_info.restore_path if sync_info.symlinked
+    @io.rm_rf options[:restore_path] if sync_info.symlinked
   end
 
   def backup!(options = {})
