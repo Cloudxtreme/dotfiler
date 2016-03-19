@@ -51,14 +51,14 @@ class SyncTask
     @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options) }
   end
 
+  private
+
   def SyncTask.escape_dotfile_path(restore_path)
     restore_path
       .split(File::Separator)
       .map { |part| part.sub(/^\./, '_') }
       .join(File::Separator)
   end
-
-  private
 
   # Resolve `file_config` into a `FileSyncStatus`.
   def SyncTask.resolve_sync_item(file_config, restore_root, name, host_info, io = IO)

@@ -11,13 +11,8 @@ RSpec.describe 'SyncTask' do
   let(:resolver) { instance_double('SyncTaskResolver') }
 
   def get_sync_task(config, expected_sync_items)
-    sync_items = expected_sync_items.map do |sync_item|
-      sync_item[:backup_path] = File.expand_path(sync_item[:backup_path]) if sync_item[:backup_path]
-      sync_item[:restore_path] = File.expand_path(sync_item[:restore_path]) if sync_item[:restore_path]
-      item = instance_double('FileSync')
-      expect(FileSync).to receive(:new).with('sync_time', io).and_return item
-      item
-    end
+    sync_items = expected_sync_items.map { |sync_item| instance_double('FileSync') }
+    sync_items.each { |item| expect(FileSync).to receive(:new).with('sync_time', io).and_return item }
     [SyncTask.new(config, host_info, io), sync_items]
   end
 

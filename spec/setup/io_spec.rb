@@ -1,9 +1,10 @@
+# IO unit tests. These tests mock the File instances and thus cannot be run in parallel.
 require 'setup/io'
 
 module Setup
 
 module AssertDelegate
-# Asserts that an instance delegates a mthod call.
+# Asserts that an instance delegates a method call.
 def assert_delegates(instance, delegate, method, *args)
   expect(delegate).to receive(method).with(*args).and_return nil
   instance.send method, *args
@@ -21,7 +22,6 @@ RSpec.describe 'Common_IO' do
     assert_delegates DRY_IO, IO, :read, 'path'
   end
 end
-
 
 RSpec.describe 'File_IO' do
   include AssertDelegate
@@ -48,6 +48,7 @@ RSpec.describe 'Dry_IO' do
   it 'prints all write io operations' do
     # TODO: should stdout be pushed to the class?
     # TODO: get rid of stdout actually being called.
+    # TODO: add a global logger?
     expect($stdout).to receive(:puts).with('link source: path1 dest: path2')
     DRY_IO.link 'path1', 'path2'
 

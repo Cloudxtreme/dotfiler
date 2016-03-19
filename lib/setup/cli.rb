@@ -6,11 +6,13 @@ require 'ruby-progressbar'
 require 'thor'
 
 # TODO: improve summary output per task
+# TODO: make this more output friendly.
+# TODO: perhaps get rid of the progressbar and just print output directory to stdout.
+# TODO: and make it quite verbose by default.
 
 module Setup
 module Cli
 
-DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles/local'
 Commandline = HighLine.new
 
 class AppCLI < Thor
@@ -24,14 +26,14 @@ class AppCLI < Thor
     end
   }
   
-  desc 'add [<names>...]', 'Adds app\' settings to the backup.'
+  desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
-    get_backups_manager(options).backups_add_tasks names
+    get_backups_manager(options).update_backups { |backup| backup.enable_tasks names }
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
-    get_backups_manager(options).backups_remove_tasks names
+    get_backups_manager(options).update_backups { |backup| backup.disable_tasks names }
   end
 
   desc 'list', 'Lists apps for which settings can be backed up.'
@@ -42,6 +44,8 @@ end
 
 class SetupCLI < Thor
   no_commands {
+    DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles/local'
+    
     def get_io(options = {})
       options[:dry] ? DRY_IO : CONCRETE_IO
     end
@@ -88,7 +92,14 @@ class SetupCLI < Thor
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', :type => :string, :default => ''
   def init(*backup_strs)
-    get_backups_manager(options).init_backups backup_strs, options
+    backup_strs = [SetupCLI.DEFAULT_BACKUP_ROOT] if backup_strs.empty?
+    
+    backup_manager = get_backups_manager(options)
+    backup_strs.map { |backup_str| Backup::resolve_backup(backup_str, options) }
+      .each &backup_manager.method(:create_backup)
+
+    restore
+    backup
   end
 
   desc 'backup', 'Backup your settings'
@@ -107,7 +118,7 @@ class SetupCLI < Thor
   option 'confirm', :type => :boolean, :default => false
   option 'dry', :type => :boolean, :default => :false
   def cleanup
-    # TODO: include untracked files.
+    # TODO: include untracked files. Glob through the backup directory.
     cleanup_files_per_task = get_tasks.map { |task| [task, task.cleanup] }.to_h
     if options[:confirm]
       cleanup_files_per_task.each do |task, cleanup_files|

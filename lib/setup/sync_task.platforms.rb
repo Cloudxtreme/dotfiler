@@ -1,7 +1,7 @@
 # Static methods to perform platform specific sync.
 
-# TODO: detect labels such as win, lin, mac
-# TODO: add configuration functions to simplify config management.
+# TODO: refactor and wire with the rest of the code.
+# TODO: possibly convert into a module instead.
 
 module Setup
 
@@ -22,8 +22,9 @@ class Config
     task_labels.empty? or task_labels.include? machine_label
   end
 
-  def Config.get_platform
-    case RUBY_PLATFORM
+  def Config.get_platform(platform = nil)
+    platform ||= RUBY_PLATFORM 
+    case platform
     when /darwin/ then :MAC_OS
     when /cygwin|mswin|mingw|bccwin|wince|emx/ then :WINDOWS
     else :LINUX
@@ -32,12 +33,12 @@ class Config
 
   # Gets the machine specific labels.
   # Produces labels for the os, screen resolution.
-  def Config.machine_labels
+  def Config.machine_labels(platform = nil)
     os_labels =
-      case get_platform
+      case get_platform(platform)
       when :MAC_OS then ['unix', 'osx', 'mac']
+      when :WINDOWS then ['win']
       when :LINUX then ['unix', 'linux']
-      else ['win']
       end
     os_labels
   end

@@ -27,6 +27,17 @@ RSpec.describe 'Config' do
       expect(Config.get_config_value(example_dict, '<a>')).to eq(value)
     end
   end
+  
+  it 'should return machine labels' do
+    expect(Config.machine_labels 'mswin').to eq(['win'])
+    expect(Config.machine_labels 'mingw').to eq(['win'])
+    expect(Config.machine_labels 'bccwin').to eq(['win'])
+    expect(Config.machine_labels 'wince').to eq(['win'])
+    expect(Config.machine_labels 'emx').to eq(['win'])
+    expect(Config.machine_labels 'cygwin').to eq(['win'])
+    expect(Config.machine_labels 'x86_64-darwin14').to eq(['unix', 'osx', 'mac'])
+    expect(Config.machine_labels 'ubuntu').to eq(['unix', 'linux'])
+  end
 end
 
 end # module Setup
