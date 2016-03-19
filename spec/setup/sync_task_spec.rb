@@ -7,7 +7,7 @@ module Setup
 
 RSpec.describe 'SyncTask' do
   let(:io) { instance_double(InputOutput::File_IO) }
-  let(:host_info) { { label: '<win>', restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
+  let(:host_info) { { labels: ['<win>'], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
 
   def get_sync_task(config, expected_sync_items)
     sync_items = expected_sync_items.map { |sync_item| instance_double('FileSync') }
@@ -25,14 +25,14 @@ RSpec.describe 'SyncTask' do
       expect(SyncTask.new({}, {}, io).should_execute).to be true
       expect(SyncTask.new({'platforms' => nil}, {}, io).should_execute).to be true
       expect(SyncTask.new({'platforms' => []}, {}, io).should_execute).to be true
-      expect(SyncTask.new({'platforms' => []}, {label: '<lin>'}, io).should_execute).to be true
-      expect(SyncTask.new({'platforms' => ['<lin>']}, {label: '<lin>'}, io).should_execute).to be true
-      expect(SyncTask.new({'platforms' => ['<lin>', '<mac>']}, {label: '<lin>'}, io).should_execute).to be true
+      expect(SyncTask.new({'platforms' => []}, {labels: ['<lin>']}, io).should_execute).to be true
+      expect(SyncTask.new({'platforms' => ['<lin>']}, {labels: ['<lin>']}, io).should_execute).to be true
+      expect(SyncTask.new({'platforms' => ['<lin>', '<mac>']}, {labels: ['<lin>']}, io).should_execute).to be true
     end
 
     it 'should not execute if platform is not fulfilled' do
       expect(SyncTask.new({'platforms' => ['<lin>']}, {}, io).should_execute).to be false
-      expect(SyncTask.new({'platforms' => ['<lin>']}, {label: '<win>'}, io).should_execute).to be false
+      expect(SyncTask.new({'platforms' => ['<lin>']}, {labels: ['<win>']}, io).should_execute).to be false
     end
 
     it 'should not create sync objects if files missing' do

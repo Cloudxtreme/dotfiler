@@ -15,13 +15,13 @@ class SyncTask
   def initialize(config, host_info = nil, io = nil)
     raise 'Expected io to be non nil' if io.nil?
     host_info ||= {}
-    label = host_info[:label]
-    restore_root = Setup::Config.get_config_value(config['root'], label) || ''
+    labels = host_info[:labels] || []
+    restore_root = Setup::Config.get_config_value(config['root'], labels) || ''
     @platforms = config['platforms'] || []
 
     @io = io
     @name = config['name']
-    @should_execute = Config::has_matching_label label, @platforms
+    @should_execute = Config::has_matching_label labels, @platforms
     @sync_items = (config['files'] || [])
       .map { |file_config| SyncTask.resolve_sync_item file_config, restore_root, @name, host_info, io }
       .flatten(1)
@@ -68,7 +68,7 @@ class SyncTask
 
   # Resolve `file_config` into `FileSyncStatus` configuration.
   def SyncTask.resolve_sync_item_config(file_config, restore_root, name, host_info)
-    label = host_info[:label]
+    label = host_info[:labels]
     default_restore_root = host_info[:restore_root]
     default_backup_root = host_info[:backup_root]
 

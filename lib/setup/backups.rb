@@ -15,7 +15,7 @@ module Setup
 # Disabled task names contains the list of tasks that should be skipped.
 # New tasks are tasks for which there are any files to sync but are not part of any lists.
 class Backup
-  attr_accessor :enabled_task_names, :disabled_task_names, :tasks, :backup_config_path
+  attr_accessor :enabled_task_names, :disabled_task_names, :tasks
   DEFAULT_BACKUP_DIR = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_CONFIG_PATH = 'config.yml'
   BACKUP_TASKS_PATH = '_tasks'
@@ -23,50 +23,48 @@ class Backup
 
   def initialize(backup_path, host_info, io, store_factory)
     host_info = host_info.merge backup_root: backup_path
-    @backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
-    @store = store_factory.new @backup_config_path
-    @io = io
-    backup_config = YAML.load @io.read @backup_config_path
+    backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
 
     backup_tasks_path = Pathname(backup_path).join(BACKUP_TASKS_PATH)
-    backup_tasks = get_backup_tasks backup_tasks_path, host_info
-    app_tasks = get_backup_tasks APPLICATIONS_DIR, host_info
-      
-    @store.transaction(true) do |store|
-      @enabled_task_names = Set.new(store['enabled_task_names'] || [])
-      @disabled_task_names = Set.new(store['disabled_task_names'] || [])
-    end
+    backup_tasks = get_backup_tasks backup_tasks_path, host_info, io
+    app_tasks = get_backup_tasks APPLICATIONS_DIR, host_info, io
     @tasks = app_tasks.merge(backup_tasks)
+      
+    @store = store_factory.new backup_config_path
+    @store.transaction(true) do |store|
+      @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
+      @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
+    end
   end
   
   def enable_tasks(task_names)
-    task_names = Set.new(task_names).intersection Set.new(tasks_to_run)
-    @enabled_task_names += task_names
-    @disabled_task_names -= task_names
-    save_config
+    task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
+    @enabled_task_names += task_names_set
+    @disabled_task_names -= task_names_set
+    save_config if not task_names_set.empty?
   end
   
   def disable_tasks(task_names)
-    task_names = Set.new(task_names).intersection Set.new(tasks_to_run)
-    @enabled_task_name -= task_names
-    @disabled_task_names += task_names
-    save_config
+    task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
+    @enabled_task_names -= task_names_set
+    @disabled_task_names += task_names_set
+    save_config if not task_names_set.empty?
   end
 
   # Finds newly added tasks that can be run on this machine.
   # These tasks have not been yet added to the config file's enabled_task_names or disabled_task_names properties.
   def new_tasks
-    @tasks.select { |task_name, task| task.should_execute and task.has_data and not is_enabled(task_name) and not is_disabled(task_name) }
+    @tasks.select { |task_name, task| not is_enabled(task_name) and not is_disabled(task_name) and task.should_execute and task.has_data }
   end
 
   # Finds tasks that should be run under a given machine.
   # This will include tasks that contain errors and do not have data.
   def tasks_to_run
-    @tasks.select { |task_name, task| task.should_execute and is_enabled(task_name) }
+    @tasks.select { |task_name, task| is_enabled(task_name) and task.should_execute }
   end
 
   def save_config
-    @store.transaction { |s| s[:data] = YAML.dump({'enabled_task_names' => @enabled_task_names.to_a, 'disabled_task_names' => @disabled_task_names.to_a}) }
+    @store.transaction { |s| s[:data] = {'enabled_task_names' => @enabled_task_names.to_a, 'disabled_task_names' => @disabled_task_names.to_a} }
   end
 
   def Backup.resolve_backup(backup_str, options)
@@ -84,17 +82,18 @@ class Backup
   private
   
   # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_path, host_info)
-    # TODO: handle case when the task is not in valid yaml format.
-    SyncTask.new(YAML.load(@io.read(task_path)), host_info, @io)
+  def get_backup_task(task_path, host_info, io)
+    config = YAML.load(io.read(task_path))
+    SyncTask.new(config, host_info, io) if config
   end
 
   # Constructs backup tasks that can be found a task folder.
-  def get_backup_tasks(tasks_path, host_info)
-    return {} if not @io.exist? tasks_path
-    (@io.entries tasks_path)
+  def get_backup_tasks(tasks_path, host_info, io)
+    return {} if not io.exist? tasks_path
+    (io.entries tasks_path)
       .select { |path| path.extname == '.yml' }
-      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, host_info)] }
+      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(tasks_path.join(task_path), host_info, io)] }
+      .select { |task_name, task| not task.nil? }
       .to_h
   end
 
@@ -149,9 +148,8 @@ class BackupManager
   private
 
   # Gets the host info of the current machine.
-  # TODO: handle multiple machine labels.
   def get_host_info
-    {label: Config.machine_labels[0], restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new}
+    {label: Config.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new}
   end
 
   # Returns the paths where backups are kept.
@@ -182,7 +180,7 @@ def backups_print_new_tasks(backups = nil)
   backups ||= get_backups
   backup_new_tasks = new_backup_tasks backups
   puts 'These applications can be backed up:'
-  new_tasks_per_backup.each do |backup, new_tasks|
+  backup_new_tasks.each do |backup, new_tasks|
     puts backup.name
     puts new_tasks.map(&:name).join(' ')
   end

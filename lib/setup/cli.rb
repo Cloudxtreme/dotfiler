@@ -96,7 +96,7 @@ class SetupCLI < Thor
     
     backup_manager = get_backups_manager(options)
     backup_strs.map { |backup_str| Backup::resolve_backup(backup_str, options) }
-      .each &backup_manager.method(:create_backup)
+      .each backup_manager.method(&:create_backup)
 
     restore
     backup
