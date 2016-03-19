@@ -19,6 +19,7 @@ RSpec.describe 'Common_IO' do
     assert_delegates DRY_IO, File, :exist?, 'path'
     assert_delegates DRY_IO, File, :identical?, 'path1', 'path2'
     assert_delegates DRY_IO, Dir, :glob, 'path'
+    assert_delegates DRY_IO, Dir, :entries, 'path'
     assert_delegates DRY_IO, IO, :read, 'path'
   end
 end

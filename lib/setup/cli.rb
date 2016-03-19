@@ -28,12 +28,12 @@ class AppCLI < Thor
   
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
-    get_backups_manager(options).update_backups { |backup| backup.enable_tasks names }
+    get_backups_manager(options).get_backups.map { |backup| backup.enable_tasks names }
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
-    get_backups_manager(options).update_backups { |backup| backup.disable_tasks names }
+    get_backups_manager(options).get_backups.map { |backup| backup.disable_tasks names }
   end
 
   desc 'list', 'Lists apps for which settings can be backed up.'

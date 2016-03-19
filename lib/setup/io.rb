@@ -10,7 +10,7 @@ module InputOutput
 class Common_IO
   extend Forwardable
   def_delegators File, :directory?, :exist?, :identical?
-  def_delegators Dir, :glob
+  def_delegators Dir, :glob, :entries
   def_delegators IO, :read
   
   def junction(target_path, link_path)
