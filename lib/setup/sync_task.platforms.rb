@@ -41,9 +41,9 @@ class Config
       end
     os_labels
   end
-  
+
   private
-  
+
   def Config.is_label(name)
     /<.*>/.match name
   end

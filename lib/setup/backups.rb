@@ -29,21 +29,21 @@ class Backup
     backup_tasks = get_backup_tasks backup_tasks_path, host_info, io
     app_tasks = get_backup_tasks APPLICATIONS_DIR, host_info, io
     @tasks = app_tasks.merge(backup_tasks)
-      
+
     @store = store_factory.new backup_config_path
     @store.transaction(true) do |store|
       @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
   end
-  
+
   def enable_tasks(task_names)
     task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
     @enabled_task_names += task_names_set
     @disabled_task_names -= task_names_set
     save_config if not task_names_set.empty?
   end
-  
+
   def disable_tasks(task_names)
     task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
     @enabled_task_names -= task_names_set
@@ -80,7 +80,7 @@ class Backup
   end
 
   private
-  
+
   # Constructs a backup task given a task yaml configuration.
   def get_backup_task(task_path, host_info, io)
     config = YAML.load(io.read(task_path))
@@ -104,7 +104,7 @@ class Backup
   def is_disabled(task_name)
     @disabled_task_names.any? { |disabled_task_name| disabled_task_name.casecmp(task_name) == 0 }
   end
-  
+
   def Backup.is_path(path)
     path.start_with?('..') || path.start_with?('.') || path.start_with?('~') || Pathname.new(path).absolute?
   end
@@ -120,11 +120,6 @@ class BackupManager
     @store_factory = options[:store_factory] || YAML::Store
     @store = @store_factory.new((options[:config_path] || DEFAULT_CONFIG_PATH))
   end
-  
-  def new_backup_tasks(backups)
-    backups.map { |backup| [backup, backup.new_tasks] }
-      .select { |_, new_tasks| not new_tasks.empty? }
-  end
 
   # Gets backups found on a given machine.
   def get_backups
@@ -139,7 +134,7 @@ class BackupManager
       puts "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end
-    
+
     @io.mkdir_p backup_dir if not backup_exists
     @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\"" if source_url
     @store.transaction { |store| store['backups'] = store['backups'] << backup_dir }
@@ -155,34 +150,6 @@ class BackupManager
   # Returns the paths where backups are kept.
   def get_backup_paths
     @store.transaction(true) { |store| store.fetch('backups', []) }
-  end
-end
-
-# Detects any newly added apps/packages.
-# Queries the user to add newly defined applications in backups.
-# TODO: simplify together with print_new_tasks
-# TODO: possibly move outside of the backup manager class.
-def classify_new_tasks(backups = nil, &prompt_agree)
-  backup_new_tasks = new_backup_tasks backups
-  return if backup_new_tasks.empty?
-  
-  backups_print_new_tasks backups
-  if prompt_agree.call
-    backups.each { |backup| backup.enable_tasks backup.new_tasks }
-  else
-    backups.each { |backup| backup.disable_tasks backup.new_tasks }
-    puts 'You can always add these apps later using "setup app add <app names>".'
-  end
-end
-
-# TODO: used in lists.
-def backups_print_new_tasks(backups = nil)
-  backups ||= get_backups
-  backup_new_tasks = new_backup_tasks backups
-  puts 'These applications can be backed up:'
-  backup_new_tasks.each do |backup, new_tasks|
-    puts backup.name
-    puts new_tasks.map(&:name).join(' ')
   end
 end
 

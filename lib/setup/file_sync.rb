@@ -10,7 +10,7 @@ class FileSync
     @sync_time = (sync_time || Time.new).strftime '%Y%m%d%H%M%S'
     @io = io
   end
-  
+
   def cleanup(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     cleanup_globs(options).map { |glob| @io.glob glob }.flatten
@@ -106,7 +106,7 @@ class FileSyncInfo
       @status = get_status options, io
     end
   end
-  
+
   private
 
   def get_errors(sync_action, options, io)

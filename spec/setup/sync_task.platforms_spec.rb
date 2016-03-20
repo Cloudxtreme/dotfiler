@@ -3,7 +3,7 @@ require 'setup/sync_task.platforms'
 module Setup
 
 RSpec.describe 'Config' do
-  describe 'get_config_value' do
+  describe '#get_config_value' do
     it 'should get raw values' do
       expect(Config.get_config_value(12, ['a'])).to eq(12)
       expect(Config.get_config_value('str', ['a'])).to eq('str')
@@ -27,16 +27,16 @@ RSpec.describe 'Config' do
       expect(Config.get_config_value(example_dict, ['<a>'])).to eq(value)
     end
   end
-  
-  it 'should return machine labels' do
-    expect(Config.machine_labels 'mswin').to eq(['win'])
-    expect(Config.machine_labels 'mingw').to eq(['win'])
-    expect(Config.machine_labels 'bccwin').to eq(['win'])
-    expect(Config.machine_labels 'wince').to eq(['win'])
-    expect(Config.machine_labels 'emx').to eq(['win'])
-    expect(Config.machine_labels 'cygwin').to eq(['win'])
-    expect(Config.machine_labels 'x86_64-darwin14').to eq(['unix', 'osx', 'mac'])
-    expect(Config.machine_labels 'ubuntu').to eq(['unix', 'linux'])
+
+  describe '#machine_labels' do
+    it { expect(Config.machine_labels 'mswin').to eq(['win']) }
+    it { expect(Config.machine_labels 'mingw').to eq(['win']) }
+    it { expect(Config.machine_labels 'bccwin').to eq(['win']) }
+    it { expect(Config.machine_labels 'wince').to eq(['win']) }
+    it { expect(Config.machine_labels 'emx').to eq(['win']) }
+    it { expect(Config.machine_labels 'cygwin').to eq(['win']) }
+    it { expect(Config.machine_labels 'x86_64-darwin14').to eq(['unix', 'osx', 'mac']) }
+    it { expect(Config.machine_labels 'ubuntu').to eq(['unix', 'linux']) }
   end
 end
 

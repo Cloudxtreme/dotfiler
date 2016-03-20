@@ -47,26 +47,12 @@ RSpec.describe 'Dry_IO' do
   include AssertDelegate
 
   it 'prints all write io operations' do
-    # TODO: should stdout be pushed to the class?
-    # TODO: get rid of stdout actually being called.
-    # TODO: add a global logger?
-    expect($stdout).to receive(:puts).with('link source: path1 dest: path2')
-    DRY_IO.link 'path1', 'path2'
-
-    expect($stdout).to receive(:puts).with('cp_r source: path1 dest: path2')
-    DRY_IO.cp_r 'path1', 'path2'
-
-    expect($stdout).to receive(:puts).with('mkdir_p path: path')
-    DRY_IO.mkdir_p 'path'
-
-    expect($stdout).to receive(:puts).with('rm_rf path: path')
-    DRY_IO.rm_rf 'path'
-
-    expect($stdout).to receive(:puts).with('cmd /c "mklink /J "path2" "path1""')
-    DRY_IO.junction 'path1', 'path2'
-    
-    expect($stdout).to receive(:puts).with('echo hello world')
-    DRY_IO.shell 'echo hello world'
+    expect(capture(:stdout) { DRY_IO.link 'path1', 'path2' }).to eq("link source: path1 dest: path2\n")
+    expect(capture(:stdout) { DRY_IO.cp_r 'path1', 'path2' }).to eq("cp_r source: path1 dest: path2\n")
+    expect(capture(:stdout) { DRY_IO.mkdir_p 'path' }).to eq("mkdir_p path: path\n")
+    expect(capture(:stdout) { DRY_IO.rm_rf 'path' }).to eq("rm_rf path: path\n")
+    expect(capture(:stdout) { DRY_IO.junction 'path1', 'path2' }).to eq("cmd /c \"mklink /J \"path2\" \"path1\"\"\n")
+    expect(capture(:stdout) { DRY_IO.shell 'echo hello world' }).to eq("echo hello world\n")
   end
 end
 

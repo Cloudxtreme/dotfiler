@@ -4,61 +4,97 @@ require 'setup/io'
 
 module Setup
 
-RSpec.describe Cli::SetupCLI do
-  let(:setup_cli) { Cli::SetupCLI.new }
-  describe 'get_io' do
-    it 'should dry run when passing the dry option' do
-      expect(setup_cli.get_io dry: true).to eq(DRY_IO)
+$thor_runner = true
+
+RSpec.describe Cli::AppCLI do
+  let(:app_cli) { Cli::AppCLI.new }
+  let(:backup_manager) { instance_double(Setup::BackupManager) }
+
+  describe '#get_io' do
+    it { expect(app_cli.get_io).to eq(CONCRETE_IO) }
+    it { expect(app_cli.get_io dry: true).to eq(DRY_IO) }
+  end
+
+  describe '#get_backups_manager' do
+    it 'creates backup manager with default parameters when no options given' do
+      expect(Setup::BackupManager).to receive(:new).with(io: CONCRETE_IO, config_path: nil).and_return backup_manager
+      expect(app_cli.get_backups_manager).to eq(backup_manager)
     end
 
-    it 'should concrete run without passing the dry option' do
-      expect(setup_cli.get_io).to eq(CONCRETE_IO)
+    it 'creates backup manager with passed in options' do
+      expect(Setup::BackupManager).to receive(:new).with(io: DRY_IO, config_path: '/config/path').and_return backup_manager
+      expect(app_cli.get_backups_manager({ dry: true, config: '/config/path' })).to eq(backup_manager)
     end
   end
-  
+end
+
+RSpec.describe Cli::SetupCLI do
+  let(:setup_cli) { Cli::SetupCLI.new }
+  let(:backup_manager) { instance_double(Setup::BackupManager) }
+
+  describe '#get_io' do
+    it { expect(setup_cli.get_io dry: true).to eq(DRY_IO) }
+    it { expect(setup_cli.get_io).to eq(CONCRETE_IO) }
+  end
+
+  describe '#get_backups_manager' do
+    it 'creates backup manager with default parameters when no options given' do
+      expect(Setup::BackupManager).to receive(:new).with(io: CONCRETE_IO, config_path: nil).and_return backup_manager
+      expect(setup_cli.get_backups_manager).to eq(backup_manager)
+    end
+
+    it 'creates backup manager with passed in options' do
+      expect(Setup::BackupManager).to receive(:new).with(io: DRY_IO, config_path: '/config/path').and_return backup_manager
+      expect(setup_cli.get_backups_manager({ dry: true, config: '/config/path' })).to eq(backup_manager)
+    end
+  end
+
   describe 'get_tasks' do
   end
 end
 
 # Integration tests.
 RSpec.describe './setup' do
-  let(:setup_cli) { Cli::SetupCLI.new }
-  
-  describe 'init' do
+  let(:io) { Setup::CONCRETE_IO }
+  let(:dry_io) { Setup::DRY_IO }
+
+  describe './setup --help' do
+    it { capture(:stdout) { Cli::SetupCLI.start %w[--help] } }
+  end
+
+  describe './setup init' do
     it 'should work'
-    # setup_cli.options = {output: ''}
-    # setup_cli.init 'file:///drognanar/field', 'b'
-    # setup_cli.init 'git://url'
 
-    # puts '--create_single_dir'
-    # puts '--out=dir'
-    # puts '--name=n'
-    # puts 'setup init [paths...] [--create_single_dir] [--out=dir] [--name=name]'
-    # puts 'setup init a --out=b; setup init c --out=d; setup init e --out=f; setup init g --out=h; setup init i -o j'
+    # TODO: create a temp directory.
+    # TODO: you might need to mock io operations (git clone)
+    # TODO: then deal with the rest of the filesystem
   end
 
-  describe 'backup' do
+  describe 'init' do
   end
 
-  describe 'restore' do
+  describe './setup backup' do
   end
 
-  describe 'cleanup' do
+  describe './setup restore' do
   end
 
-  describe 'status' do
+  describe './setup cleanup' do
+  end
+
+  describe './setup status' do
     it 'should print status' do
     end
   end
 
-  describe 'app' do
-    describe 'add' do
+  describe './setup app' do
+    describe './setup app add' do
     end
 
-    describe 'remove' do
+    describe './setup app remove' do
     end
 
-    describe 'list' do
+    describe './setup app list' do
     end
   end
 end

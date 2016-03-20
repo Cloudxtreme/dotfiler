@@ -2,7 +2,7 @@
 # An IRB console to use setup interactively.
 
 require 'bundler/setup'
-require 'setup/app'
+require 'setup/cli'
 
 require 'awesome_print'
 require 'irb'

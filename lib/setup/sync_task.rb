@@ -26,7 +26,7 @@ class SyncTask
       .map { |file_config| SyncTask.resolve_sync_item file_config, restore_root, @name, host_info, io }
       .flatten(1)
   end
-  
+
   def has_data(options = {})
     @sync_items.any? { |sync_item, sync_options| sync_item.has_data sync_options.merge(options) }
   end

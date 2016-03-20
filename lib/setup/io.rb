@@ -12,7 +12,7 @@ class Common_IO
   def_delegators File, :directory?, :exist?, :identical?
   def_delegators Dir, :glob, :entries
   def_delegators IO, :read
-  
+
   def junction(target_path, link_path)
     shell "cmd /c \"mklink /J \"#{link_path}\" \"#{target_path}\"\""
   end
