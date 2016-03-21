@@ -49,8 +49,6 @@ end
 
 class SetupCLI < Thor
   no_commands {
-    DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles/local'
-
     def get_io(options = {})
       options[:dry] ? DRY_IO : CONCRETE_IO
     end
@@ -60,17 +58,19 @@ class SetupCLI < Thor
     end
 
     # Prompts to enable new tasks.
-    def prompt_to_enable_new_tasks(backups)
+    def prompt_to_enable_new_tasks(backups_with_new_tasks, options)
       puts 'These applications can be backed up:'
-      backup_new_tasks.each do |_, backup|
-        puts backup.name
-        puts backup.new_tasks.map(&:name).join(' ')
+      backups_with_new_tasks.each do |backup|
+        puts backup.backup_path
+        puts backup.new_tasks.keys.join(' ')
       end
 
-      if Commandline.agree 'Backup all of these applications? [y/n]'
-        backups.each_value { |backup| backup.enable_tasks backup.new_tasks }
+      # TODO: validate json schemas
+      prompt_accept = (options[:enable_new] == 'prompt' and Commandline.agree('Backup all of these applications? [y/n]'))
+      if options[:enable_new] == 'all' or prompt_accept
+        backups_with_new_tasks.each { |backup| backup.enable_tasks backup.new_tasks.keys }
       else
-        backups.each_value { |backup| backup.disable_tasks backup.new_tasks }
+        backups_with_new_tasks.each { |backup| backup.disable_tasks backup.new_tasks.keys }
         puts 'You can always add these apps later using "setup app add <app names>".'
       end
     end
@@ -79,9 +79,9 @@ class SetupCLI < Thor
     # @param Hash options the options to get the tasks with.
     def get_tasks(options = {})
       backups = get_backups_manager(options).get_backups
-      backups_with_new_tasks = backups.select { |backup| not backup.new_tas.empty? }
+      backups_with_new_tasks = backups.select { |backup| not backup.new_tasks.empty? }
       if not backups_with_new_tasks.empty? and not options[:skip_new_tasks]
-        prompt_to_enable_new_tasks backups
+        prompt_to_enable_new_tasks backups_with_new_tasks, options
       end
       backups.map(&:tasks_to_run).map(&:values).flatten
     end
@@ -110,17 +110,18 @@ class SetupCLI < Thor
     end
   }
 
+  # TODO: how to allow the --dry option for this command?
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', type: :string
   option 'config', type: :string
+  option 'enable_new', type: :string, default: 'prompt'
   def init(*backup_strs)
-    backup_strs = [SetupCLI.DEFAULT_BACKUP_ROOT] if backup_strs.empty?
+    backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
     backup_manager = get_backups_manager(options)
     backup_strs.map { |backup_str| Backup::resolve_backup(backup_str, options) }
-      .each backup_manager.method(&:create_backup)
+      .each { |backup| backup_manager.create_backup(backup) }
 
-    # TODO: how to make a dry YAML store?
     if not options[:dry]
       restore
       backup
@@ -141,12 +142,12 @@ class SetupCLI < Thor
     run_tasks_with_progress(get_tasks(options), 'Restore') { |task| task.restore! }
   end
 
+  # TODO: include untracked files. Glob through the backup directory.
   desc 'cleanup', 'Cleans up previous backups'
-  option 'confirm', type: :boolean, default: false
+  option 'confirm', type: :boolean, default: true
   option 'dry', type: :boolean, default: :false
   option 'config', type: :string
   def cleanup
-    # TODO: include untracked files. Glob through the backup directory.
     cleanup_files_per_task = get_tasks.map { |task| [task, task.cleanup] }.to_h
     if options[:confirm]
       cleanup_files_per_task.each do |task, cleanup_files|

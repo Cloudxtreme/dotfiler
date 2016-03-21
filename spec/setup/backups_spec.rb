@@ -15,7 +15,7 @@ RSpec.describe Backup do
   let(:local_task_d)  { instance_double(SyncTask) }
   let(:app_task_a)    { instance_double(SyncTask) }
   let(:app_task_b2)   { instance_double(SyncTask) }
-  let(:local_tasks)   { { 'a.yml' => local_task_a, 'b' => '', 'c.yml' => local_task_c, 'd.yml' => local_task_d } }
+  let(:local_tasks)   { { 'a.yml' => local_task_a, 'b' => '', 'c.yml' => local_task_c, 'd.yml' => local_task_d, '.' => '' } }
   let(:app_tasks)     { { 'a.yml' => app_task_a, 'b2.yml' => app_task_b2, 'invalid.yml' => '---', 'invalid2.yml' => '' } }
 
   def mock_tasks(tasks_dir, tasks)
@@ -23,10 +23,9 @@ RSpec.describe Backup do
 
     backup_dir = Pathname('/backup/dir')
 
-    entries = tasks.keys.map { |path| Pathname(path) }
-    allow(io).to receive(:entries).with(tasks_dir).and_return entries
+    allow(io).to receive(:entries).with(Pathname(tasks_dir)).and_return tasks.keys
     tasks.map do |task_path, task|
-      full_task_path = tasks_dir.join(task_path)
+      full_task_path = Pathname(tasks_dir).join(task_path)
       full_host_info = host_info.merge backup_root: backup_dir.to_s
       config = { 'path' => full_task_path.to_s }
 
@@ -41,13 +40,13 @@ RSpec.describe Backup do
 
   def get_backup(local_tasks, app_tasks, enabled_tasks, disabled_tasks)
     expect(io).to receive(:exist?).with(Pathname('/backup/dir/_tasks')).and_return (not local_tasks.empty?)
-    expect(io).to receive(:exist?).with(Backup::APPLICATIONS_DIR).and_return (not app_tasks.empty?)
+    expect(io).to receive(:exist?).with(Pathname(Backup::APPLICATIONS_DIR)).and_return (not app_tasks.empty?)
     expect(store_factory).to receive(:new).and_return backup_store
     expect(backup_store).to receive(:transaction).with(true).and_yield backup_store
     expect(backup_store).to receive(:fetch).with('enabled_task_names', []).and_return enabled_tasks
     expect(backup_store).to receive(:fetch).with('disabled_task_names', []).and_return disabled_tasks
 
-    mock_tasks Pathname('/backup/dir/_tasks'), local_tasks
+    mock_tasks '/backup/dir/_tasks', local_tasks
     mock_tasks Backup::APPLICATIONS_DIR, app_tasks
 
     Backup.new '/backup/dir', host_info, io, store_factory
@@ -80,10 +79,10 @@ RSpec.describe Backup do
   end
 
   def verify_backup_save(backup, update_names, expected_task_names)
-    new_data = {'enabled_task_names' => expected_task_names[:enabled], 'disabled_task_names' => expected_task_names[:disabled] }
     if not Set.new(update_names).intersection(Set.new(backup.tasks.keys)).empty?
       expect(backup_store).to receive(:transaction).with(no_args).and_yield backup_store
-      expect(backup_store).to receive(:[]=).with(:data, new_data)
+      expect(backup_store).to receive(:[]=).with('enabled_task_names', expected_task_names[:enabled])
+      expect(backup_store).to receive(:[]=).with('disabled_task_names', expected_task_names[:disabled])
     end
   end
 
@@ -227,35 +226,48 @@ RSpec.describe BackupManager do
   end
 
   describe '#create_backup' do
+    it 'should not create backup if already added to the manager' do
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
+
+      expected_output = 'Backup "/existing/backup/" already exists.' + "\n"
+      expect(capture(:stdout) { backup_manager.create_backup ['/existing/backup/', nil] }).to eq(expected_output)
+    end
+
     it 'should not create backup if backup directory is not empty' do
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').and_return true
       expect(io).to receive(:entries).with('/backup/dir').and_return ['a']
-      backup_manager.create_backup ['/backup/dir', nil]
+
+      expected_output = 'Cannot create backup. The folder /backup/dir already exists and is not empty.' + "\n"
+      expect(capture(:stdout) { backup_manager.create_backup ['/backup/dir', nil] }).to eq(expected_output)
     end
 
     it 'should update configuration file if directory already present' do
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').and_return true
       expect(io).to receive(:entries).with('/backup/dir').and_return []
-      expect(manager_store).to receive(:[]).with('backups').and_return ['/existing/backup/']
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', nil]
     end
 
     it 'should clone the repository if source present' do
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').and_return true
       expect(io).to receive(:entries).with('/backup/dir').and_return []
       expect(io).to receive(:shell).with('git clone "example.com/username/dotfiles" -o "/backup/dir"')
-      expect(manager_store).to receive(:[]).with('backups').and_return ['/existing/backup/']
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', 'example.com/username/dotfiles']
     end
 
     it 'should create the folder if missing' do
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').and_return false
       expect(io).to receive(:mkdir_p).with('/backup/dir')
-      expect(manager_store).to receive(:[]).with('backups').and_return ['/existing/backup/']
+      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
       expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', nil]

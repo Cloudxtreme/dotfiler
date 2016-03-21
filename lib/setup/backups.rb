@@ -15,11 +15,12 @@ module Setup
 # Disabled task names contains the list of tasks that should be skipped.
 # New tasks are tasks for which there are any files to sync but are not part of any lists.
 class Backup
-  attr_accessor :enabled_task_names, :disabled_task_names, :tasks
-  DEFAULT_BACKUP_DIR = File.expand_path '~/dotfiles'
+  attr_accessor :enabled_task_names, :disabled_task_names, :tasks, :backup_path
+  DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
+  DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   DEFAULT_BACKUP_CONFIG_PATH = 'config.yml'
   BACKUP_TASKS_PATH = '_tasks'
-  APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications')
+  APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
   def initialize(backup_path, host_info, io, store_factory)
     host_info = host_info.merge backup_root: backup_path
@@ -27,9 +28,10 @@ class Backup
 
     backup_tasks_path = Pathname(backup_path).join(BACKUP_TASKS_PATH)
     backup_tasks = get_backup_tasks backup_tasks_path, host_info, io
-    app_tasks = get_backup_tasks APPLICATIONS_DIR, host_info, io
+    app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), host_info, io
     @tasks = app_tasks.merge(backup_tasks)
 
+    @backup_path = backup_path
     @store = store_factory.new backup_config_path
     @store.transaction(true) do |store|
       @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
@@ -64,12 +66,16 @@ class Backup
   end
 
   def save_config
-    @store.transaction { |s| s[:data] = {'enabled_task_names' => @enabled_task_names.to_a, 'disabled_task_names' => @disabled_task_names.to_a} }
+    @store.transaction do |s|
+      s['enabled_task_names'] = @enabled_task_names.to_a
+      s['disabled_task_names'] = @disabled_task_names.to_a
+    end
   end
 
   def Backup.resolve_backup(backup_str, options)
     sep = backup_str.index ':'
-    backup_dir = options[:backup_dir] || DEFAULT_BACKUP_DIR
+    backup_dir = options[:backup_dir] || DEFAULT_BACKUP_ROOT
+    # TODO: handle local git folders.
     if not sep.nil?
       [File.expand_path(backup_str[0..sep-1]), backup_str[sep+1..-1]]
     elsif is_path(backup_str)
@@ -82,17 +88,18 @@ class Backup
   private
 
   # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_path, host_info, io)
-    config = YAML.load(io.read(task_path))
+  def get_backup_task(task_pathname, host_info, io)
+    config = YAML.load(io.read(task_pathname))
     SyncTask.new(config, host_info, io) if config
   end
 
   # Constructs backup tasks that can be found a task folder.
-  def get_backup_tasks(tasks_path, host_info, io)
-    return {} if not io.exist? tasks_path
-    (io.entries tasks_path)
-      .select { |path| path.extname == '.yml' }
-      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(tasks_path.join(task_path), host_info, io)] }
+  def get_backup_tasks(tasks_pathname, host_info, io)
+    return {} if not io.exist? tasks_pathname
+    (io.entries tasks_pathname)
+      .map { |task_path| Pathname(task_path) }
+      .select { |task_pathname| task_pathname.extname == '.yml' }
+      .map { |task_pathname| [File.basename(task_pathname, '.*'), get_backup_task(tasks_pathname.join(task_pathname), host_info, io)] }
       .select { |task_name, task| not task.nil? }
       .to_h
   end
@@ -111,7 +118,7 @@ class Backup
 end
 
 class BackupManager
-  DEFAULT_CONFIG_PATH = File.expand_path '~/dotfiles/config.yml'
+  DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
   def initialize(options = {})
@@ -129,6 +136,13 @@ class BackupManager
   # Creates a new backup and registers it in the global yaml configuration.
   def create_backup(resolved_backup)
     backup_dir, source_url = resolved_backup
+
+    existing_backups = @store.transaction { |store| store.fetch('backups', []) }
+    if existing_backups.include? backup_dir
+      puts "Backup \"#{backup_dir}\" already exists."
+      return
+    end
+
     backup_exists = @io.exist?(backup_dir)
     if backup_exists and not @io.entries(backup_dir).empty?
       puts "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
@@ -137,7 +151,7 @@ class BackupManager
 
     @io.mkdir_p backup_dir if not backup_exists
     @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\"" if source_url
-    @store.transaction { |store| store['backups'] = store['backups'] << backup_dir }
+    @store.transaction { |store| store['backups'] = store.fetch('backups', []) << backup_dir }
   end
 
   private
