@@ -14,10 +14,10 @@ def mock_files(io, files)
 end
 end
 
-RSpec.describe 'FileSync' do
+RSpec.describe FileSync do
   include MockIo
-  let(:io)   { instance_double(InputOutput::File_IO) }
-  let(:time) { instance_double(Time, strftime: '20160404111213' ) }
+  let(:io)                   { instance_double(InputOutput::File_IO) }
+  let(:time)                 { instance_double(Time, strftime: '20160404111213' ) }
   let(:symlink_sync_options) { { backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
   let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
   let(:info_with_errors)     { get_sync_info errors: 'err' }
@@ -145,7 +145,7 @@ RSpec.describe 'FileSync' do
   end
 end
 
-RSpec.describe 'FileSyncInfo' do
+RSpec.describe FileSyncInfo do
   include MockIo
   let(:io)                { instance_double('File_IO') }
   let(:example_options1)  { { enabled: true, backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }

@@ -6,7 +6,7 @@ require 'setup/io'
 module Setup
 
 RSpec.describe 'SyncTask' do
-  let(:io) { instance_double(InputOutput::File_IO) }
+  let(:io)        { instance_double(InputOutput::File_IO) }
   let(:host_info) { { labels: ['<win>'], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
 
   def get_sync_task(config, expected_sync_items)
@@ -123,8 +123,7 @@ RSpec.describe 'SyncTask' do
 
   # Test that configuration is correctly resolved.
   describe 'resolve_sync_item_config' do
-    it 'should obey labels' do
-    end
+    it 'should obey labels'
   end
 end
 
