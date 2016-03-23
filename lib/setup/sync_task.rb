@@ -16,12 +16,12 @@ class SyncTask
     raise 'Expected io to be non nil' if io.nil?
     host_info ||= {}
     labels = host_info[:labels] || []
-    restore_root = Setup::Config.get_config_value(config['root'], labels) || ''
+    restore_root = Platform.get_config_value(config['root'], labels) || ''
     @platforms = config['platforms'] || []
 
     @io = io
     @name = config['name']
-    @should_execute = Config::has_matching_label labels, @platforms
+    @should_execute = Platform::has_matching_label labels, @platforms
     @sync_items = (config['files'] || [])
       .map { |file_config| SyncTask.resolve_sync_item file_config, restore_root, @name, host_info, io }
       .flatten(1)
@@ -53,7 +53,7 @@ class SyncTask
 
   private
 
-  def SyncTask.escape_dotfile_path(restore_path)
+  def self.escape_dotfile_path(restore_path)
     restore_path
       .split(File::Separator)
       .map { |part| part.sub(/^\./, '_') }
@@ -61,18 +61,18 @@ class SyncTask
   end
 
   # Resolve `file_config` into a `FileSyncStatus`.
-  def SyncTask.resolve_sync_item(file_config, restore_root, name, host_info, io = IO)
+  def self.resolve_sync_item(file_config, restore_root, name, host_info, io = IO)
     resolved = resolve_sync_item_config(file_config, restore_root, name, host_info)
     resolved ? [[FileSync.new(host_info[:sync_time], io), resolved]] : []
   end
 
   # Resolve `file_config` into `FileSyncStatus` configuration.
-  def SyncTask.resolve_sync_item_config(file_config, restore_root, name, host_info)
+  def self.resolve_sync_item_config(file_config, restore_root, name, host_info)
     label = host_info[:labels]
     default_restore_root = host_info[:restore_root]
     default_backup_root = host_info[:backup_root]
 
-    resolved = Setup::Config.get_config_value(file_config, label)
+    resolved = Platform.get_config_value(file_config, label)
     if resolved.is_a? String
       restore_path = File.expand_path(Pathname(restore_root).join(resolved), default_restore_root)
       backup_path = File.expand_path(Pathname(default_backup_root).join(name, escape_dotfile_path(resolved)))
