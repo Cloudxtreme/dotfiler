@@ -39,6 +39,7 @@ RSpec.describe Backup do
   end
 
   def get_backup(local_tasks, app_tasks, enabled_tasks, disabled_tasks)
+    expect(io).to receive(:exist?).with('/backup/dir').and_return true
     expect(io).to receive(:exist?).with(Pathname('/backup/dir/_tasks')).and_return (not local_tasks.empty?)
     expect(io).to receive(:exist?).with(Pathname(Backup::APPLICATIONS_DIR)).and_return (not app_tasks.empty?)
     expect(store_factory).to receive(:new).and_return backup_store
@@ -49,7 +50,7 @@ RSpec.describe Backup do
     mock_tasks '/backup/dir/_tasks', local_tasks
     mock_tasks Backup::APPLICATIONS_DIR, app_tasks
 
-    Backup.new '/backup/dir', host_info, io, store_factory
+    Backup.new('/backup/dir', host_info, io, store_factory).load
   end
 
   describe '#initialize' do
@@ -207,7 +208,7 @@ RSpec.describe BackupManager do
     allow(backup_store1).to receive(:transaction).and_yield(backup_store1)
     allow(backup_store2).to receive(:transaction).and_yield(backup_store1)
     expect(store_factory).to receive(:new).with('/config/').and_return manager_store
-    BackupManager.new io: io, host_info: host_info, store_factory: store_factory, config_path: '/config/'
+    BackupManager.new(io: io, host_info: host_info, store_factory: store_factory, config_path: '/config/').load
   end
 
   describe '#get_backups' do
@@ -219,9 +220,10 @@ RSpec.describe BackupManager do
 
     it 'should create backups from their dirs' do
       expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/backup/dir']
-      expect(Backup).to receive(:new).with('/backup/dir', host_info, io, store_factory).and_return 'backup'
+      expect(Backup).to receive(:new).with('/backup/dir', host_info, io, store_factory).and_return backup1
+      expect(backup1).to receive(:load).and_return backup1
 
-      expect(backup_manager.get_backups).to eq(['backup'])
+      expect(backup_manager.get_backups).to eq([backup1])
     end
   end
 
@@ -234,41 +236,38 @@ RSpec.describe BackupManager do
     end
 
     it 'should not create backup if backup directory is not empty' do
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').and_return true
-      expect(io).to receive(:entries).with('/backup/dir').and_return ['a']
+      expect(manager_store).to receive(:fetch).with('backups', []).ordered.and_return ['/existing/backup/']
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
+      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return ['a']
 
       expected_output = 'Cannot create backup. The folder /backup/dir already exists and is not empty.' + "\n"
       expect(capture(:stdout) { backup_manager.create_backup ['/backup/dir', nil] }).to eq(expected_output)
     end
 
     it 'should update configuration file if directory already present' do
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').and_return true
-      expect(io).to receive(:entries).with('/backup/dir').and_return []
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
+      expect(manager_store).to receive(:fetch).with('backups', []).ordered.and_return ['/existing/backup/']
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
+      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return []
+      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', nil]
     end
 
     it 'should clone the repository if source present' do
       expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').and_return true
-      expect(io).to receive(:entries).with('/backup/dir').and_return []
-      expect(io).to receive(:shell).with('git clone "example.com/username/dotfiles" -o "/backup/dir"')
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
+      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return []
+      expect(io).to receive(:shell).with('git clone "example.com/username/dotfiles" -o "/backup/dir"').ordered
+      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', 'example.com/username/dotfiles']
     end
 
     it 'should create the folder if missing' do
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').and_return false
-      expect(io).to receive(:mkdir_p).with('/backup/dir')
-      expect(manager_store).to receive(:fetch).with('backups', []).and_return ['/existing/backup/']
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).and_return ['/backup/dir']
+      expect(manager_store).to receive(:fetch).with('backups', []).ordered.and_return ['/existing/backup/']
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return false
+      expect(io).to receive(:mkdir_p).with('/backup/dir').ordered
+      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
 
       backup_manager.create_backup ['/backup/dir', nil]
     end

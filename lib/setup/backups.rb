@@ -24,19 +24,32 @@ class Backup
 
   def initialize(backup_path, host_info, io, store_factory)
     host_info = host_info.merge backup_root: backup_path
-    backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
+    @backup_path = backup_path
+    @host_info = host_info
+    @io = io
+    @store_factory = store_factory
 
-    backup_tasks_path = Pathname(backup_path).join(BACKUP_TASKS_PATH)
-    backup_tasks = get_backup_tasks backup_tasks_path, host_info, io
-    app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), host_info, io
+    @tasks = {}
+    @enabled_task_names = Set.new
+    @disabled_task_names = Set.new
+  end
+
+  # Loads the configuration and the tasks.
+  def load
+    @io.mkdir_p @backup_path unless @io.exist? @backup_path
+
+    backup_tasks_path = Pathname(@backup_path).join(BACKUP_TASKS_PATH)
+    backup_tasks = get_backup_tasks backup_tasks_path, @host_info, @io
+    app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), @host_info, @io
     @tasks = app_tasks.merge(backup_tasks)
 
-    @backup_path = backup_path
-    @store = store_factory.new backup_config_path
+    backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
+    @store = @store_factory.new backup_config_path
     @store.transaction(true) do |store|
       @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
+    self
   end
 
   def enable_tasks(task_names)
@@ -75,7 +88,7 @@ class Backup
   def Backup.resolve_backup(backup_str, options)
     sep = backup_str.index ':'
     backup_dir = options[:backup_dir] || DEFAULT_BACKUP_ROOT
-    # TODO: handle local git folders.
+    # TODO: handle local git folders?
     if not sep.nil?
       [File.expand_path(backup_str[0..sep-1]), backup_str[sep+1..-1]]
     elsif is_path(backup_str)
@@ -118,6 +131,7 @@ class Backup
 end
 
 class BackupManager
+  attr_accessor :backups
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
@@ -125,20 +139,27 @@ class BackupManager
     @host_info = options[:host_info] || get_host_info
     @io = options[:io]
     @store_factory = options[:store_factory] || YAML::Store
-    @store = @store_factory.new((options[:config_path] || DEFAULT_CONFIG_PATH))
+    @config_path = (options[:config_path] || DEFAULT_CONFIG_PATH)
+    @backup_paths = []
+  end
+
+  # Loads backup manager configuration and backups it references.
+  def load
+    @store = @store_factory.new(@config_path)
+    @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
+    self
   end
 
   # Gets backups found on a given machine.
   def get_backups
-    get_backup_paths.map { |backup_path| Backup.new backup_path, @host_info, @io, @store_factory }
+    @backup_paths.map { |backup_path| Backup.new(backup_path, @host_info, @io, @store_factory).load }
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
   def create_backup(resolved_backup)
     backup_dir, source_url = resolved_backup
 
-    existing_backups = @store.transaction { |store| store.fetch('backups', []) }
-    if existing_backups.include? backup_dir
+    if @backup_paths.include? backup_dir
       puts "Backup \"#{backup_dir}\" already exists."
       return
     end
@@ -151,7 +172,8 @@ class BackupManager
 
     @io.mkdir_p backup_dir if not backup_exists
     @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\"" if source_url
-    @store.transaction { |store| store['backups'] = store.fetch('backups', []) << backup_dir }
+    @backup_paths = @backup_paths << backup_dir
+    @store.transaction { |store| store['backups'] = @backup_paths }
   end
 
   private
@@ -159,11 +181,6 @@ class BackupManager
   # Gets the host info of the current machine.
   def get_host_info
     {label: Config.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new}
-  end
-
-  # Returns the paths where backups are kept.
-  def get_backup_paths
-    @store.transaction(true) { |store| store.fetch('backups', []) }
   end
 end
 

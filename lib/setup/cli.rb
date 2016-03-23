@@ -9,6 +9,7 @@ require 'thor'
 # TODO: make this more output friendly.
 # TODO: perhaps get rid of the progressbar and just print output directory to stdout.
 # TODO: and make it quite verbose by default.
+# TODO: add logging somewhere?
 
 module Setup
 module Cli
@@ -22,7 +23,7 @@ class AppCLI < Thor
     end
 
     def get_backups_manager(options = {})
-      Setup::BackupManager.new io: get_io(options), config_path: options[:config]
+      Setup::BackupManager.new(io: get_io(options), config_path: options[:config]).load
     end
   }
 
@@ -54,7 +55,7 @@ class SetupCLI < Thor
     end
 
     def get_backups_manager(options = {})
-      Setup::BackupManager.new io: get_io(options), config_path: options[:config]
+      Setup::BackupManager.new(io: get_io(options), config_path: options[:config]).load
     end
 
     # Prompts to enable new tasks.
@@ -119,7 +120,8 @@ class SetupCLI < Thor
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
     backup_manager = get_backups_manager(options)
-    backup_strs.map { |backup_str| Backup::resolve_backup(backup_str, options) }
+    backup_strs
+      .map { |backup_str| Backup::resolve_backup(backup_str, options) }
       .each { |backup| backup_manager.create_backup(backup) }
 
     if not options[:dry]
@@ -143,6 +145,8 @@ class SetupCLI < Thor
   end
 
   # TODO: include untracked files. Glob through the backup directory.
+  # TODO: tasks should return files that should be present in backup and the old backups.
+  # TODO: anything else if an untracked file.
   desc 'cleanup', 'Cleans up previous backups'
   option 'confirm', type: :boolean, default: true
   option 'dry', type: :boolean, default: :false
@@ -164,6 +168,7 @@ class SetupCLI < Thor
     cleanup_files_per_task.values.each { |file| (get_io options).rm file }
   end
 
+  # TODO: improve the status information.
   desc 'status', 'Returns the sync status'
   def status
     get_tasks.each {|task| puts "#{task.name}: " + task.info.map(&:status).map(&:to_s).join(' ') }
