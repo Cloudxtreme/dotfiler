@@ -2,17 +2,27 @@ require 'simplecov'
 SimpleCov.start
 
 RSpec.configure do |config|
-  def capture(stream)
+  def capture_stdio(stdout: true, stderr: true)
+    result = {}
     begin
-      stream = stream.to_s
-      eval "$#{stream} = StringIO.new"
-      yield
-      result = eval("$#{stream}").string
+      $stdout = StringIO.new if stdout
+      $stderr = StringIO.new if stderr
+      block_result = yield
+      result[:stdout] = $stdout.string if stdout
+      result[:stderr] = $stderr.string if stderr
+      result[:result] = block_result
     ensure
-      eval("$#{stream} = #{stream.upcase}")
+      $stdout = STDOUT if stdout
+      $stderr = STDERR if stderr
     end
 
     result
+  end
+
+  def capture(stream, &block)
+    if stream == :stdout then capture_stdio(stdout: true) { block.call }[:stdout]
+    elsif stream == :stderr then capture_stdio(stderr: true) { block.call }[:stderr]
+    end
   end
 
   config.expect_with :rspec do |expectations|

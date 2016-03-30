@@ -18,12 +18,12 @@ class FileSync
 
   def info(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    get_sync_info(:backup, options)
+    get_sync_info(:sync, options)
   end
 
   def has_data(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    get_sync_info(:backup, options).errors.nil?
+    get_sync_info(:sync, options).errors.nil?
   end
 
   # Removes symlinks.
@@ -110,7 +110,9 @@ class FileSyncInfo
   private
 
   def get_errors(sync_action, options, io)
-    if sync_action == :backup and not io.exist? @restore_path
+    if sync_action == :sync and not io.exist? @restore_path and not io.exist? @backup_path
+      "Cannot sync. Missing both backup and restore."
+    elsif sync_action == :backup and not io.exist? @restore_path
       "Cannot backup: missing #{@restore_path}"
     elsif sync_action == :restore and not io.exist? @backup_path
       "Cannot restore: missing #{@backup_path}"
