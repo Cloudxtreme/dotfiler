@@ -1,8 +1,8 @@
 # Allows to discover backups instances under a given machine.
 require 'setup/io'
 require 'setup/logging'
-require 'setup/sync_task'
-require 'setup/sync_task.platforms'
+require 'setup/package'
+require 'setup/platform'
 
 require 'pathname'
 require 'yaml'
@@ -13,18 +13,8 @@ module Setup
 class InvalidConfigFileError < Exception
   attr_reader :path
 
-  def initialize(path, inner_exception)
-    super inner_exception
+  def initialize(path)
     @path = path
-  end
-end
-
-# How to do this?
-def Setup.try_store_transaction(store, readonly = false, &block)
-  begin
-    store.transaction(readonly, &block)
-  rescue PStore::Error => e
-    raise InvalidConfigFileError.new store.path, e
   end
 end
 
@@ -41,28 +31,29 @@ class Backup
   BACKUP_TASKS_PATH = '_tasks'
   APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
-  def initialize(backup_path, host_info, io, store)
+  def initialize(backup_path, host_info, io, store, dry)
     @backup_path = backup_path
     @host_info = host_info
     @io = io
     @store = store
+    @dry = dry
 
     @tasks = {}
     @enabled_task_names = Set.new
     @disabled_task_names = Set.new
   end
 
-  def Backup.from_config(backup_path: nil, host_info: {}, io: nil)
+  def Backup.from_config(backup_path: nil, host_info: {}, io: nil, dry: false)
     io.mkdir_p backup_path unless io.exist? backup_path
     host_info = host_info.merge backup_root: backup_path
     backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
-    Backup.new(backup_path, host_info, io, store).load_config!
+    Backup.new(backup_path, host_info, io, store, dry).tap(&:load_config!)
   end
 
   # Loads the configuration and the tasks.
   def load_config!
-    Setup::try_store_transaction(@store, true) do |store|
+    @store.transaction(true) do |store|
       @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
@@ -71,11 +62,13 @@ class Backup
     backup_tasks = get_backup_tasks backup_tasks_path, @host_info, @io
     app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), @host_info, @io
     @tasks = app_tasks.merge(backup_tasks)
-    self
+  rescue PStore::Error
+    raise InvalidConfigFileError.new @store.path
   end
 
   def save_config!
-    Setup::try_store_transaction(@store) do |s|
+    return if @dry
+    @store.transaction(false) do |s|
       s['enabled_task_names'] = @enabled_task_names.to_a
       s['disabled_task_names'] = @disabled_task_names.to_a
     end
@@ -109,11 +102,11 @@ class Backup
 
   # This method resolves a commandline backup name into a backup path/source path pair.
   # For instance resolve_backup `~/dotfiles` should resolve to backup `~/dotfiles` but no source.
-  # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.  
+  # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.
   def Backup.resolve_backup(backup_str, options)
-    sep = backup_str.index ':'
+    sep = backup_str.index ';'
     backup_dir = options[:backup_dir] || DEFAULT_BACKUP_ROOT
-    
+
     if not sep.nil?
       resolved_backup = backup_str[0..sep-1]
       resolved_source = backup_str[sep+1..-1]
@@ -126,13 +119,17 @@ class Backup
     end
 
     if not is_path(resolved_backup)
-      resolved_backup = File.expand_path(File.join(backup_dir, resolved_backup)) 
+      resolved_backup = File.expand_path(File.join(backup_dir, resolved_backup))
     end
-    
+
+    if resolved_source == ''
+      resolved_source = nil
+    end
+
     if not resolved_source.nil? and not is_path(resolved_source)
       resolved_source = "https://#{resolved_source}"
     end
-    
+
     [File.expand_path(resolved_backup), resolved_source]
   end
 
@@ -142,10 +139,10 @@ class Backup
   def get_backup_task(task_pathname, host_info, io)
     config = YAML.load(io.read(task_pathname))
     if config.nil?
-      raise InvalidConfigFileError.new(task_pathname, nil)
+      raise InvalidConfigFileError.new task_pathname
     end
 
-    SyncTask.new(config, host_info, io)
+    Package.new(config, host_info, io)
   end
 
   # Constructs backup tasks that can be found a task folder.
@@ -172,59 +169,70 @@ class Backup
   end
 end
 
+# TODO(drognanar): Embed labels into the global configs file?
+# TODO(drognanar): Add a label for a local machine.
 class BackupManager
   attr_accessor :backups, :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
-  def initialize(host_info = nil, io = nil, store = nil)
-    @logger = Logging.logger['Setup::backups']
+  def initialize(host_info = nil, io = nil, store = nil, dry = false)
     @host_info = host_info
     @io = io
     @store = store
+    @dry = dry
   end
 
   # Loads backup manager configuration and backups it references.
-  def BackupManager.from_config(config_path: DEFAULT_CONFIG_PATH, io: nil)
+  def BackupManager.from_config(io: nil, dry: false)
+    # TODO(drognanar): How to add extra labels into host_info?
+    # TODO(drognanar): These can only be obtained after running #load_config!
+    # TODO(drognanar): Hardcode the config path?
     host_info = BackupManager.get_host_info
-    config_path ||= DEFAULT_CONFIG_PATH
-    store = YAML::Store.new(config_path)
-    BackupManager.new(host_info, io, store).load_config!
+
+    store = YAML::Store.new(DEFAULT_CONFIG_PATH)
+
+    BackupManager.new(host_info, io, store, dry).tap(&:load_config!)
   end
 
-  # TODO: give the error message which config file was corrupt.
   def load_config!
-    @backup_paths = Setup::try_store_transaction(@store, true) { |store| store.fetch('backups', []) }
-    self
+    @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
+  rescue PStore::Error
+    raise InvalidConfigFileError.new @store.path
   end
 
   def load_backups!
-    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, host_info: @host_info, io: @io }
-    self
+    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, host_info: @host_info, io: @io, dry: @dry }
   end
 
   def save_config!
-    Setup::try_store_transaction(@store) { |store| store['backups'] = @backup_paths }
+    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @dry
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
-  def create_backup!(resolved_backup)
+  def create_backup!(resolved_backup, force: false)
     backup_dir, source_url = resolved_backup
 
     if @backup_paths.include? backup_dir
-      @logger.warn "Backup \"#{backup_dir}\" already exists."
+      LOGGER.warn "Backup \"#{backup_dir}\" already exists"
       return
     end
+
+    LOGGER << "Creating a backup at \"#{backup_dir}\"\n"
 
     backup_exists = @io.exist?(backup_dir)
-    if backup_exists and not @io.entries(backup_dir).empty?
-      @logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
+    if not backup_exists or @io.entries(backup_dir).empty?
+      @io.mkdir_p backup_dir if not backup_exists
+      if source_url
+        LOGGER.info "Cloning repository \"#{source_url}\""
+        @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
+      end
+    elsif not force
+      LOGGER.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end
 
-    @io.mkdir_p backup_dir if not backup_exists
-    @logger.info "Cloning repository \"#{source_url}\""
-    @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\"" if source_url
+    LOGGER.verbose "Updating \"#{@store.path}\""
     @backup_paths = @backup_paths << backup_dir
     save_config!
   end

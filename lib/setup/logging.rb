@@ -1,13 +1,20 @@
 require 'logging'
 
-Logging.init :debug, :verbose, :info, :warn, :success, :error, :fatal
+Logging.init :verbose, :info, :warn, :error
+
+Logging.color_scheme(
+  'default',
+  :levels => {
+    :info  => :green,
+    :warn  => :yellow,
+    :error => :red,
+    :verbose => :blue})
 
 Logging.appenders.stdout(
   'stdout',
-  layout: Logging.layouts.pattern(pattern: '%-7l %m\n'))
+  layout: Logging.layouts.pattern(
+    pattern: '%l: %m\n',
+    color_scheme: 'default'))
 
-Logging.logger['Setup'].add_appenders 'stdout'
-
-def set_logger_level(level)
-  Logging.logger['Setup'].level = level
-end
+LOGGER = Logging.logger['Setup']
+LOGGER.add_appenders 'stdout'

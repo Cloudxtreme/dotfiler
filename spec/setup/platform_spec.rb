@@ -1,4 +1,4 @@
-require 'setup/sync_task.platforms'
+require 'setup/platform'
 
 module Setup
 
@@ -29,14 +29,14 @@ RSpec.describe Platform do
   end
 
   describe '#machine_labels' do
-    it { expect(Platform.machine_labels 'mswin').to eq(['win']) }
-    it { expect(Platform.machine_labels 'mingw').to eq(['win']) }
-    it { expect(Platform.machine_labels 'bccwin').to eq(['win']) }
-    it { expect(Platform.machine_labels 'wince').to eq(['win']) }
-    it { expect(Platform.machine_labels 'emx').to eq(['win']) }
-    it { expect(Platform.machine_labels 'cygwin').to eq(['win']) }
-    it { expect(Platform.machine_labels 'x86_64-darwin14').to eq(['unix', 'osx', 'mac']) }
-    it { expect(Platform.machine_labels 'ubuntu').to eq(['unix', 'linux']) }
+    it { expect(Platform.machine_labels 'mswin').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'mingw').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'bccwin').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'wince').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'emx').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'cygwin').to eq(['<win>']) }
+    it { expect(Platform.machine_labels 'x86_64-darwin14').to eq(['<unix>', '<osx>', '<mac>']) }
+    it { expect(Platform.machine_labels 'ubuntu').to eq(['<unix>', '<linux>']) }
   end
 end
 

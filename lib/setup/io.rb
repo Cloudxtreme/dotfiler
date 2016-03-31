@@ -1,6 +1,7 @@
 # An IO abstraction.
 # Used to switch between actual run/dry run/test run.
 require 'setup/logging'
+require 'setup/platform'
 
 require 'fileutils'
 require 'forwardable'
@@ -15,8 +16,14 @@ class Common_IO
   def_delegators Dir, :glob, :entries
   def_delegators IO, :read
 
+  # TODO(drognanar): Prefer symbolic links on linux.
+
   def junction(target_path, link_path)
-    shell "cmd /c \"mklink /J \"#{link_path}\" \"#{target_path}\"\""
+    if Platform::windows?
+      shell "cmd /c \"mklink /J \"#{link_path}\" \"#{target_path}\"\""
+    else
+      link target_path, link_path
+    end
   end
 end
 
@@ -32,25 +39,29 @@ end
 LOGGER = Logging.logger['Setup::InputOutput']
 
 class Dry_IO < Common_IO
-  
+
+  def mv(source, dest)
+    LOGGER.info "> mv \"#{source}\" \"#{dest}\""
+  end
+
   def link(source, dest)
-    LOGGER.verbose "link source: #{source} dest: #{dest}"
+    LOGGER.info "> ln -s \"#{source}\" \"#{dest}\""
   end
 
   def cp_r(source, dest)
-    LOGGER.verbose "cp_r source: #{source} dest: #{dest}"
+    LOGGER.info "> cp -r \"#{source}\" \"#{dest}\""
   end
 
   def mkdir_p(path)
-    LOGGER.verbose "mkdir_p path: #{path}"
+    LOGGER.info "> mkdir -p \"#{path}\""
   end
 
   def rm_rf(path)
-    LOGGER.verbose "rm_rf path: #{path}"
+    LOGGER.info "> rm -rf \"#{path}\""
   end
 
   def shell(command)
-    LOGGER.verbose command
+    LOGGER.info "> #{command}"
   end
 end
 

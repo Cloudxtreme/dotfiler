@@ -2,6 +2,7 @@
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'setup/about'
+require 'setup/platform'
 
 Gem::Specification.new do |spec|
   spec.name        = Setup::About::APP_NAME
@@ -30,10 +31,11 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'safe_yaml', ['~> 1.0']
   spec.add_dependency 'attr_extras', ['~> 4.4']
   spec.add_dependency 'highline', ['~> 1.7']
-  spec.add_dependency 'ruby-progressbar', ['~> 1.7']
   spec.add_dependency 'logging', ['~> 2.1']
 
   spec.add_development_dependency 'rspec', ['~> 3.4']
-  spec.add_development_dependency 'simplecov', ['~> 0.11']
   spec.add_development_dependency 'awesome_print', ['~> 1.6']
+  if Setup::Platform::unix?
+    spec.add_development_dependency 'simplecov', ['~> 0.11']
+  end
 end

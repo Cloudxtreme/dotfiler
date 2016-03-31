@@ -1,43 +1,26 @@
 require 'setup/logging'
+require 'setup/platform'
+
 require 'rspec/logging_helper'
-require 'simplecov'
-SimpleCov.start
+if Setup::Platform::unix?
+  require 'simplecov'
+  SimpleCov.start
+end
+
+ENV["THOR_COLUMNS"] = '120'
 
 RSpec.configure do |config|
   include RSpec::LoggingHelper
   config.capture_log_messages from: 'Setup'
-  
+
   config.before(:each) do
-    set_logger_level :verbose
+    LOGGER.level = :verbose
     Logging.appenders['__rspec__'].layout = Logging.layouts.pattern(pattern: '%.1l: %m\n')
   end
-  
+
   def capture_log
     yield
     @log_output.read
-  end
-
-  def capture_stdio(stdout: true, stderr: true)
-    result = {}
-    begin
-      $stdout = StringIO.new if stdout
-      $stderr = StringIO.new if stderr
-      block_result = yield
-      result[:stdout] = $stdout.string if stdout
-      result[:stderr] = $stderr.string if stderr
-      result[:result] = block_result
-    ensure
-      $stdout = STDOUT if stdout
-      $stderr = STDERR if stderr
-    end
-
-    result
-  end
-
-  def capture(stream, &block)
-    if stream == :stdout then capture_stdio(stdout: true) { block.call }[:stdout]
-    elsif stream == :stderr then capture_stdio(stderr: true) { block.call }[:stderr]
-    end
   end
 
   config.expect_with :rspec do |expectations|

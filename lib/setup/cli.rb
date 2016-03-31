@@ -3,83 +3,82 @@ require 'setup/io'
 require 'setup/logging'
 
 require 'highline'
-require 'ruby-progressbar'
 require 'thor'
 
-# TODO(drognanar): perhaps get rid of the progressbar and just print output directory to stdout.
-# TODO(drognanar): and make it quite verbose by default.
-# TODO(drognanar): possibly s/app/package
-# TODO(drognanar): Possibly remove old io capture mechanism
+module Setup::Cli
 
-module Setup
-module Cli
+# TODO(drognanar): use Thor to ask questions?
+# TODO(drognanar): Get rid of `highline`?
+# TODO(drognanar): Try to check thor's status messages.
+# TODO(drognanar): Add package new/edit methods to quickly edit and create new packages.
 
 Commandline = HighLine.new
 
 module CliHelpers
   def get_io(options)
-    options[:dry] ? DRY_IO : CONCRETE_IO
+    options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
   end
 
-  def get_logger_level(options = {})
-    options[:verbose] ? :verbose : :info
-  end
-
-  def with_backup_manager(options = {})
-    set_logger_level(get_logger_level options)
-    @logger = Logging.logger['Setup::CLI']
-    begin
-      backup_manager = Setup::BackupManager.from_config(io: get_io(options), config_path: options[:config])
-      backup_manager.load_backups!
-      yield backup_manager
-      return true
-    rescue InvalidConfigFileError => e
-      $stderr.puts 'Failed to get backup manager'
-      $stderr.puts "#{e}"
-      return false
-    end
+  def with_backup_manager(options)
+    LOGGER.level = options[:verbose] ? :verbose : :info
+    dry = options[:dry] || false
+    @io = get_io(options)
+    config = { io: @io, dry: dry }
+    yield Setup::BackupManager.from_config(config).tap(&:load_backups!)
+    return true
+  rescue Setup::InvalidConfigFileError => e
+    LOGGER.error "An error occured while trying to load \"#{e.path}\""
+    return false
   end
 end
 
-class AppCLI < Thor
+class PackageCLI < Thor
   no_commands do
     include CliHelpers
-    
-    def print_apps(backup, options)
-      puts 'Enabled apps:'
-      puts backup.enabled_task_names.to_a.join(', ')
-      puts "\nDisabled apps:"
-      puts backup.disabled_task_names.to_a.join(', ')
-      puts "\nNew apps:"
-      puts backup.new_tasks.keys.join(', ')
-    end
   end
 
+  class_option 'help', type: :boolean
+
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
-  option 'config', type: :string
   def add(*names)
+    return help :add if options[:help]
     with_backup_manager(options) do |backup_manager|
       backup_manager.backups.map { |backup| backup.enable_tasks! names }
     end
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
-  option 'config', type: :string
   def remove(*names)
+    return help :remove if options[:help]
     with_backup_manager(options) do |backup_manager|
       backup_manager.backups.map { |backup| backup.disable_tasks! names }
     end
   end
 
-  desc 'list', 'Lists apps for which settings can be backed up.'
-  option 'config', type: :string
+  desc 'list', 'Lists packages for which settings can be backed up.'
   def list
+    return help :list if options[:help]
     with_backup_manager(options) do |backup_manager|
       backup_manager.backups.each do |backup|
-        puts "backup: #{backup.backup_path}" if backup_manager.backups.length > 1
-        print_apps backup, options
+        LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
+        LOGGER << "Enabled packages:\n"
+        LOGGER << backup.enabled_task_names.to_a.join(', ') + "\n\n"
+        LOGGER << "Disabled packages:\n"
+        LOGGER << backup.disabled_task_names.to_a.join(', ') + "\n\n"
+        LOGGER << "New packages:\n"
+        LOGGER << backup.new_tasks.keys.join(', ') + "\n"
       end
     end
+  end
+
+  desc 'new', 'Create a new package.'
+  option 'local'
+  def new
+  end
+
+  desc 'edit', 'Edit an existing package.'
+  option 'local'
+  def edit
   end
 end
 
@@ -87,29 +86,38 @@ class SetupCLI < Thor
   no_commands do
     include CliHelpers
 
+    def self.common_options
+      option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
+      option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
+      option 'copy', type: :boolean, default: false, desc: 'Copy files instead of symlinking them.'
+    end
+
     # Prompts to enable new tasks.
     def prompt_to_enable_new_tasks(backups_with_new_tasks, options)
       if options[:enable_new] == 'prompt'
-        puts 'These applications can be backed up:'
+        LOGGER << "Found new packages to sync:\n\n"
         backups_with_new_tasks.each do |backup|
-          puts backup.backup_path
-          puts backup.new_tasks.keys.join(' ')
+          LOGGER << backup.backup_path + "\n"
+          LOGGER << backup.new_tasks.keys.join(' ') + "\n"
         end
       end
 
-      # TODO(drognanar): validate json schemas
+      # TODO(drognanar): Allow to specify the list of applications?
+      # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
       prompt_accept = (options[:enable_new] == 'prompt' and Commandline.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
         backups_with_new_tasks.each { |backup| backup.enable_tasks! backup.new_tasks.keys }
       else
         backups_with_new_tasks.each { |backup| backup.disable_tasks! backup.new_tasks.keys }
-        puts 'You can always add these apps later using "setup app add <app names>".'
+        LOGGER.warn 'You can always add these apps later using "setup app add <app names>"'
       end
     end
 
     # Get the list of tasks to execute.
     # @param Hash options the options to get the tasks with.
     def get_tasks(backup_manager, options = {})
+      # TODO(drognanar): Perhaps move discovery outside?
+      # TODO(drognanar): Only discover on init/discover/update?
       backups = backup_manager.backups
       backups_with_new_tasks = backups.select { |backup| not backup.new_tasks.empty? }
       if options[:enable_new] != 'skip' and not backups_with_new_tasks.empty?
@@ -117,166 +125,131 @@ class SetupCLI < Thor
       end
       backups.map(&:tasks_to_run).map(&:values).flatten
     end
-    
-    def summarize_task_info(task, verbose)
-      sync_items = task.sync_items
-      sync_items_info = sync_items.map do |sync_item, sync_item_options|
+
+    def summarize_task_info(task)
+      sync_items_info = task.sync_items.map do |sync_item, sync_item_options|
         sync_item_info = sync_item.info sync_item_options
         [sync_item_info, sync_item_options]
       end
       sync_items_groups = sync_items_info.group_by { |sync_item, _| sync_item.status }
-      
-      if verbose
+
+      if not options[:verbose] and sync_items_groups.keys.length == 1 and sync_items_groups.key? :up_to_date
+        LOGGER << "up-to-date: #{task.name}\n"
+      else
         sync_items_groups.values.flatten(1).each do |sync_item, sync_item_options|
-          level, summary, detail = summarize_sync_item_info sync_item, sync_item_options
+          summary, detail = summarize_sync_item_info sync_item
           padded_summary = '%-11s' % "#{summary}:"
           name = "#{task.name}:#{sync_item_options[:name]}"
-          @logger.send(level, [padded_summary, name, detail].compact.join(' '))
+          LOGGER << [padded_summary, name, detail].compact.join(' ') + "\n"
         end
-      elsif sync_items_groups.keys.length == 1 and sync_items_groups.key? :up_to_date
-        @logger.success("#{task.name}: all up to date")
-      else
-        up_to_date = sync_items_groups.fetch(:up_to_date, []).length
-        resync = sync_items_groups.fetch(:sync, []).length + sync_items_groups.fetch(:resync, []).length
-        overwrite = sync_items_groups.fetch(:overwrite_data, []).length
-        error = sync_items_groups.fetch(:error, []).length
-
-        summary = []
-        summary << "up to date: #{up_to_date}" if up_to_date > 0
-        summary << "to sync: #{resync}" if resync > 0
-        summary << "items differ: #{overwrite}" if overwrite > 0
-        summary << "error: #{error}" if error > 0
-        
-        @logger.info("#{task.name}: #{summary.join(', ')}")
       end
     end
-    
-    def summarize_sync_item_info(sync_item_info, sync_item_options)
+
+    def summarize_sync_item_info(sync_item_info)
       case sync_item_info.status
-      when :error then [:error, 'error', sync_item_info.errors]
-      when :up_to_date then [:success, "up-to-date", nil]
-      when :sync, :resync then [:info, "needs sync", nil]
-      when :overwrite_data then [:warn, "differs", nil]
+      when :error then ['error', sync_item_info.errors]
+      when :up_to_date then ['up-to-date', nil]
+      when :backup, :restore, :resync then ['needs sync', nil]
+      when :overwrite_data then ['differs', nil]
       end
     end
 
     # Runs tasks while showing the progress bar.
-    def run_tasks_with_progress(tasks, name, &task_proc)
-      return if tasks.empty?
-
-      puts name
-      pb = ProgressBar.create total: tasks.length, starting_at: 0, autostart: false, autofinish: false
-      tasks.each do |task|
-        task_info_list = task.info.compact
-        pb.title = task.name
-        pb.increment
-        task_proc.call(task)
-
-        # Print summary.
-        pb.clear
-        # print "#{task.name}: "
-        task_info_list.each do |info|
-          # print "#{info.status} "
+    def run_tasks_with_progress(action, title: '', empty: '')
+      with_backup_manager(options) do |backup_manager|
+        tasks = get_tasks(backup_manager, options)
+        if tasks.empty?
+          LOGGER << "#{empty}\n"
+          return true
         end
-        # puts ''
+
+        LOGGER << "#{title}:\n"
+        tasks.each do |task|
+          LOGGER.info "#{title} package #{task.name}:"
+          task.send(action, copy: options[:copy]) { |sync_item_options| LOGGER.info "#{title} #{sync_item_options[:name]}" }
+        end
       end
-      pb.finish
-      # puts "Finished #{name}"
     end
   end
 
-  # TODO(drognanar): how to allow the --dry option for this command?
+  class_option 'help', type: :boolean, desc: 'Print help for a specific command'
+  class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
+
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', type: :string
-  option 'dry', type: :boolean
-  option 'config', type: :string
-  option 'enable_new', type: :string, default: 'prompt'
-  option 'verbose', type: :boolean
+  option 'sync', type: :boolean, default: true
+  option 'force', type: :boolean
+  SetupCLI.common_options
   def init(*backup_strs)
+    return help :init if options[:help]
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
-    with_backup_manager do |backup_manager|
-      puts 'Creating backups:'
+    with_backup_manager(options) do |backup_manager|
+      LOGGER << "Creating backups:\n"
       backup_strs
-        .map { |backup_str| Backup::resolve_backup(backup_str, options) }
-        .each { |backup| backup_manager.create_backup!(backup) }
+        .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_dir: options[:dir]) }
+        .each { |backup| backup_manager.create_backup!(backup, force: options[:force]) }
 
-      puts 'Syncing new backups:'
-      if not options[:dry]
-        backup_manager.load_backups!
-        # TODO(drognanar): Print status per line.
-        run_tasks_with_progress(get_tasks(backup_manager, options), 'Sync') { |task| task.sync! }
+      # Cannot run sync in dry mode since the backup creation was run in dry mode.
+      if not options[:dry] and options[:sync]
+        run_tasks_with_progress(:sync!, title: "Syncing", empty: 'Nothing to sync')
       end
     end
   end
 
   desc 'backup', 'Backup your settings'
-  option 'dry', type: :boolean, default: false
-  option 'config', type: :string
-  option 'enable_new', type: :string, default: 'prompt'
-  option 'verbose', type: :boolean
+  SetupCLI.common_options
   def backup
-    with_backup_manager do |backup_manager|
-      run_tasks_with_progress(get_tasks(backup_manager, options), 'Backup') { |task| task.backup! }
-    end
+    return help :backup if options[:help]
+    run_tasks_with_progress(:backup!, title: 'Backing up', empty: 'Nothing to back up')
   end
 
   desc 'restore', 'Restore your settings'
-  option 'dry', type: :boolean, default: false
-  option 'config', type: :string
-  option 'enable_new', type: :string, default: 'prompt'
-  option 'verbose', type: :boolean
+  SetupCLI.common_options
   def restore
-    with_backup_manager do |backup_manager|
-      run_tasks_with_progress(get_tasks(backup_manager, options), 'Restore') { |task| task.restore! }
-    end
+    return help :restore if options[:help]
+    run_tasks_with_progress(:restore!, title: 'Restoring', empty: 'Nothing to restore')
   end
 
-  # TODO(drognanar): include untracked files. Glob through the backup directory.
-  # TODO(drognanar): tasks should return files that should be present in backup and the old backups.
-  # TODO(drognanar): anything else if an untracked file.
   desc 'cleanup', 'Cleans up previous backups'
   option 'confirm', type: :boolean, default: true
   option 'dry', type: :boolean, default: false
-  option 'config', type: :string
   option 'untracked', type: :boolean
   def cleanup
-    with_backup_manager do |backup_manager|
-      cleanup_files_per_task = get_tasks(backup_manager, options.merge(enable_new: 'skip'))
-        .map { |task| [task, task.cleanup] }
-        .to_h
-        .select { |task, files| not files.empty? }
-      return true if cleanup_files_per_task.empty?
+    return help :cleanup if options[:help]
+    with_backup_manager(options) do |backup_manager|
+      tasks = get_tasks(backup_manager, options.merge(enable_new: 'skip'))
+      cleanup_files = tasks.map { |task| task.cleanup untracked: options[:untracked] }.flatten(1)
 
-      if options[:confirm]
-        cleanup_files_per_task.each do |task, cleanup_files|
-          puts "#{task.name}:"
-          puts cleanup_files.join(' ')
-        end
-
-        confirm = Commandline.agree('Do you want to cleanup these files?')
-      else
-        confirm = true
+      if cleanup_files.empty?
+        LOGGER << "Nothing to clean.\n"
       end
 
-      return true unless confirm
-      cleanup_files_per_task.values.each { |file| (get_io options).rm_rf file }
+      cleanup_files.each do |file|
+        LOGGER << "Deleting \"#{file}\"\n"
+        confirmed = (not options[:confirm] or Commandline.agree('Do you want to remove this file? [y/n]'))
+        @io.rm_rf file if confirmed
+      end
     end
   end
 
   desc 'status', 'Returns the sync status'
-  option 'verbose', type: :boolean
   def status
-    with_backup_manager do |backup_manager|
-      get_tasks(backup_manager, options).each do |task|
-        summarize_task_info(task, options[:verbose])
+    return help :status if options[:help]
+    with_backup_manager(options) do |backup_manager|
+      tasks = get_tasks(backup_manager, options)
+      if tasks.empty?
+        LOGGER.warn "No packages enabled."
+        LOGGER.warn "Use ./setup package add to enable packages."
+      else
+        LOGGER << "Current status:\n\n"
+        tasks.each(&method(:summarize_task_info))
       end
     end
   end
 
-  desc 'app <subcommand> ...ARGS', 'Add/remove applications to be backed up.'
-  subcommand 'app', AppCLI
+  desc 'package <subcommand> ...ARGS', 'Add/remove packages to be backed up'
+  subcommand 'package', PackageCLI
 end
 
-end # module Cli
-end # module Setup
+end # module Setup::Cli

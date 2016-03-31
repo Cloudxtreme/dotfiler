@@ -38,7 +38,14 @@ RSpec.describe 'File_IO' do
   end
 
   it 'sends junction for execution to shell' do
+    stub_const 'RUBY_PLATFORM', 'mswin'
     expect(CONCRETE_IO).to receive(:shell).with('cmd /c "mklink /J "path2" "path1""')
+    CONCRETE_IO.junction 'path1', 'path2'
+  end
+  
+  it 'symlinks on unix' do
+    stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
+    expect(CONCRETE_IO).to receive(:link).with('path1', 'path2')
     CONCRETE_IO.junction 'path1', 'path2'
   end
 end
@@ -47,12 +54,21 @@ RSpec.describe 'Dry_IO' do
   include AssertDelegate
 
   it 'prints all write io operations' do
-    expect(capture_log { DRY_IO.link 'path1', 'path2' }).to eq("V: link source: path1 dest: path2\n")
-    expect(capture_log { DRY_IO.cp_r 'path1', 'path2' }).to eq("V: cp_r source: path1 dest: path2\n")
-    expect(capture_log { DRY_IO.mkdir_p 'path' }).to eq("V: mkdir_p path: path\n")
-    expect(capture_log { DRY_IO.rm_rf 'path' }).to eq("V: rm_rf path: path\n")
-    expect(capture_log { DRY_IO.junction 'path1', 'path2' }).to eq("V: cmd /c \"mklink /J \"path2\" \"path1\"\"\n")
-    expect(capture_log { DRY_IO.shell 'echo hello world' }).to eq("V: echo hello world\n")
+    expect(capture_log { DRY_IO.link 'path1', 'path2' }).to eq("I: > ln -s \"path1\" \"path2\"\n")
+    expect(capture_log { DRY_IO.cp_r 'path1', 'path2' }).to eq("I: > cp -r \"path1\" \"path2\"\n")
+    expect(capture_log { DRY_IO.mkdir_p 'path' }).to eq("I: > mkdir -p \"path\"\n")
+    expect(capture_log { DRY_IO.rm_rf 'path' }).to eq("I: > rm -rf \"path\"\n")
+    expect(capture_log { DRY_IO.shell 'echo hello world' }).to eq("I: > echo hello world\n")
+  end
+  
+  it 'prints junction on windows' do
+    stub_const 'RUBY_PLATFORM', 'mswin'
+    expect(capture_log { DRY_IO.junction 'path1', 'path2' }).to eq("I: > cmd /c \"mklink /J \"path2\" \"path1\"\"\n")
+  end
+  
+  it 'prints symlink on unix' do
+    stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
+    expect(capture_log { DRY_IO.junction 'path1', 'path2' }).to eq("I: > ln -s \"path1\" \"path2\"\n")
   end
 end
 
