@@ -1,5 +1,6 @@
 # Allows to discover backups instances under a given machine.
 require 'setup/io'
+require 'setup/logging'
 require 'setup/sync_task'
 require 'setup/sync_task.platforms'
 
@@ -106,17 +107,33 @@ class Backup
     @tasks.select { |task_name, task| is_enabled(task_name) and task.should_execute }
   end
 
+  # This method resolves a commandline backup name into a backup path/source path pair.
+  # For instance resolve_backup `~/dotfiles` should resolve to backup `~/dotfiles` but no source.
+  # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.  
   def Backup.resolve_backup(backup_str, options)
     sep = backup_str.index ':'
     backup_dir = options[:backup_dir] || DEFAULT_BACKUP_ROOT
-    # TODO: handle local git folders?
+    
     if not sep.nil?
-      [File.expand_path(backup_str[0..sep-1]), backup_str[sep+1..-1]]
-    elsif is_path(backup_str)
-      [File.expand_path(backup_str), nil]
+      resolved_backup = backup_str[0..sep-1]
+      resolved_source = backup_str[sep+1..-1]
+    elsif is_path backup_str
+      resolved_backup = backup_str
+      resolved_source = nil
     else
-      [File.expand_path(File.join(backup_dir, backup_str)), backup_str]
+      resolved_backup = backup_str
+      resolved_source = backup_str
     end
+
+    if not is_path(resolved_backup)
+      resolved_backup = File.expand_path(File.join(backup_dir, resolved_backup)) 
+    end
+    
+    if not resolved_source.nil? and not is_path(resolved_source)
+      resolved_source = "https://#{resolved_source}"
+    end
+    
+    [File.expand_path(resolved_backup), resolved_source]
   end
 
   private
@@ -161,6 +178,7 @@ class BackupManager
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
   def initialize(host_info = nil, io = nil, store = nil)
+    @logger = Logging.logger['Setup::backups']
     @host_info = host_info
     @io = io
     @store = store
@@ -194,17 +212,18 @@ class BackupManager
     backup_dir, source_url = resolved_backup
 
     if @backup_paths.include? backup_dir
-      puts "Backup \"#{backup_dir}\" already exists."
+      @logger.warn "Backup \"#{backup_dir}\" already exists."
       return
     end
 
     backup_exists = @io.exist?(backup_dir)
     if backup_exists and not @io.entries(backup_dir).empty?
-      puts "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
+      @logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end
 
     @io.mkdir_p backup_dir if not backup_exists
+    @logger.info "Cloning repository \"#{source_url}\""
     @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\"" if source_url
     @backup_paths = @backup_paths << backup_dir
     save_config!

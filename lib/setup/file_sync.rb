@@ -41,7 +41,8 @@ class FileSync
     sync_info = get_sync_info :backup, options
     return if not options[:enabled] or not sync_info.errors.nil? or sync_info.status == :up_to_date
     save_existing_file!(options[:backup_path], options) if sync_info.status == :overwrite_data
-    create_backup_file! sync_info, options
+    create_backup_file! sync_info, options if sync_info.status != :resync
+    @io.rm_rf(options[:restore_path]) if sync_info.status == :resync
     create_restore_file! sync_info, options
   end
 
