@@ -73,7 +73,7 @@ RSpec.describe 'SyncTask' do
 
   it 'should forward the message to all sync items' do
     task_config = {'name' => 'task', 'files' => ['a']}
-    options = {backup_path: '/backup/root/task/a', restore_path: '/restore/root/a'}
+    options = {name: 'a', backup_path: '/backup/root/task/a', restore_path: '/restore/root/a'}
     expected_sync_items = [options]
 
     sync_task, sync_items = get_sync_task(task_config, expected_sync_items)

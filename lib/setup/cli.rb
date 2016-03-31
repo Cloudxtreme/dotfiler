@@ -1,16 +1,15 @@
-require 'setup/io'
 require 'setup/backups'
+require 'setup/io'
+require 'setup/logging'
 
 require 'highline'
 require 'ruby-progressbar'
 require 'thor'
 
-# TODO(drognanar): improve summary output per task
-# TODO(drognanar): make this more output friendly.
 # TODO(drognanar): perhaps get rid of the progressbar and just print output directory to stdout.
 # TODO(drognanar): and make it quite verbose by default.
-# TODO(drognanar): add logging somewhere?
 # TODO(drognanar): possibly s/app/package
+# TODO(drognanar): Possibly remove old io capture mechanism
 
 module Setup
 module Cli
@@ -18,11 +17,17 @@ module Cli
 Commandline = HighLine.new
 
 module CliHelpers
-  def get_io(options = {})
+  def get_io(options)
     options[:dry] ? DRY_IO : CONCRETE_IO
   end
 
+  def get_logger_level(options = {})
+    options[:verbose] ? :verbose : :info
+  end
+
   def with_backup_manager(options = {})
+    set_logger_level(get_logger_level options)
+    @logger = Logging.logger['Setup::CLI']
     begin
       backup_manager = Setup::BackupManager.from_config(io: get_io(options), config_path: options[:config])
       backup_manager.load_backups!
@@ -93,7 +98,6 @@ class SetupCLI < Thor
       end
 
       # TODO(drognanar): validate json schemas
-      puts options[:enable_new]
       prompt_accept = (options[:enable_new] == 'prompt' and Commandline.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
         backups_with_new_tasks.each { |backup| backup.enable_tasks! backup.new_tasks.keys }
@@ -112,6 +116,48 @@ class SetupCLI < Thor
         prompt_to_enable_new_tasks backups_with_new_tasks, options
       end
       backups.map(&:tasks_to_run).map(&:values).flatten
+    end
+    
+    def summarize_task_info(task, verbose)
+      sync_items = task.sync_items
+      sync_items_info = sync_items.map do |sync_item, sync_item_options|
+        sync_item_info = sync_item.info sync_item_options
+        [sync_item_info, sync_item_options]
+      end
+      sync_items_groups = sync_items_info.group_by { |sync_item, _| sync_item.status }
+      
+      if verbose
+        sync_items_groups.values.flatten(1).each do |sync_item, sync_item_options|
+          level, summary, detail = summarize_sync_item_info sync_item, sync_item_options
+          padded_summary = '%-11s' % "#{summary}:"
+          name = "#{task.name}:#{sync_item_options[:name]}"
+          @logger.send(level, [padded_summary, name, detail].compact.join(' '))
+        end
+      elsif sync_items_groups.keys.length == 1 and sync_items_groups.key? :up_to_date
+        @logger.success("#{task.name}: all up to date")
+      else
+        up_to_date = sync_items_groups.fetch(:up_to_date, []).length
+        resync = sync_items_groups.fetch(:sync, []).length + sync_items_groups.fetch(:resync, []).length
+        overwrite = sync_items_groups.fetch(:overwrite_data, []).length
+        error = sync_items_groups.fetch(:error, []).length
+
+        summary = []
+        summary << "up to date: #{up_to_date}" if up_to_date > 0
+        summary << "to sync: #{resync}" if resync > 0
+        summary << "items differ: #{overwrite}" if overwrite > 0
+        summary << "error: #{error}" if error > 0
+        
+        @logger.info("#{task.name}: #{summary.join(', ')}")
+      end
+    end
+    
+    def summarize_sync_item_info(sync_item_info, sync_item_options)
+      case sync_item_info.status
+      when :error then [:error, 'error', sync_item_info.errors]
+      when :up_to_date then [:success, "up-to-date", nil]
+      when :sync, :resync then [:info, "needs sync", nil]
+      when :overwrite_data then [:warn, "differs", nil]
+      end
     end
 
     # Runs tasks while showing the progress bar.
@@ -145,6 +191,7 @@ class SetupCLI < Thor
   option 'dry', type: :boolean
   option 'config', type: :string
   option 'enable_new', type: :string, default: 'prompt'
+  option 'verbose', type: :boolean
   def init(*backup_strs)
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
@@ -156,8 +203,9 @@ class SetupCLI < Thor
 
       puts 'Syncing new backups:'
       if not options[:dry]
-        restore
-        backup
+        backup_manager.load_backups!
+        # TODO(drognanar): Print status per line.
+        run_tasks_with_progress(get_tasks(backup_manager, options), 'Sync') { |task| task.sync! }
       end
     end
   end
@@ -166,6 +214,7 @@ class SetupCLI < Thor
   option 'dry', type: :boolean, default: false
   option 'config', type: :string
   option 'enable_new', type: :string, default: 'prompt'
+  option 'verbose', type: :boolean
   def backup
     with_backup_manager do |backup_manager|
       run_tasks_with_progress(get_tasks(backup_manager, options), 'Backup') { |task| task.backup! }
@@ -176,6 +225,7 @@ class SetupCLI < Thor
   option 'dry', type: :boolean, default: false
   option 'config', type: :string
   option 'enable_new', type: :string, default: 'prompt'
+  option 'verbose', type: :boolean
   def restore
     with_backup_manager do |backup_manager|
       run_tasks_with_progress(get_tasks(backup_manager, options), 'Restore') { |task| task.restore! }
@@ -189,13 +239,14 @@ class SetupCLI < Thor
   option 'confirm', type: :boolean, default: true
   option 'dry', type: :boolean, default: false
   option 'config', type: :string
+  option 'untracked', type: :boolean
   def cleanup
     with_backup_manager do |backup_manager|
       cleanup_files_per_task = get_tasks(backup_manager, options.merge(enable_new: 'skip'))
         .map { |task| [task, task.cleanup] }
         .to_h
         .select { |task, files| not files.empty? }
-      return if cleanup_files_per_task.empty?
+      return true if cleanup_files_per_task.empty?
 
       if options[:confirm]
         cleanup_files_per_task.each do |task, cleanup_files|
@@ -208,16 +259,18 @@ class SetupCLI < Thor
         confirm = true
       end
 
-      return unless confirm
+      return true unless confirm
       cleanup_files_per_task.values.each { |file| (get_io options).rm_rf file }
     end
   end
 
-  # TODO(drognanar): improve status information.
   desc 'status', 'Returns the sync status'
+  option 'verbose', type: :boolean
   def status
     with_backup_manager do |backup_manager|
-      get_tasks(backup_manager, options).each {|task| puts "#{task.name}: " + task.info.map(&:status).map(&:to_s).join(' ') }
+      get_tasks(backup_manager, options).each do |task|
+        summarize_task_info(task, options[:verbose])
+      end
     end
   end
 

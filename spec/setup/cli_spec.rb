@@ -8,68 +8,41 @@ module Setup
 
 $thor_runner = true
 
-RSpec.describe Cli::AppCLI do
-  let(:app_cli)        { Cli::AppCLI.new }
+RSpec.shared_examples 'CLIHelper' do |cli|
+  let(:cli) { cli }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
   describe '#get_io' do
-    it { expect(app_cli.get_io).to eq(CONCRETE_IO) }
-    it { expect(app_cli.get_io dry: true).to eq(DRY_IO) }
+    it { expect(cli.get_io({})).to eq(CONCRETE_IO) }
+    it { expect(cli.get_io dry: true).to eq(DRY_IO) }
   end
   
   def get_backup_manager(options = {})
+    expect(backup_manager).to receive(:load_backups!)
     actual_manager = nil
-    app_cli.with_backup_manager(options) { |backup_manager| actual_manager = backup_manager }
+    cli.with_backup_manager(options) { |backup_manager| actual_manager = backup_manager }
     actual_manager
   end
 
   describe '#with_backup_manager' do
     it 'creates backup manager with default parameters when no options given' do
       expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO, config_path: nil).and_return backup_manager
-      expect(backup_manager).to receive(:load_backups!)
       expect(get_backup_manager).to eq(backup_manager)
     end
 
     it 'creates backup manager with passed in options' do
       expect(Setup::BackupManager).to receive(:from_config).with(io: DRY_IO, config_path: '/config/path').and_return backup_manager
-      expect(backup_manager).to receive(:load_backups!)
       expect(get_backup_manager({ dry: true, config: '/config/path' })).to eq(backup_manager)
     end
   end
 end
 
+RSpec.describe Cli::AppCLI do
+  include_examples 'CLIHelper', Cli::AppCLI.new
+end
+
 RSpec.describe Cli::SetupCLI do
-  let(:setup_cli)      { Cli::SetupCLI.new }
-  let(:backup_manager) { instance_double(Setup::BackupManager) }
-
-  describe '#get_io' do
-    it { expect(setup_cli.get_io dry: true).to eq(DRY_IO) }
-    it { expect(setup_cli.get_io).to eq(CONCRETE_IO) }
-  end
-  
-  def get_backup_manager(options = {})
-    actual_manager = nil
-    setup_cli.with_backup_manager(options) { |backup_manager| actual_manager = backup_manager }
-    actual_manager
-  end
-
-  describe '#with_backup_manager' do
-    context 'when default options are given' do
-      it 'creates a default backup manager' do
-        expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO, config_path: nil).and_return backup_manager
-        expect(backup_manager).to receive(:load_backups!)
-        expect(get_backup_manager).to eq(backup_manager)
-      end
-    end
-
-    context 'when --dry and --config=/config/path' do
-      it 'creates backup manager with passed in options' do
-        expect(Setup::BackupManager).to receive(:from_config).with(io: DRY_IO, config_path: '/config/path').and_return backup_manager
-        expect(backup_manager).to receive(:load_backups!)
-        expect(get_backup_manager({ dry: true, config: '/config/path' })).to eq(backup_manager)
-      end
-    end
-  end
+  include_examples 'CLIHelper', Cli::SetupCLI.new
 end
 
 # Integration tests.
@@ -112,16 +85,12 @@ RSpec.describe './setup' do
 
   # Asserts that the two files have the same content.
   def assert_copies(backup_path: nil, restore_path: nil)
-    expect(File.exist? backup_path).to be true
-    expect(File.exist? restore_path).to be true
     expect(File.identical? backup_path, restore_path).to be false
-    expect(IO.read backup_path).to eq(IO.read restore_path)
+    expect(File.read backup_path).to eq(File.read restore_path)
   end
 
   # Asserts that the two files are symlinks.
   def assert_symlinks(backup_path: nil, restore_path: nil, content: nil)
-    expect(File.exist? backup_path).to be true
-    expect(File.exist? restore_path).to be true
     expect(File.identical? backup_path, restore_path).to be true
     assert_file_content backup_path, content unless content.nil?
   end
@@ -166,6 +135,8 @@ RSpec.describe './setup' do
     # Create a basic layout of files on the disk.
     FileUtils.mkdir_p File.join(@tmpdir, 'apps')
     FileUtils.mkdir_p File.join(@tmpdir, 'machine')
+    
+    save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
     # An app with no files to sync.
     save_yaml_content File.join(@tmpdir, 'apps/app.yml'), 'name' => 'app', 'files' => []
@@ -191,6 +162,11 @@ RSpec.describe './setup' do
     save_yaml_content File.join(@tmpdir, 'apps/python.yml'), 'name' => 'python', 'files' => ['.pythonrc']
     save_file_content get_backup_path('python/_pythonrc'), 'pythonrc'
     save_file_content get_restore_path('.pythonrc'), 'pythonrc'
+    
+    # An app where all files have been completely synced.
+    save_yaml_content File.join(@tmpdir, 'apps/rubocop.yml'), 'name' => 'rubocop', 'files' => ['.rubocop']
+    save_file_content get_backup_path('rubocop/_rubocop'), 'rubocop'
+    link_files get_backup_path('rubocop/_rubocop'), get_restore_path('.rubocop')
   end
 
   describe '--help' do
@@ -198,6 +174,8 @@ RSpec.describe './setup' do
   end
 
   describe 'init' do
+    # The default test setup includes a default_config_root. Remove it to init from a bare repository.
+    before(:each) { File.delete @default_config_root }
 
     it 'should clone repositories'
 
@@ -207,7 +185,7 @@ RSpec.describe './setup' do
         setup.start %w[init]
 
         assert_yaml_content @default_config_root, 'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
       end
     end
 
@@ -217,7 +195,7 @@ RSpec.describe './setup' do
         setup.start %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => ['code', 'python', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config,'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
       end
 
       it 'should create a local backup and disable tasks if user replies n to prompt' do
@@ -225,7 +203,7 @@ RSpec.describe './setup' do
         setup.start %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'vim']
+        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'rubocop', 'vim']
       end
     end
 
@@ -235,8 +213,8 @@ RSpec.describe './setup' do
         setup.start %w[init --enable_new=all]
 
         assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir, @default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'vim', 'bash'], 'disabled_task_names' => []
-        assert_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'python', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
       end
     end
 
@@ -245,7 +223,7 @@ RSpec.describe './setup' do
         setup.start %w[init --enable_new=none]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'vim']
+        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'rubocop', 'vim']
       end
     end
 
@@ -266,8 +244,6 @@ RSpec.describe './setup' do
   end
 
   describe 'backup' do
-    before(:each) { save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir] }
-
     it 'should backup' do
       app_result = setup.start %w[backup --enable_new=all]
 
@@ -291,8 +267,6 @@ RSpec.describe './setup' do
   end
 
   describe 'restore' do
-    before(:each) { save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir] }
-  
     it 'should restore' do
       app_result = setup.start %w[restore --enable_new=all]
 
@@ -318,7 +292,6 @@ RSpec.describe './setup' do
   describe 'cleanup' do
     let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&method(:get_backup_path)) }
     before(:each) do 
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'vim']
       cleanup_files.each { |path| save_file_content path, path }
     end
@@ -354,19 +327,38 @@ RSpec.describe './setup' do
   describe 'status' do
     it 'should print status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python'], 'disabled_task_names' => []
-      result = capture_stdio { setup.start %w[status] }
-      expected_output = 'write expected output here'
+      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []
+      app_result = setup.start %w[status]
+      expected_output =
+        "I: bash: to sync: 1, error: 1\n" \
+        "I: code: items differ: 1\n" \
+        "I: python: to sync: 1\n" \
+        "S: rubocop: all up to date\n" \
+        "I: vim: to sync: 1\n"
       
-      expect(result[:result]).to be true
-      expect(result[:stderr]).to eq('')
-      expect(result[:stdout]).to eq(expected_output)
+      expect(app_result).to be true
+      expect(@log_output.read).to eq(expected_output)
+    end
+    
+    it 'should print verbose status' do
+      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
+      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []
+      app_result = setup.start %w[status --verbose]
+      expected_output =
+        "I: needs sync: bash:.bashrc\n" \
+        "E: error:      bash:.bash_local Cannot sync. Missing both backup and restore.\n" \
+        "W: differs:    code:.vscode\n" \
+        "I: needs sync: python:.pythonrc\n" \
+        "S: up-to-date: rubocop:.rubocop\n" \
+        "I: needs sync: vim:.vimrc\n"
+      
+      expect(app_result).to be true
+      expect(@log_output.read).to eq(expected_output)
     end
   end
 
   describe 'app' do
     before(:each) do
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code'], 'disabled_task_names' => ['vim']
     end
   
@@ -393,7 +385,7 @@ RSpec.describe './setup' do
           "Disabled apps:\n" \
           "vim\n\n" \
           "New apps:\n" \
-          "python\n"
+          "python, rubocop\n"
         
         expect(result[:result]).to be true
         expect(result[:stderr]).to eq('')

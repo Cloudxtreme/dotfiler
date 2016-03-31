@@ -47,12 +47,12 @@ RSpec.describe 'Dry_IO' do
   include AssertDelegate
 
   it 'prints all write io operations' do
-    expect(capture(:stdout) { DRY_IO.link 'path1', 'path2' }).to eq("link source: path1 dest: path2\n")
-    expect(capture(:stdout) { DRY_IO.cp_r 'path1', 'path2' }).to eq("cp_r source: path1 dest: path2\n")
-    expect(capture(:stdout) { DRY_IO.mkdir_p 'path' }).to eq("mkdir_p path: path\n")
-    expect(capture(:stdout) { DRY_IO.rm_rf 'path' }).to eq("rm_rf path: path\n")
-    expect(capture(:stdout) { DRY_IO.junction 'path1', 'path2' }).to eq("cmd /c \"mklink /J \"path2\" \"path1\"\"\n")
-    expect(capture(:stdout) { DRY_IO.shell 'echo hello world' }).to eq("echo hello world\n")
+    expect(capture_log { DRY_IO.link 'path1', 'path2' }).to eq("V: link source: path1 dest: path2\n")
+    expect(capture_log { DRY_IO.cp_r 'path1', 'path2' }).to eq("V: cp_r source: path1 dest: path2\n")
+    expect(capture_log { DRY_IO.mkdir_p 'path' }).to eq("V: mkdir_p path: path\n")
+    expect(capture_log { DRY_IO.rm_rf 'path' }).to eq("V: rm_rf path: path\n")
+    expect(capture_log { DRY_IO.junction 'path1', 'path2' }).to eq("V: cmd /c \"mklink /J \"path2\" \"path1\"\"\n")
+    expect(capture_log { DRY_IO.shell 'echo hello world' }).to eq("V: echo hello world\n")
   end
 end
 

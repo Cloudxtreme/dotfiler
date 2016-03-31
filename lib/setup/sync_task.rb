@@ -10,7 +10,7 @@ module Setup
 # TODO: resolve multiple files being deployed.
 # TODO: rename the classes (SyncTask/Backup)
 class SyncTask
-  attr_accessor :name, :should_execute, :io, :platforms
+  attr_accessor :name, :should_execute, :io, :platforms, :sync_items
 
   def initialize(config, host_info = nil, io = nil)
     raise 'Expected io to be non nil' if io.nil?
@@ -30,6 +30,14 @@ class SyncTask
   def has_data(options = {})
     @sync_items.any? { |sync_item, sync_options| sync_item.has_data sync_options.merge(options) }
   end
+  
+  def sync!(options = {})
+    # TODO(drognanar): Think about yielding on each element.
+    @sync_items.each do |sync_item, sync_options|
+      sync_item.restore! sync_options.merge options
+      sync_item.backup! sync_options.merge options
+    end
+  end
 
   def backup!(options = {})
     @sync_items.each { |sync_item, sync_options| sync_item.backup! sync_options.merge(options) }
@@ -47,8 +55,8 @@ class SyncTask
     @sync_items.map { |sync_item, sync_options| sync_item.cleanup sync_options.merge(options) }
   end
 
-  def info(options = {})
-    @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options) }
+  def info(options = {}, action = :sync)
+    @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options), action }
   end
 
   private
@@ -76,7 +84,7 @@ class SyncTask
     if resolved.is_a? String
       restore_path = File.expand_path(Pathname(restore_root).join(resolved), default_restore_root)
       backup_path = File.expand_path(Pathname(default_backup_root).join(name, escape_dotfile_path(resolved)))
-      { restore_path: restore_path, backup_path: backup_path }
+      { name: resolved, restore_path: restore_path, backup_path: backup_path }
     else
       # TODO: permit regular expressions?
       # TODO: do we not need to expand paths here as well?

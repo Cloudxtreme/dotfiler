@@ -158,14 +158,14 @@ RSpec.describe FileSyncInfo do
     expect(info.errors).to_not be_nil
     expect(info.is_directory).to be_nil
     expect(info.symlinked).to be_nil
-    expect(info.status).to be_nil
+    expect(info.status).to eq(:error)
 
     mock_files io, 'restore/path' => nil
     info = FileSyncInfo.new :backup, example_options1, io
     expect(info.errors).to_not be_nil
     expect(info.is_directory).to be_nil
     expect(info.symlinked).to be_nil
-    expect(info.status).to be_nil
+    expect(info.status).to eq(:error)
   end
 
   def assert_backup_restore(options, symlinked, expected_status, data1, data2)

@@ -1,5 +1,7 @@
 # An IO abstraction.
 # Used to switch between actual run/dry run/test run.
+require 'setup/logging'
+
 require 'fileutils'
 require 'forwardable'
 
@@ -27,25 +29,28 @@ class File_IO < Common_IO
   end
 end
 
+LOGGER = Logging.logger['Setup::InputOutput']
+
 class Dry_IO < Common_IO
+  
   def link(source, dest)
-    puts "link source: #{source} dest: #{dest}"
+    LOGGER.verbose "link source: #{source} dest: #{dest}"
   end
 
   def cp_r(source, dest)
-    puts "cp_r source: #{source} dest: #{dest}"
+    LOGGER.verbose "cp_r source: #{source} dest: #{dest}"
   end
 
   def mkdir_p(path)
-    puts "mkdir_p path: #{path}"
+    LOGGER.verbose "mkdir_p path: #{path}"
   end
 
   def rm_rf(path)
-    puts "rm_rf path: #{path}"
+    LOGGER.verbose "rm_rf path: #{path}"
   end
 
   def shell(command)
-    puts command
+    LOGGER.verbose command
   end
 end
 

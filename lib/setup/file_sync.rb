@@ -1,4 +1,5 @@
 require 'setup/io'
+require 'setup/logging'
 
 module Setup
 
@@ -7,6 +8,7 @@ DEFAULT_FILESYNC_OPTIONS = { enabled: true, copy: false, backup_prefix: 'setup-b
 # Class that synchronizes files.
 class FileSync
   def initialize(sync_time = nil, io = IO)
+    @logger = Logging.logger['Setup::FileSync']
     @sync_time = (sync_time || Time.new).strftime '%Y%m%d%H%M%S'
     @io = io
   end
@@ -16,20 +18,21 @@ class FileSync
     cleanup_globs(options).map { |glob| @io.glob glob }.flatten
   end
 
-  def info(options = {})
+  def info(options = {}, action = :sync)
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    get_sync_info(:sync, options)
+    get_sync_info(action, options)
   end
 
-  def has_data(options = {})
+  def has_data(options = {}, action = :sync)
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    get_sync_info(:sync, options).errors.nil?
+    get_sync_info(action, options).errors.nil?
   end
 
   # Removes symlinks.
   def reset!(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     sync_info = get_sync_info :backup, options
+    @logger.info "Removing \"#{options[:restore_path]}\""
     @io.rm_rf options[:restore_path] if sync_info.symlinked
   end
 
@@ -69,6 +72,7 @@ class FileSync
   end
 
   def save_existing_file!(path, options)
+    @logger.info "Creating a copy of file \"#{path}\""
     backup_path = get_backup_path(options)
     @io.mkdir_p File.dirname backup_path
     @io.mv path, backup_path
@@ -77,15 +81,19 @@ class FileSync
   def create_restore_file!(sync_info, options)
     @io.mkdir_p File.dirname options[:restore_path]
     if options[:copy]
+      @logger.info "Copying \"#{options[:backup_path]}\" to \"#{options[:restore_path]}\""
       @io.cp_r options[:backup_path], options[:restore_path]
     elsif sync_info.is_directory
+      @logger.info "Linking \"#{options[:backup_path]}\" with \"#{options[:restore_path]}\""
       @io.junction options[:backup_path], options[:restore_path]
     else
+      @logger.info "Symlinking \"#{options[:backup_path]}\" with \"#{options[:restore_path]}\""
       @io.link options[:backup_path], options[:restore_path]
     end
   end
 
   def create_backup_file!(sync_info, options)
+    @logger.info "Moving file from #{options[:restore_path]} to #{options[:backup_path]}"
     @io.mkdir_p File.dirname options[:backup_path]
     @io.mv options[:restore_path], options[:backup_path]
   end
@@ -104,6 +112,8 @@ class FileSyncInfo
       @is_directory = sync_action == :backup ? io.directory?(@restore_path) : io.directory?(@backup_path)
       @symlinked = io.identical? @backup_path, @restore_path
       @status = get_status options, io
+    else
+      @status = :error
     end
   end
 

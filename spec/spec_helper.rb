@@ -1,7 +1,22 @@
+require 'setup/logging'
+require 'rspec/logging_helper'
 require 'simplecov'
 SimpleCov.start
 
 RSpec.configure do |config|
+  include RSpec::LoggingHelper
+  config.capture_log_messages from: 'Setup'
+  
+  config.before(:each) do
+    set_logger_level :verbose
+    Logging.appenders['__rspec__'].layout = Logging.layouts.pattern(pattern: '%.1l: %m\n')
+  end
+  
+  def capture_log
+    yield
+    @log_output.read
+  end
+
   def capture_stdio(stdout: true, stderr: true)
     result = {}
     begin
