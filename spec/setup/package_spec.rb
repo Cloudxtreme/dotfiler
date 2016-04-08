@@ -8,7 +8,8 @@ module Setup
 
 RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
-  let(:host_info) { { label: ['<win>'], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
+  let(:platform)  { Platform::machine_labels[0] }
+  let(:host_info) { { label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
@@ -88,8 +89,6 @@ RSpec.describe 'Package' do
     end
 
     it 'should handle labels' do
-      platform = Platform::machine_labels[0]
-
       assert_sync_items [{ platform => 'b', '<>' => 'c' }], [
         { name: 'b', backup_path: backup('b'), restore_path: restore('b') }]
 
@@ -98,11 +97,11 @@ RSpec.describe 'Package' do
     end
 
     it 'should skip sync items with different labels' do
-      task_config = config [{'<lin>' => 'a'}]
+      task_config = config [{'<>' => 'a'}]
       expected_sync_options = []
       get_package(task_config, expected_sync_options)
 
-      task_config = config [{'<win>' => 'a'}]
+      task_config = config [{platform => 'a'}]
       expected_sync_options = [
         { name: 'a', backup_path: backup('a'), restore_path: restore('a') }]
       get_package(task_config, expected_sync_options)
