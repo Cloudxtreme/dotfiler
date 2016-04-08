@@ -460,6 +460,16 @@ Deleting \"#{get_backup_path('vim/setup-backup-1-_vimrc')}\"
   end
 
   describe 'status' do
+    it 'should print an empty message if no packages exist' do
+      save_yaml_content @default_config_root, 'backups' => []
+      assert_ran_without_errors setup %w[status]
+      
+      expect(@output_lines.join).to eq(
+"W: No packages enabled.
+W: Use ./setup package add to enable packages.
+")
+    end
+  
     it 'should print status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []

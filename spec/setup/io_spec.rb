@@ -56,6 +56,7 @@ RSpec.describe 'Dry_IO' do
   it 'prints all write io operations' do
     expect(capture_log { DRY_IO.link 'path1', 'path2' }).to eq("I: > ln -s \"path1\" \"path2\"\n")
     expect(capture_log { DRY_IO.cp_r 'path1', 'path2' }).to eq("I: > cp -r \"path1\" \"path2\"\n")
+    expect(capture_log { DRY_IO.mv 'path1', 'path2' }).to eq("I: > mv \"path1\" \"path2\"\n")
     expect(capture_log { DRY_IO.mkdir_p 'path' }).to eq("I: > mkdir -p \"path\"\n")
     expect(capture_log { DRY_IO.rm_rf 'path' }).to eq("I: > rm -rf \"path\"\n")
     expect(capture_log { DRY_IO.shell 'echo hello world' }).to eq("I: > echo hello world\n")
