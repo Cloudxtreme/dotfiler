@@ -16,8 +16,6 @@ class Common_IO
   def_delegators Dir, :glob, :entries
   def_delegators IO, :read
 
-  # TODO(drognanar): Prefer symbolic links on linux.
-
   def junction(target_path, link_path)
     if Platform::windows?
       shell "cmd /c \"mklink /J \"#{link_path}\" \"#{target_path}\"\""
@@ -28,15 +26,20 @@ class Common_IO
 end
 
 class File_IO < Common_IO
-  def_delegators File, :link
   def_delegators FileUtils, :cp_r, :mkdir_p, :mv, :rm_rf
+  
+  def link(target_path, link_path)
+    if Platform::unix?
+      File.symlink target_path, link_path
+    elsif Platform::windows?
+      File.link target_path, link_path
+    end
+  end
 
   def shell(command)
     `#{command}`
   end
 end
-
-LOGGER = Logging.logger['Setup::InputOutput']
 
 class Dry_IO < Common_IO
 

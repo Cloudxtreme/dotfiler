@@ -28,7 +28,6 @@ RSpec.describe 'File_IO' do
   include AssertDelegate
 
   it 'delegates all write io operations' do
-    assert_delegates CONCRETE_IO, File, :link, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :cp_r, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :mkdir_p, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :mv, 'path1', 'path2'
@@ -36,17 +35,25 @@ RSpec.describe 'File_IO' do
     expect(CONCRETE_IO).to receive(:`).with('echo hello world').once
     CONCRETE_IO.shell 'echo hello world'
   end
-
-  it 'sends junction for execution to shell' do
-    stub_const 'RUBY_PLATFORM', 'mswin'
-    expect(CONCRETE_IO).to receive(:shell).with('cmd /c "mklink /J "path2" "path1""')
-    CONCRETE_IO.junction 'path1', 'path2'
+  
+  it 'hardlinks on windows' do
+    expect(File).to receive(:link).with('path1', 'path2')
+    under_windows { CONCRETE_IO.link 'path1', 'path2' }
   end
   
   it 'symlinks on unix' do
-    stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
-    expect(CONCRETE_IO).to receive(:link).with('path1', 'path2')
-    CONCRETE_IO.junction 'path1', 'path2'
+    expect(File).to receive(:symlink).with('path1', 'path2')
+    under_osx { CONCRETE_IO.link 'path1', 'path2' }
+  end
+
+  it 'sends junction for execution to shell' do
+    expect(CONCRETE_IO).to receive(:shell).with('cmd /c "mklink /J "path2" "path1""')
+    under_windows { CONCRETE_IO.junction 'path1', 'path2' }
+  end
+  
+  it 'symlinks on unix' do
+    expect(File).to receive(:symlink).with('path1', 'path2')
+    under_osx { CONCRETE_IO.junction 'path1', 'path2' }
   end
 end
 
