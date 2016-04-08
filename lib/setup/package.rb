@@ -120,6 +120,8 @@ class Package
 
     if resolved.is_a? String
       resolved = { restore_path: resolved, backup_path: Package.escape_dotfile_path(resolved) }
+    elsif resolved.is_a? Hash
+      resolved = Hash[resolved.map { |k, v| [k.to_sym, v] }]
     end
 
     if resolved.fetch(:type, 'file') == 'file'

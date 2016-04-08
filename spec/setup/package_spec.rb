@@ -87,6 +87,11 @@ RSpec.describe 'Package' do
       assert_sync_items [{ backup_path: File.expand_path('/bp'), restore_path: File.expand_path('/rp') }], [
         { name: File.expand_path('/rp'), backup_path: File.expand_path('/bp'), restore_path: File.expand_path('/rp') }]
     end
+    
+    it 'should process string keys' do
+      assert_sync_items [{ 'backup_path' => 'a', 'restore_path' => 'b' }], [
+        { name: 'b', backup_path: backup('a'), restore_path: restore('b') }]
+    end
 
     it 'should handle labels' do
       assert_sync_items [{ platform => 'b', '<>' => 'c' }], [
