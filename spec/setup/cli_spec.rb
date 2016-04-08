@@ -104,13 +104,13 @@ RSpec.describe './setup' do
   def assert_ran_without_errors(result)
     expect(result).to be true
     @output_lines = @log_output.readlines
-    expect(@output_lines.any? { |line| line.start_with? 'E:'}).to be false
+    expect(@output_lines).to_not include(start_with 'E:')
   end
   
   def assert_ran_with_errors(result)
     expect(result).to be true
     @output_lines = @log_output.readlines
-    expect(@output_lines.any? { |line| line.start_with? 'E:'}).to be true
+    expect(@output_lines).to include(start_with 'E:')
   end
 
   def get_backup_path(path)
@@ -250,7 +250,7 @@ Options:
     context 'when --enable_new=all' do
       it 'should create a local backup and enable found tasks' do
         save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-        assert_ran_without_errors setup %w[init --enable_new=all]
+        assert_ran_with_errors setup %w[init --enable_new=all]
 
         assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir, @default_backup_dir]
         assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []

@@ -3,7 +3,7 @@ require 'setup/logging'
 
 module Setup
 
-DEFAULT_FILESYNC_OPTIONS = { enabled: true, copy: false, backup_prefix: 'setup-backup' }
+DEFAULT_FILESYNC_OPTIONS = { copy: false, backup_prefix: 'setup-backup' }
 
 class FileMissingError < Exception
 end
@@ -34,15 +34,21 @@ class FileSync
   end
 
   def sync!(options = {})
-    restore!(options) if has_data options, :restore
-    backup!(options) if has_data options, :backup
-    # TODO(drognanar): Implement separately sync.
+    options = DEFAULT_FILESYNC_OPTIONS.merge(options)
+    sync_info = get_sync_info :sync, options
+    return if sync_info.status == :up_to_date
+    raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
+    
+    create_backup_file! sync_info, options if sync_info.status == :backup
+    save_existing_file! options[:restore_path], options if sync_info.status == :overwrite_data
+    @io.rm_rf options[:restore_path] if sync_info.status == :resync
+    create_restore_file! sync_info, options
   end
 
   def backup!(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     sync_info = get_sync_info :backup, options
-    return if not options[:enabled] or sync_info.status == :up_to_date
+    return if sync_info.status == :up_to_date
     raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
 
     save_existing_file!(options[:backup_path], options) if sync_info.status == :overwrite_data
@@ -54,7 +60,7 @@ class FileSync
   def restore!(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     sync_info = get_sync_info :restore, options
-    return if not options[:enabled] or sync_info.status == :up_to_date
+    return if sync_info.status == :up_to_date
     raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
 
     save_existing_file!(options[:restore_path], options) if sync_info.status == :overwrite_data
@@ -64,7 +70,7 @@ class FileSync
 
   private
 
-  def get_backup_path(options)
+  def get_backup_copy_path(options)
     dir_part, file_part = File.split options[:backup_path]
     File.join dir_part, "#{options[:backup_prefix]}-#{@sync_time}-#{file_part}"
   end
@@ -74,10 +80,10 @@ class FileSync
   end
 
   def save_existing_file!(path, options)
-    backup_path = get_backup_path(options)
-    LOGGER.verbose "Saving a copy of file \"#{path}\" under \"#{File.dirname backup_path}\""
-    @io.mkdir_p File.dirname backup_path
-    @io.mv path, backup_path
+    backup_copy_path = get_backup_copy_path(options)
+    LOGGER.verbose "Saving a copy of file \"#{path}\" under \"#{File.dirname backup_copy_path}\""
+    @io.mkdir_p File.dirname backup_copy_path
+    @io.mv path, backup_copy_path
   end
 
   def create_restore_file!(sync_info, options)

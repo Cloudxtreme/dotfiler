@@ -68,8 +68,7 @@ RSpec.describe FileSync do
   end
 
   describe '#backup!' do
-    it 'should not backup when FileSync disabled, has errors or up to date' do
-      (file_sync info_sync_files).backup! symlink_sync_options.merge(enabled: false)
+    it 'should not backup when up to date' do
       (file_sync info_up_to_date).backup! symlink_sync_options
     end
     
@@ -104,8 +103,7 @@ RSpec.describe FileSync do
   end
 
   describe 'restore!' do
-    it 'should not restore when FileSync disabled, has errors or up to date' do
-      (file_sync info_sync_files).restore! symlink_sync_options.merge(enabled: false)
+    it 'should not restore when up to date' do
       (file_sync info_up_to_date).restore! symlink_sync_options
     end
     
