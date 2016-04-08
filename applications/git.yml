@@ -1,4 +1,9 @@
 name: Git
 files:
 - .gitignore
-- .gitconfig
+- <win>:
+    backup_path: _gitconfig(win)
+    restore_path: .gitconfig
+- <mac>:
+    backup_path: _gitconfig(osx)
+    restore_path: .gitconfig
