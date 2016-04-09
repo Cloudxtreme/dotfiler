@@ -46,14 +46,6 @@ class Package
     with_items :sync!, options, &block
   end
 
-  def backup!(options = {}, &block)
-    with_items :backup!, options, &block
-  end
-
-  def restore!(options = {}, &block)
-    with_items :restore!, options, &block
-  end
-
   def reset!(options = {})
     @sync_items.each do |sync_item, sync_options|
       yield sync_options

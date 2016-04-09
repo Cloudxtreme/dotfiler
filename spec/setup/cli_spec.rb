@@ -191,12 +191,10 @@ RSpec.describe './setup' do
     it do
       expect { setup %w[--help] }.to output(
 "Commands:
-  setup backup                        # Backup your settings
   setup cleanup                       # Cleans up previous backups
   setup help [COMMAND]                # Describe available commands or one specific command
   setup init [<backups>...]           # Initializes backups
   setup package <subcommand> ...ARGS  # Add/remove packages to be backed up
-  setup restore                       # Restore your settings
   setup status                        # Returns the sync status
   setup sync                          # Synchronize your settings
 
@@ -250,7 +248,7 @@ Options:
 
     context 'when --enable_new=all' do
       it 'should create a local backup and enable found tasks' do
-        expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').and_return 'r'
+        expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').and_return 'r'
         save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
         assert_ran_with_errors setup %w[init --enable_new=all]
 
@@ -302,8 +300,8 @@ Options:
   end
 
   describe 'sync' do
-    it 'should sync' do
-      expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'b'
+    it 'should sync with restore overwrite' do
+      expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'r'
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
 
       assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
@@ -338,8 +336,8 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
 ")
     end
     
-    it 'should backup overwrite' do
-      expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'r'
+    it 'should sync with backup overwrite' do
+      expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'b'
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
 
       assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
@@ -380,109 +378,13 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
 
     context 'when --copy' do
       it 'should generate file copies instead of symlinks' do
-        expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'b'
+        expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'r'
         expect(setup %w[sync --enable_new=all --copy]).to be true
 
         assert_copies restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
         assert_copies restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
         assert_copies restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
         assert_copies restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
-      end
-    end
-  end
-
-  describe 'backup' do
-    it 'should backup' do
-      assert_ran_with_errors setup %w[backup --enable_new=all --verbose]
-
-      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
-      expect(File.exist? get_restore_path('.bashrc')).to be false
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
-      expect(@output_lines.join).to eq(
-"Backing up:
-I: Backing up package bash:
-I: Backing up .bashrc
-E: Cannot backup: missing \"#{get_restore_path('.bashrc')}\"
-I: Backing up .bash_local
-E: Cannot backup: missing \"#{get_restore_path('.bash_local')}\"
-I: Backing up package code:
-I: Backing up .vscode
-V: Saving a copy of file \"#{get_backup_path('code/_vscode')}\" under \"#{get_backup_path('code')}\"
-V: Moving file from \"#{get_restore_path('.vscode')}\" to \"#{get_backup_path('code/_vscode')}\"
-V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
-I: Backing up package python:
-I: Backing up .pythonrc
-V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
-I: Backing up package rubocop:
-I: Backing up .rubocop
-I: Backing up package vim:
-I: Backing up .vimrc
-V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
-V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
-")
-    end
-
-    it 'should not backup if the task is disabled' do
-      assert_ran_without_errors setup %w[backup --enable_new=none]
-      assert_files_unchanged
-    end
-
-    context 'when --copy' do
-      it 'should generate file copies instead of symlinks' do
-        expect(setup %w[backup --enable_new=all --copy]).to be true
-
-        assert_copies restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-        assert_copies restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
-        expect(File.exist? get_restore_path('.bashrc')).to be false
-        assert_copies restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
-      end
-    end
-  end
-
-  describe 'restore' do
-    it 'should restore' do
-      assert_ran_with_errors setup %w[restore --enable_new=all --verbose]
-
-      expect(File.exist? get_backup_path('vim/_vimrc')).to be false
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
-      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc'), content: 'pythonrc'
-      expect(@output_lines.join).to eq(
-"Restoring:
-I: Restoring package bash:
-I: Restoring .bashrc
-V: Symlinking \"#{get_backup_path('bash/_bashrc')}\" with \"#{get_restore_path('.bashrc')}\"
-I: Restoring .bash_local
-E: Cannot restore: missing \"#{get_backup_path('bash/_bash_local')}\"
-I: Restoring package code:
-I: Restoring .vscode
-V: Saving a copy of file \"#{get_restore_path('.vscode')}\" under \"#{get_backup_path('code')}\"
-V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
-I: Restoring package python:
-I: Restoring .pythonrc
-V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
-I: Restoring package rubocop:
-I: Restoring .rubocop
-I: Restoring package vim:
-I: Restoring .vimrc
-E: Cannot restore: missing \"#{get_backup_path('vim/_vimrc')}\"
-")
-    end
-
-    it 'should not restore if the task is disabled' do
-      assert_ran_without_errors setup %w[restore --enable_new=none]
-      assert_files_unchanged
-    end
-
-    context 'when --copy' do
-      it 'should generate file copies instead of symlinks' do
-        expect(setup %w[restore --enable_new=all --copy]).to be true
-
-        expect(File.exist? get_backup_path('vim/_vimrc')).to be false
-        assert_copies restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
-        assert_copies restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-        assert_copies restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc'), content: 'pythonrc'
       end
     end
   end
@@ -638,7 +540,7 @@ python, rubocop
   def assert_commands_fail_if_corrupt(corrupt_file_path)
     save_file_content corrupt_file_path, "---\n"
 
-    commands = ['init', 'restore', 'backup', 'cleanup', 'status', 'package add', 'package remove', 'package list']
+    commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list']
     commands.each do |command|
       assert_ran_unsuccessfully setup command.split(' ')
       expect(@output_lines).to eq(["E: An error occured while trying to load \"#{corrupt_file_path}\"\n"])

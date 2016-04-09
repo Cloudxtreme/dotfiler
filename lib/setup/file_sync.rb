@@ -45,29 +45,6 @@ class FileSync
     create_restore_file! sync_info, options
   end
 
-  def backup!(options = {})
-    options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    sync_info = get_sync_info :backup, options
-    return if sync_info.status == :up_to_date
-    raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
-
-    save_existing_file!(options[:backup_path], options) if sync_info.status == :overwrite_data
-    create_backup_file! sync_info, options if sync_info.status != :resync
-    @io.rm_rf(options[:restore_path]) if sync_info.status == :resync
-    create_restore_file! sync_info, options
-  end
-
-  def restore!(options = {})
-    options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    sync_info = get_sync_info :restore, options
-    return if sync_info.status == :up_to_date
-    raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
-
-    save_existing_file!(options[:restore_path], options) if sync_info.status == :overwrite_data
-    @io.rm_rf(options[:restore_path]) if sync_info.status == :resync
-    create_restore_file! sync_info, options
-  end
-
   private
 
   def get_backup_copy_path(options)
@@ -80,10 +57,10 @@ class FileSync
   end
   
   def save_overwrite_file!(sync_info, options)
-    action = options[:on_overwrite].nil? ? :restore : options[:on_overwrite].call(options[:backup_path], options[:restore_path])
-    file_to_save = action == :restore ? options[:restore_path] : options[:backup_path]
-    save_existing_file! file_to_save, options
-    create_backup_file! sync_info, options if action == :backup
+    file_to_keep = options[:on_overwrite].nil? ? :backup : options[:on_overwrite].call(options[:backup_path], options[:restore_path])
+    path_to_copy = file_to_keep == :backup ? options[:restore_path] : options[:backup_path]
+    save_existing_file! path_to_copy, options
+    create_backup_file! sync_info, options if file_to_keep == :restore
   end
 
   def save_existing_file!(path, options)

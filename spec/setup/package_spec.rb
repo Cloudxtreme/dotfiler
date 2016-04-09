@@ -122,12 +122,8 @@ RSpec.describe 'Package' do
     expected_sync_options = [options]
 
     package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:backup!).with(options).once }
-    package.backup! {}
-
-    package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:restore!).with(options).once }
-    package.restore! {}
+    sync_items.each { |item, _| expect(item).to receive(:sync!).with(options).once }
+    package.sync! {}
 
     package, sync_items = get_package(task_config, expected_sync_options)
     sync_items.each { |item, _| expect(item).to receive(:reset!).once }

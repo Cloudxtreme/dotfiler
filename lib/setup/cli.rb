@@ -175,7 +175,7 @@ class SetupCLI < Thor
       LOGGER.warn "Backup: \"#{backup_path}\""
       LOGGER.warn "Restore: \"#{restore_path}\""
       while true
-        answer = Commandline.ask "Back up, restore, back up all, restore all [b/r/ba/ra]?"
+        answer = Commandline.ask "Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?"
         if answer == 'b'
           return :backup
         elsif answer == 'r'
@@ -233,20 +233,6 @@ class SetupCLI < Thor
   def sync
     return help :sync if options[:help]
     run_tasks_with_progress :sync!, title: 'Syncing', empty: 'Nothing to sync'
-  end
-
-  desc 'backup', 'Backup your settings'
-  SetupCLI.common_options
-  def backup
-    return help :backup if options[:help]
-    run_tasks_with_progress(:backup!, title: 'Backing up', empty: 'Nothing to back up')
-  end
-
-  desc 'restore', 'Restore your settings'
-  SetupCLI.common_options
-  def restore
-    return help :restore if options[:help]
-    run_tasks_with_progress(:restore!, title: 'Restoring', empty: 'Nothing to restore')
   end
 
   desc 'cleanup', 'Cleans up previous backups'

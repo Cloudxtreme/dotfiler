@@ -22,8 +22,10 @@ RSpec.describe FileSync do
   let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
   let(:info_with_errors)     { get_sync_info errors: 'err', status: nil }
   let(:info_up_to_date)      { get_sync_info errors: nil, status: :up_to_date }
-  let(:info_sync_files)      { get_sync_info errors: nil, status: :sync, is_directory: false }
-  let(:info_sync_dirs)       { get_sync_info errors: nil, status: :sync, is_directory: true }
+  let(:info_restore_files)   { get_sync_info errors: nil, status: :restore, is_directory: false }
+  let(:info_backup_files)    { get_sync_info errors: nil, status: :backup, is_directory: false }
+  let(:info_restore_dirs)    { get_sync_info errors: nil, status: :restore, is_directory: true }
+  let(:info_backup_dirs)     { get_sync_info errors: nil, status: :backup, is_directory: true }
   let(:info_overwrite)       { get_sync_info errors: nil, status: :overwrite_data }
   let(:info_resync)          { get_sync_info errors: nil, status: :resync }
 
@@ -40,8 +42,10 @@ RSpec.describe FileSync do
     it 'should have data if there are no errors' do
       expect((file_sync info_with_errors).has_data symlink_sync_options).to be false
       expect((file_sync info_up_to_date).has_data symlink_sync_options).to be true
-      expect((file_sync info_sync_files).has_data symlink_sync_options).to be true
-      expect((file_sync info_sync_dirs).has_data symlink_sync_options).to be true
+      expect((file_sync info_backup_files).has_data symlink_sync_options).to be true
+      expect((file_sync info_restore_files).has_data symlink_sync_options).to be true
+      expect((file_sync info_backup_dirs).has_data symlink_sync_options).to be true
+      expect((file_sync info_restore_dirs).has_data symlink_sync_options).to be true
       expect((file_sync info_overwrite).has_data symlink_sync_options).to be true
       expect((file_sync info_resync).has_data symlink_sync_options).to be true
     end
@@ -67,13 +71,33 @@ RSpec.describe FileSync do
     end
   end
 
-  describe '#backup!' do
-    it 'should not backup when up to date' do
-      (file_sync info_up_to_date).backup! symlink_sync_options
+  describe '#sync!' do
+    context 'when everything is up-to-date' do
+      it 'should not touch any files' do
+        (file_sync info_up_to_date).sync! symlink_sync_options
+      end
     end
     
-    it 'should throw exception when file missing' do
-      expect {(file_sync info_with_errors).backup! symlink_sync_options}.to raise_error(FileMissingError)
+    context 'when files are missing' do
+      it 'should throw exception' do
+        expect {(file_sync info_with_errors).sync! symlink_sync_options}.to raise_error(FileMissingError)
+      end
+    end
+    
+    context 'when only backup file is present' do
+       it 'should create restore link' do
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:link).with('backup/path', 'restore/path').once.ordered
+        (file_sync info_restore_files).sync! symlink_sync_options
+
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:junction).with('backup/path', 'restore/path').once.ordered
+        (file_sync info_restore_dirs).sync! symlink_sync_options
+
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
+        (file_sync info_restore_files).sync! copy_sync_options
+       end
     end
 
     def assert_backup_steps(restore_method)
@@ -83,61 +107,51 @@ RSpec.describe FileSync do
       expect(io).to receive(restore_method).with('backup/path', 'restore/path').once.ordered
     end
 
-    it 'should create backup file and restore link' do
-      assert_backup_steps :link
-      (file_sync info_sync_files).backup! symlink_sync_options
+    context 'when only restore file is present' do
 
-      assert_backup_steps :junction
-      (file_sync info_sync_dirs).backup! symlink_sync_options
+      it 'should create backup file and restore link' do
+        assert_backup_steps :link
+        (file_sync info_backup_files).sync! symlink_sync_options
 
-      assert_backup_steps :cp_r
-      (file_sync info_sync_files).backup! copy_sync_options
+        assert_backup_steps :junction
+        (file_sync info_backup_dirs).sync! symlink_sync_options
+
+        assert_backup_steps :cp_r
+        (file_sync info_backup_files).sync! copy_sync_options
+      end
     end
 
-    it 'should rename file if overriden' do
-      expect(io).to receive(:mkdir_p).with('backup').once.ordered
-      expect(io).to receive(:mv).with('backup/path', 'backup/setup-backup-20160404111213-path').once.ordered
-      assert_backup_steps :cp_r
-      (file_sync info_overwrite).backup! copy_sync_options
-    end
-  end
-
-  describe 'restore!' do
-    it 'should not restore when up to date' do
-      (file_sync info_up_to_date).restore! symlink_sync_options
-    end
-    
-    it 'should raise on sync info error' do
-      expect { (file_sync info_with_errors).restore! symlink_sync_options }.to raise_error(FileMissingError)
-    end
-
-    it 'should create restore link' do
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:link).with('backup/path', 'restore/path').once.ordered
-      (file_sync info_sync_files).restore! symlink_sync_options
-
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:junction).with('backup/path', 'restore/path').once.ordered
-      (file_sync info_sync_dirs).restore! symlink_sync_options
-
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (file_sync info_sync_files).restore! copy_sync_options
+    context 'when overriden' do
+      it 'should restore up when (b)' do
+        expect(io).to receive(:mkdir_p).with('backup').once.ordered
+        expect(io).to receive(:mv).with('restore/path', 'backup/setup-backup-20160404111213-path').once.ordered
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered 
+        
+        options = copy_sync_options.merge on_overwrite: proc { :backup }
+        (file_sync info_overwrite).sync! options
+      end
+      
+      it 'should backup when (r)' do
+        expect(io).to receive(:mkdir_p).with('backup').once.ordered
+        expect(io).to receive(:mv).with('backup/path', 'backup/setup-backup-20160404111213-path').once.ordered
+        expect(io).to receive(:mkdir_p).with('backup').once.ordered
+        expect(io).to receive(:mv).with('restore/path', 'backup/path')
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:cp_r).with('backup/path', 'restore/path')
+        
+        options = copy_sync_options.merge on_overwrite: proc { :restore }
+        (file_sync info_overwrite).sync! options
+      end
     end
 
-    it 'should rename file if overriden' do
-      expect(io).to receive(:mkdir_p).with('backup').once.ordered
-      expect(io).to receive(:mv).with('restore/path', 'backup/setup-backup-20160404111213-path').once.ordered
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (file_sync info_overwrite).restore! copy_sync_options
-    end
-
-    it 'should delete previous restore under resync' do
-      expect(io).to receive(:rm_rf).with('restore/path').once.ordered
-      expect(io).to receive(:mkdir_p).with('restore').once.ordered
-      expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
-      (file_sync info_resync).restore! copy_sync_options
+    context 'when resyncing' do
+      it 'should should delete previous restore' do
+        expect(io).to receive(:rm_rf).with('restore/path').once.ordered
+        expect(io).to receive(:mkdir_p).with('restore').once.ordered
+        expect(io).to receive(:cp_r).with('backup/path', 'restore/path').once.ordered
+        (file_sync info_resync).sync! copy_sync_options
+      end
     end
   end
 end
