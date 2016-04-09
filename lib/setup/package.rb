@@ -46,13 +46,6 @@ class Package
     with_items :sync!, options, &block
   end
 
-  def reset!(options = {})
-    @sync_items.each do |sync_item, sync_options|
-      yield sync_options
-      sync_item.reset! sync_options.merge(options)
-    end
-  end
-
   def backed_up_files
     @sync_items.map { |sync_item, sync_options| sync_item.info(sync_options).backup_path }
   end

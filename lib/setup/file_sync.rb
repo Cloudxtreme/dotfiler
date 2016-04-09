@@ -24,13 +24,6 @@ class FileSync
     info(options).errors.nil?
   end
 
-  # Removes symlinks.
-  def reset!(options = {})
-    sync_info = info options
-    LOGGER.verbose "Removing \"#{options[:restore_path]}\""
-    @io.rm_rf options[:restore_path] if sync_info.symlinked
-  end
-
   def sync!(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
     sync_info = FileSyncInfo.new(options, @io)

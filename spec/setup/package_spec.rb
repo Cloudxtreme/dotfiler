@@ -126,10 +126,6 @@ RSpec.describe 'Package' do
     package.sync! {}
 
     package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:reset!).once }
-    package.reset! {}
-
-    package, sync_items = get_package(task_config, expected_sync_options)
     sync_items.each { |item, _| expect(item).to receive(:info).once }
     package.info
 

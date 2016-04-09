@@ -58,19 +58,6 @@ RSpec.describe FileSync do
     end
   end
 
-  describe '#reset!' do
-    it 'should not remove concrete files' do
-      sync_info = get_sync_info symlinked: false
-      (file_sync sync_info).reset!
-    end
-
-    it 'should remove restored symlinks' do
-      sync_info = get_sync_info symlinked: true
-      expect(io).to receive(:rm_rf).with('restore/path').once
-      (file_sync sync_info).reset! restore_path: 'restore/path'
-    end
-  end
-
   describe '#sync!' do
     context 'when everything is up-to-date' do
       it 'should not touch any files' do
