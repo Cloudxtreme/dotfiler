@@ -33,7 +33,7 @@ class Backup
 
   def initialize(backup_path, host_info, io, store, dry)
     @backup_path = backup_path
-    @backup_tasks_path = Pathname(@backup_path).join(BACKUP_TASKS_PATH)
+    @backup_tasks_path = File.join(@backup_path, BACKUP_TASKS_PATH)
     @host_info = host_info
     @io = io
     @store = store
@@ -47,7 +47,7 @@ class Backup
   def Backup.from_config(backup_path: nil, host_info: {}, io: nil, dry: false)
     io.mkdir_p backup_path unless io.exist? backup_path
     host_info = host_info.merge backup_root: backup_path
-    backup_config_path = Pathname(backup_path).join(DEFAULT_BACKUP_CONFIG_PATH)
+    backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
     Backup.new(backup_path, host_info, io, store, dry).tap(&:load_config!)
   end
@@ -60,7 +60,7 @@ class Backup
     end
 
     backup_tasks = get_backup_tasks @backup_tasks_path, @host_info, @io
-    app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), @host_info, @io
+    app_tasks = get_backup_tasks APPLICATIONS_DIR, @host_info, @io
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
@@ -91,6 +91,9 @@ class Backup
   # Finds newly added tasks that can be run on this machine.
   # These tasks have not been yet added to the config file's enabled_task_names or disabled_task_names properties.
   def new_tasks
+    # TODO(drognanar): Use new_package?
+    # TODO(drognanar): Then make is_enabled == not is_disabled.
+    # TODO(drognanar): Get rid of enabled and just keep ignored.
     @tasks.select { |task_name, task| not is_enabled(task_name) and not is_disabled(task_name) and task.should_execute and task.has_data }
   end
 
@@ -146,12 +149,9 @@ class Backup
   end
 
   # Constructs backup tasks that can be found a task folder.
-  def get_backup_tasks(tasks_pathname, host_info, io)
-    return {} if not io.exist? tasks_pathname
-    (io.entries tasks_pathname)
-      .map { |task_path| Pathname(task_path) }
-      .select { |task_pathname| task_pathname.extname == '.yml' }
-      .map { |task_pathname| [File.basename(task_pathname, '.*'), get_backup_task(tasks_pathname.join(task_pathname), host_info, io)] }
+  def get_backup_tasks(tasks_path, host_info, io)
+    (io.glob File.join(tasks_path, '*.yml'))
+      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, host_info, io)] }
       .select { |task_name, task| not task.nil? }
       .to_h
   end
@@ -188,6 +188,7 @@ class BackupManager
     # TODO(drognanar): How to add extra labels into host_info?
     # TODO(drognanar): These can only be obtained after running #load_config!
     # TODO(drognanar): Hardcode the config path?
+    # TODO(drognanar): What if we get pluggable packages?
     host_info = BackupManager.get_host_info
 
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
@@ -220,6 +221,8 @@ class BackupManager
 
     LOGGER << "Creating a backup at \"#{backup_dir}\"\n"
 
+    # TODO(drognanar): Revise this model.
+    # TODO(drognanar): Will not clone the repository if folder exists but will sync.
     backup_exists = @io.exist?(backup_dir)
     if not backup_exists or @io.entries(backup_dir).empty?
       @io.mkdir_p backup_dir if not backup_exists

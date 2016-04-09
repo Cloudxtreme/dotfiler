@@ -32,6 +32,7 @@ RSpec.describe 'File_IO' do
     assert_delegates CONCRETE_IO, FileUtils, :mkdir_p, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :mv, 'path1', 'path2'
     assert_delegates CONCRETE_IO, FileUtils, :rm_rf, 'path1', 'path2'
+    assert_delegates CONCRETE_IO, Kernel, :system, 'work'
     expect(CONCRETE_IO).to receive(:`).with('echo hello world').once
     CONCRETE_IO.shell 'echo hello world'
   end
@@ -67,6 +68,7 @@ RSpec.describe 'Dry_IO' do
     expect(capture_log { DRY_IO.mkdir_p 'path' }).to eq("I: > mkdir -p \"path\"\n")
     expect(capture_log { DRY_IO.rm_rf 'path' }).to eq("I: > rm -rf \"path\"\n")
     expect(capture_log { DRY_IO.shell 'echo hello world' }).to eq("I: > echo hello world\n")
+    expect(capture_log { DRY_IO.system 'echo hello world' }).to eq("I: > echo hello world\n")
   end
   
   it 'prints junction on windows' do

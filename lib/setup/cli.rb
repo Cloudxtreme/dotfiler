@@ -4,61 +4,49 @@ require 'setup/logging'
 
 require 'highline'
 require 'thor'
+require 'yaml'
 
 module Setup::Cli
 
-# TODO(drognanar): use Thor to ask questions?
-# TODO(drognanar): Get rid of `highline`?
-# TODO(drognanar): Try to check thor's status messages.
-# TODO(drognanar): Add package new/edit methods to quickly edit and create new packages.
+class CommonCLI < Thor
+  class_option 'help', type: :boolean, desc: 'Print help for a specific command'
+  class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
 
-Commandline = HighLine.new
+  no_commands do
+    def init_command(command, options)
+      return help command if options[:help]
+      LOGGER.level = options[:verbose] ? :verbose : :info
+      dry = options[:dry] || false
+      @io = options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
+      @cli = HighLine.new
 
-module CliHelpers
-  def get_io(options)
-    options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
-  end
-
-  def with_backup_manager(options)
-    LOGGER.level = options[:verbose] ? :verbose : :info
-    dry = options[:dry] || false
-    @io = get_io(options)
-    config = { io: @io, dry: dry }
-    yield Setup::BackupManager.from_config(config).tap(&:load_backups!)
-    return true
-  rescue Setup::InvalidConfigFileError => e
-    LOGGER.error "An error occured while trying to load \"#{e.path}\""
-    return false
+      yield Setup::BackupManager.from_config(io: @io, dry: dry).tap(&:load_backups!)
+      return true
+    rescue Setup::InvalidConfigFileError => e
+      LOGGER.error "Could not load \"#{e.path}\""
+      return false
+    end
   end
 end
 
-class PackageCLI < Thor
-  no_commands do
-    include CliHelpers
-  end
-
-  class_option 'help', type: :boolean
-
+class PackageCLI < CommonCLI
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
-    return help :add if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:add, options) do |backup_manager|
       backup_manager.backups.map { |backup| backup.enable_tasks! names }
     end
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
-    return help :remove if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:remove, options) do |backup_manager|
       backup_manager.backups.map { |backup| backup.disable_tasks! names }
     end
   end
 
   desc 'list', 'Lists packages for which settings can be backed up.'
   def list
-    return help :list if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:list, options) do |backup_manager|
       backup_manager.backups.each do |backup|
         LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
         LOGGER << "Enabled packages:\n"
@@ -71,36 +59,26 @@ class PackageCLI < Thor
     end
   end
 
-  desc 'new NAME', 'Create a new package.'
-  option 'global'
-  def new(name)
-    return help :new if options[:help]
-    with_backup_manager(options) do |backup_manager|
-      packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
-      task_path = File.join packages_dir, "#{name}.yml"
-      File.write task_path, 'default package content' if File.exist? task_path
-      editor = ENV['editor'] || 'vim'
-      system("#{editor} #{task_path}")
-    end
-  end
-
   desc 'edit NAME', 'Edit an existing package.'
   option 'global'
   def edit(name)
-    return help :edit if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:edit, options) do |backup_manager|
       packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
       task_path = File.join packages_dir, "#{name}.yml"
+
+      if not File.exist? task_path
+        default_package_content = YAML::dump({ name: name.capitalize, root: '~/', files: [] })
+        File.write task_path, default_package_content if not File.exist? task_path
+      end
+
       editor = ENV['editor'] || 'vim'
-      system("#{editor} #{task_path}")
+      @io.system("#{editor} #{task_path}")
     end
   end
 end
 
-class SetupCLI < Thor
+class SetupCLI < CommonCLI
   no_commands do
-    include CliHelpers
-
     def self.common_options
       option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
       option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
@@ -119,7 +97,7 @@ class SetupCLI < Thor
 
       # TODO(drognanar): Allow to specify the list of applications?
       # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
-      prompt_accept = (options[:enable_new] == 'prompt' and Commandline.agree('Backup all of these applications? [y/n]'))
+      prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
         backups_with_new_tasks.each { |backup| backup.enable_tasks! backup.new_tasks.keys }
       else
@@ -170,12 +148,12 @@ class SetupCLI < Thor
     end
 
     def ask_overwrite(backup_path, restore_path)
-      # TODO allow to persist the answer
+      # TODO(drognanar): Allow to persist the answer.
       LOGGER.warn "Needs to overwrite a file"
       LOGGER.warn "Backup: \"#{backup_path}\""
       LOGGER.warn "Restore: \"#{restore_path}\""
       while true
-        answer = Commandline.ask "Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?"
+        answer = @cli.ask "Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?"
         if answer == 'b'
           return :backup
         elsif answer == 'r'
@@ -185,26 +163,22 @@ class SetupCLI < Thor
     end
 
     # Runs tasks while showing the progress bar.
-    def run_tasks_with_progress(action, title: '', empty: '')
-      with_backup_manager(options) do |backup_manager|
-        tasks = get_tasks(backup_manager, options)
-        if tasks.empty?
-          LOGGER << "#{empty}\n"
-          return true
-        end
+    def run_tasks_with_progress(backup_manager, title: '', empty: '')
+      # TODO(drognanar): This is only run for sync! so simplify.
+      tasks = get_tasks(backup_manager, options)
+      if tasks.empty?
+        LOGGER << "Nothing to sync\n"
+        return true
+      end
 
-        log_sync_item = proc { |sync_item_options| LOGGER.info "#{title} #{sync_item_options[:name]}" }
-        LOGGER << "#{title}:\n"
-        tasks.each do |task|
-          LOGGER.info "#{title} package #{task.name}:"
-          task.send(action, copy: options[:copy], on_overwrite: method(:ask_overwrite), &log_sync_item)
-        end
+      log_sync_item = proc { |sync_item_options| LOGGER.info "Syncing #{sync_item_options[:name]}" }
+      LOGGER << "Syncing:\n"
+      tasks.each do |task|
+        LOGGER.info "Syncing package #{task.name}:"
+        task.sync! copy: options[:copy], on_overwrite: method(:ask_overwrite), &log_sync_item
       end
     end
   end
-
-  class_option 'help', type: :boolean, desc: 'Print help for a specific command'
-  class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
 
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', type: :string
@@ -212,10 +186,9 @@ class SetupCLI < Thor
   option 'force', type: :boolean
   SetupCLI.common_options
   def init(*backup_strs)
-    return help :init if options[:help]
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
-    with_backup_manager(options) do |backup_manager|
+    init_command(:init, options) do |backup_manager|
       LOGGER << "Creating backups:\n"
       backup_strs
         .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_dir: options[:dir]) }
@@ -223,7 +196,7 @@ class SetupCLI < Thor
 
       # Cannot run sync in dry mode since the backup creation was run in dry mode.
       if not options[:dry] and options[:sync]
-        run_tasks_with_progress(:sync!, title: "Syncing", empty: 'Nothing to sync')
+        backup_manager.tap(&:load_backups!).tap(&method(:run_tasks_with_progress))
       end
     end
   end
@@ -231,8 +204,7 @@ class SetupCLI < Thor
   desc 'sync', 'Synchronize your settings'
   SetupCLI.common_options
   def sync
-    return help :sync if options[:help]
-    run_tasks_with_progress :sync!, title: 'Syncing', empty: 'Nothing to sync'
+    init_command(:symc, options, &method(:run_tasks_with_progress))
   end
 
   desc 'cleanup', 'Cleans up previous backups'
@@ -240,8 +212,7 @@ class SetupCLI < Thor
   option 'dry', type: :boolean, default: false
   option 'untracked', type: :boolean
   def cleanup
-    return help :cleanup if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:cleanup, options) do |backup_manager|
       tasks = get_tasks(backup_manager, options.merge(enable_new: 'skip'))
       cleanup_files = tasks.map { |task| task.cleanup untracked: options[:untracked] }.flatten(1)
 
@@ -251,7 +222,7 @@ class SetupCLI < Thor
 
       cleanup_files.each do |file|
         LOGGER << "Deleting \"#{file}\"\n"
-        confirmed = (not options[:confirm] or Commandline.agree('Do you want to remove this file? [y/n]'))
+        confirmed = (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
         @io.rm_rf file if confirmed
       end
     end
@@ -259,8 +230,7 @@ class SetupCLI < Thor
 
   desc 'status', 'Returns the sync status'
   def status
-    return help :status if options[:help]
-    with_backup_manager(options) do |backup_manager|
+    init_command(:status, options) do |backup_manager|
       tasks = get_tasks(backup_manager, options)
       if tasks.empty?
         LOGGER.warn "No packages enabled."

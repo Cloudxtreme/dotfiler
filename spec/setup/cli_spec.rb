@@ -14,19 +14,14 @@ RSpec.shared_examples 'CLIHelper' do |cli|
   let(:cli) { cli }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
-  describe '#get_io' do
-    it { expect(cli.get_io({})).to eq(CONCRETE_IO) }
-    it { expect(cli.get_io dry: true).to eq(DRY_IO) }
-  end
-
   def get_backup_manager(options = {})
     expect(backup_manager).to receive(:load_backups!)
     actual_manager = nil
-    cli.with_backup_manager(options) { |backup_manager| actual_manager = backup_manager }
+    cli.init_command(:command, options) { |backup_manager| actual_manager = backup_manager }
     actual_manager
   end
 
-  describe '#with_backup_manager' do
+  describe '#init_command' do
     it 'creates backup manager with default parameters when no options given' do
       expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO, dry: false).and_return backup_manager
       expect(get_backup_manager).to eq(backup_manager)
@@ -131,7 +126,7 @@ RSpec.describe './setup' do
 
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
-    @applications_dir      = File.join(@tmpdir, 'apps')
+    @apps_dir      = File.join(@tmpdir, 'apps')
     @default_config_root   = File.join(@tmpdir, 'setup.yml')
     @default_restore_root  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
@@ -141,48 +136,48 @@ RSpec.describe './setup' do
     @dotfiles_dir = File.join(@tmpdir, 'dotfiles/dotfiles1')
     @dotfiles_config = File.join(@dotfiles_dir, 'config.yml')
 
-    stub_const 'Setup::Backup::APPLICATIONS_DIR', @applications_dir
+    stub_const 'Setup::Backup::APPLICATIONS_DIR', @apps_dir
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
     stub_const 'Setup::BackupManager::DEFAULT_RESTORE_ROOT', @default_restore_root
     stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
     stub_const 'Setup::Backup::DEFAULT_BACKUP_DIR', @default_backup_dir
 
     # Take over the interactions with console in order to stub out user interaction.
-    stub_const 'Setup::Cli::Commandline', cmd
+    allow(HighLine).to receive(:new).and_return cmd
 
     # Create a basic layout of files on the disk.
-    FileUtils.mkdir_p File.join(@tmpdir, 'apps')
+    FileUtils.mkdir_p File.join(@apps_dir)
     FileUtils.mkdir_p File.join(@tmpdir, 'machine')
 
     save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
     # An app with no files to sync.
-    save_yaml_content File.join(@tmpdir, 'apps/app.yml'), 'name' => 'app', 'files' => []
+    save_yaml_content File.join(@apps_dir, '/app.yml'), 'name' => 'app', 'files' => []
 
     # An app where the file is only present at the restore location.
-    save_yaml_content File.join(@tmpdir, 'apps/vim.yml'), 'name' => 'vim', 'files' => ['.vimrc']
+    save_yaml_content File.join(@apps_dir, '/vim.yml'), 'name' => 'vim', 'files' => ['.vimrc']
     save_file_content get_restore_path('.vimrc'), '; Vim configuration.'
 
     # An app where the backup will overwrite files.
-    save_yaml_content File.join(@tmpdir, 'apps/code.yml'), 'name' => 'code', 'files' => ['.vscode']
+    save_yaml_content File.join(@apps_dir, '/code.yml'), 'name' => 'code', 'files' => ['.vscode']
     save_file_content get_backup_path('code/_vscode'), 'some content'
     save_file_content get_restore_path('.vscode'), 'different content'
 
     # An app where only some files exist on the machine.
     # An app which only contains the file in the backup directory.
-    save_yaml_content File.join(@tmpdir, 'apps/bash.yml'), 'name' => 'bash', 'files' => ['.bashrc', '.bash_local']
+    save_yaml_content File.join(@apps_dir, '/bash.yml'), 'name' => 'bash', 'files' => ['.bashrc', '.bash_local']
     save_file_content get_backup_path('bash/_bashrc'), 'bashrc file'
 
     # An app where no files exist.
-    save_yaml_content File.join(@tmpdir, 'apps/git.yml'), 'name' => 'git', 'files' => ['.gitignore', '.gitconfig']
+    save_yaml_content File.join(@apps_dir, '/git.yml'), 'name' => 'git', 'files' => ['.gitignore', '.gitconfig']
 
     # An app where the both backup and restore have the same content.
-    save_yaml_content File.join(@tmpdir, 'apps/python.yml'), 'name' => 'python', 'files' => ['.pythonrc']
+    save_yaml_content File.join(@apps_dir, '/python.yml'), 'name' => 'python', 'files' => ['.pythonrc']
     save_file_content get_backup_path('python/_pythonrc'), 'pythonrc'
     save_file_content get_restore_path('.pythonrc'), 'pythonrc'
 
     # An app where all files have been completely synced.
-    save_yaml_content File.join(@tmpdir, 'apps/rubocop.yml'), 'name' => 'rubocop', 'files' => ['.rubocop']
+    save_yaml_content File.join(@apps_dir, '/rubocop.yml'), 'name' => 'rubocop', 'files' => ['.rubocop']
     save_file_content get_backup_path('rubocop/_rubocop'), 'rubocop'
     link_files get_backup_path('rubocop/_rubocop'), get_restore_path('.rubocop')
   end
@@ -304,11 +299,6 @@ Options:
       expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'r'
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
 
-      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
-      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
-
       expect(@output_lines.join).to eq(
 "Syncing:
 I: Syncing package bash:
@@ -334,16 +324,16 @@ I: Syncing .vimrc
 V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
 V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
 ")
+
+      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
+      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
+      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
     end
     
     it 'should sync with backup overwrite' do
       expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'b'
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
-
-      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
-      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -369,6 +359,11 @@ I: Syncing .vimrc
 V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
 V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
 ")
+
+      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
+      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
+      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
     end
 
     it 'should not sync if the task is disabled' do
@@ -534,16 +529,31 @@ python, rubocop
 ")
       end
     end
+    
+    describe 'edit' do
+      it 'should allow to edit a package' do
+        expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'vim.yml')}")
+        assert_ran_without_errors setup %w[package edit vim --global]
+      end
+      
+      it 'should create a new package from template' do
+        package_path = File.join(@apps_dir, 'unknown.yml')
+        expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
+        assert_ran_without_errors setup %w[package edit unknown --global]
+        
+        assert_yaml_content package_path, { name: 'Unknown', root: '~/', files: [] }
+      end
+    end
   end
 
   # Check that corrupting a file will make all commands fail.
   def assert_commands_fail_if_corrupt(corrupt_file_path)
     save_file_content corrupt_file_path, "---\n"
 
-    commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list']
+    commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list', 'package edit foo']
     commands.each do |command|
       assert_ran_unsuccessfully setup command.split(' ')
-      expect(@output_lines).to eq(["E: An error occured while trying to load \"#{corrupt_file_path}\"\n"])
+      expect(@output_lines).to eq(["E: Could not load \"#{corrupt_file_path}\"\n"])
     end
   end
 

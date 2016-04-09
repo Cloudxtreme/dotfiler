@@ -42,13 +42,11 @@ module Setup::Platform
   # Gets the machine specific labels.
   # Produces labels for the os, screen resolution.
   def self.machine_labels(platform = nil)
-    os_labels =
-      case get_platform(platform)
-      when :MAC_OS then ['<unix>', '<osx>', '<mac>']
-      when :WINDOWS then ['<win>']
-      when :LINUX then ['<unix>', '<linux>']
-      end
-    os_labels
+    case get_platform(platform)
+    when :MAC_OS then ['<unix>', '<osx>', '<mac>']
+    when :WINDOWS then ['<win>']
+    when :LINUX then ['<unix>', '<linux>']
+    end
   end
 
   private

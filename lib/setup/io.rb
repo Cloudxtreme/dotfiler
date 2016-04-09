@@ -27,6 +27,7 @@ end
 
 class File_IO < Common_IO
   def_delegators FileUtils, :cp_r, :mkdir_p, :mv, :rm_rf
+  def_delegators Kernel, :system
   
   def link(target_path, link_path)
     if Platform::unix?
@@ -64,6 +65,10 @@ class Dry_IO < Common_IO
   end
 
   def shell(command)
+    LOGGER.info "> #{command}"
+  end
+  
+  def system(command)
     LOGGER.info "> #{command}"
   end
 end

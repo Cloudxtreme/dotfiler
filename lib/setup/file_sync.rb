@@ -88,7 +88,7 @@ end
 # Returns sync information between `restore_path` and `backup_path`.
 # FileSync should not do any read IO after generating this info file.
 class FileSyncInfo
-  attr_reader :restore_directory, :backup_directory, :symlinked, :errors, :status, :backup_path
+  attr_reader :restore_directory, :backup_directory, :symlinked, :errors, :status, :backup_path, :has_backup, :has_restore
 
   def initialize(options, io = CONCRETE_IO)
     @backup_path = options[:backup_path]

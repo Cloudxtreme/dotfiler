@@ -27,27 +27,25 @@ class Package
       .flatten(1)
   end
 
+  def new_package?(options = {})
+    info_by_status = @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge options }.group_by(&:status)
+    info_by_status.keys.length == 1 && info_by_status.fetch(:backup, []).length > 0
+  end
+
+  # TODO(drognanar): Deprecate #has_data once #new_package is used for discovery.
   def has_data(options = {})
     @sync_items.any? { |sync_item, sync_options| sync_item.has_data sync_options.merge(options) }
   end
 
-  def with_items(msg, options)
+  def sync!(options = {})
     @sync_items.each do |sync_item, sync_options|
       yield sync_options
       begin
-        sync_item.send(msg, sync_options.merge(options))
+        sync_item.sync! sync_options.merge(options)
       rescue FileMissingError => e
         LOGGER.error e.message
       end
     end
-  end
-
-  def sync!(options = {}, &block)
-    with_items :sync!, options, &block
-  end
-
-  def backed_up_files
-    @sync_items.map { |sync_item, sync_options| sync_item.info(sync_options).backup_path }
   end
 
   # Returns the list of files that should be cleaned up in for this task.
@@ -56,7 +54,7 @@ class Package
   # A file is not included if its parent is being cleaned up.
   def cleanup(options = {})
     all_files = @io.glob(File.join(@default_backup_root, @name, '**', '*')).sort
-    backed_up_list = backed_up_files.sort
+    backed_up_list = info.map(&:backup_path).sort
     files_to_cleanup = []
 
     # Because all files are sorted then:
@@ -77,8 +75,8 @@ class Package
     files_to_cleanup
   end
 
-  def info(options = {}, action = :sync)
-    @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options), action }
+  def info(options = {})
+    @sync_items.map { |sync_item, sync_options| sync_item.info sync_options.merge(options) }
   end
 
   private
