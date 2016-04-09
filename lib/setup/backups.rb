@@ -24,7 +24,7 @@ end
 # Disabled task names contains the list of tasks that should be skipped.
 # New tasks are tasks for which there are any files to sync but are not part of any lists.
 class Backup
-  attr_accessor :enabled_task_names, :disabled_task_names, :tasks, :backup_path
+  attr_accessor :enabled_task_names, :disabled_task_names, :tasks, :backup_path, :backup_tasks_path
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   DEFAULT_BACKUP_CONFIG_PATH = 'config.yml'
@@ -33,6 +33,7 @@ class Backup
 
   def initialize(backup_path, host_info, io, store, dry)
     @backup_path = backup_path
+    @backup_tasks_path = Pathname(@backup_path).join(BACKUP_TASKS_PATH)
     @host_info = host_info
     @io = io
     @store = store
@@ -58,8 +59,7 @@ class Backup
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
 
-    backup_tasks_path = Pathname(@backup_path).join(BACKUP_TASKS_PATH)
-    backup_tasks = get_backup_tasks backup_tasks_path, @host_info, @io
+    backup_tasks = get_backup_tasks @backup_tasks_path, @host_info, @io
     app_tasks = get_backup_tasks Pathname(APPLICATIONS_DIR), @host_info, @io
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error

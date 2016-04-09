@@ -40,7 +40,7 @@ class FileSync
     raise FileMissingError.new(sync_info.errors) if not sync_info.errors.nil?
     
     create_backup_file! sync_info, options if sync_info.status == :backup
-    save_existing_file! options[:restore_path], options if sync_info.status == :overwrite_data
+    save_overwrite_file! sync_info, options if sync_info.status == :overwrite_data
     @io.rm_rf options[:restore_path] if sync_info.status == :resync
     create_restore_file! sync_info, options
   end
@@ -77,6 +77,13 @@ class FileSync
 
   def get_sync_info(action, options)
     FileSyncInfo.new(action, options, @io)
+  end
+  
+  def save_overwrite_file!(sync_info, options)
+    action = options[:on_overwrite].nil? ? :restore : options[:on_overwrite].call(options[:backup_path], options[:restore_path])
+    file_to_save = action == :restore ? options[:restore_path] : options[:backup_path]
+    save_existing_file! file_to_save, options
+    create_backup_file! sync_info, options if action == :backup
   end
 
   def save_existing_file!(path, options)

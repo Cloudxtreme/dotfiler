@@ -198,6 +198,7 @@ RSpec.describe './setup' do
   setup package <subcommand> ...ARGS  # Add/remove packages to be backed up
   setup restore                       # Restore your settings
   setup status                        # Returns the sync status
+  setup sync                          # Synchronize your settings
 
 Options:
   [--help], [--no-help]        # Print help for a specific command
@@ -249,6 +250,7 @@ Options:
 
     context 'when --enable_new=all' do
       it 'should create a local backup and enable found tasks' do
+        expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').and_return 'r'
         save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
         assert_ran_with_errors setup %w[init --enable_new=all]
 
@@ -297,6 +299,96 @@ Options:
     assert_file_content get_restore_path('.vscode'), 'different content'
     expect(File.exist? get_restore_path('.bashrc')).to be false
     expect(File.identical? get_restore_path('.pythonrc'), get_backup_path('python/_pythonrc')).to be false
+  end
+
+  describe 'sync' do
+    it 'should sync' do
+      expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'b'
+      assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
+
+      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
+      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
+      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+
+      expect(@output_lines.join).to eq(
+"Syncing:
+I: Syncing package bash:
+I: Syncing .bashrc
+V: Symlinking \"#{get_backup_path('bash/_bashrc')}\" with \"#{get_restore_path('.bashrc')}\"
+I: Syncing .bash_local
+E: Cannot sync. Missing both backup and restore.
+I: Syncing package code:
+I: Syncing .vscode
+W: Needs to overwrite a file
+W: Backup: \"#{get_backup_path('code/_vscode')}\"
+W: Restore: \"#{get_restore_path('.vscode')}\"
+V: Saving a copy of file \"#{get_backup_path('code/_vscode')}\" under \"#{get_backup_path('code')}\"
+V: Moving file from \"#{get_restore_path('.vscode')}\" to \"#{get_backup_path('code/_vscode')}\"
+V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
+I: Syncing package python:
+I: Syncing .pythonrc
+V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
+I: Syncing package rubocop:
+I: Syncing .rubocop
+I: Syncing package vim:
+I: Syncing .vimrc
+V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
+V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
+")
+    end
+    
+    it 'should backup overwrite' do
+      expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'r'
+      assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
+
+      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
+      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
+      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+
+      expect(@output_lines.join).to eq(
+"Syncing:
+I: Syncing package bash:
+I: Syncing .bashrc
+V: Symlinking \"#{get_backup_path('bash/_bashrc')}\" with \"#{get_restore_path('.bashrc')}\"
+I: Syncing .bash_local
+E: Cannot sync. Missing both backup and restore.
+I: Syncing package code:
+I: Syncing .vscode
+W: Needs to overwrite a file
+W: Backup: \"#{get_backup_path('code/_vscode')}\"
+W: Restore: \"#{get_restore_path('.vscode')}\"
+V: Saving a copy of file \"#{get_restore_path('.vscode')}\" under \"#{get_backup_path('code')}\"
+V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
+I: Syncing package python:
+I: Syncing .pythonrc
+V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
+I: Syncing package rubocop:
+I: Syncing .rubocop
+I: Syncing package vim:
+I: Syncing .vimrc
+V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
+V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
+")
+    end
+
+    it 'should not sync if the task is disabled' do
+      assert_ran_without_errors setup %w[sync --enable_new=none]
+      assert_files_unchanged
+    end
+
+    context 'when --copy' do
+      it 'should generate file copies instead of symlinks' do
+        expect(cmd).to receive(:ask).with('Back up, restore, back up all, restore all [b/r/ba/ra]?').once.and_return 'b'
+        expect(setup %w[sync --enable_new=all --copy]).to be true
+
+        assert_copies restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
+        assert_copies restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
+        assert_copies restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
+        assert_copies restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+      end
+    end
   end
 
   describe 'backup' do

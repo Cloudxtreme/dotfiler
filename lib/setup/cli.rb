@@ -71,14 +71,29 @@ class PackageCLI < Thor
     end
   end
 
-  desc 'new', 'Create a new package.'
-  option 'local'
-  def new
+  desc 'new NAME', 'Create a new package.'
+  option 'global'
+  def new(name)
+    return help :new if options[:help]
+    with_backup_manager(options) do |backup_manager|
+      packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
+      task_path = File.join packages_dir, "#{name}.yml"
+      File.write task_path, 'default package content' if File.exist? task_path
+      editor = ENV['editor'] || 'vim'
+      system("#{editor} #{task_path}")
+    end
   end
 
-  desc 'edit', 'Edit an existing package.'
-  option 'local'
-  def edit
+  desc 'edit NAME', 'Edit an existing package.'
+  option 'global'
+  def edit(name)
+    return help :edit if options[:help]
+    with_backup_manager(options) do |backup_manager|
+      packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
+      task_path = File.join packages_dir, "#{name}.yml"
+      editor = ENV['editor'] || 'vim'
+      system("#{editor} #{task_path}")
+    end
   end
 end
 
@@ -154,6 +169,21 @@ class SetupCLI < Thor
       end
     end
 
+    def ask_overwrite(backup_path, restore_path)
+      # TODO allow to persist the answer
+      LOGGER.warn "Needs to overwrite a file"
+      LOGGER.warn "Backup: \"#{backup_path}\""
+      LOGGER.warn "Restore: \"#{restore_path}\""
+      while true
+        answer = Commandline.ask "Back up, restore, back up all, restore all [b/r/ba/ra]?"
+        if answer == 'b'
+          return :backup
+        elsif answer == 'r'
+          return :restore
+        end
+      end
+    end
+
     # Runs tasks while showing the progress bar.
     def run_tasks_with_progress(action, title: '', empty: '')
       with_backup_manager(options) do |backup_manager|
@@ -163,10 +193,11 @@ class SetupCLI < Thor
           return true
         end
 
+        log_sync_item = proc { |sync_item_options| LOGGER.info "#{title} #{sync_item_options[:name]}" }
         LOGGER << "#{title}:\n"
         tasks.each do |task|
           LOGGER.info "#{title} package #{task.name}:"
-          task.send(action, copy: options[:copy]) { |sync_item_options| LOGGER.info "#{title} #{sync_item_options[:name]}" }
+          task.send(action, copy: options[:copy], on_overwrite: method(:ask_overwrite), &log_sync_item)
         end
       end
     end
@@ -195,6 +226,13 @@ class SetupCLI < Thor
         run_tasks_with_progress(:sync!, title: "Syncing", empty: 'Nothing to sync')
       end
     end
+  end
+
+  desc 'sync', 'Synchronize your settings'
+  SetupCLI.common_options
+  def sync
+    return help :sync if options[:help]
+    run_tasks_with_progress :sync!, title: 'Syncing', empty: 'Nothing to sync'
   end
 
   desc 'backup', 'Backup your settings'
