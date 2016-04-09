@@ -1,5 +1,5 @@
 name: MySql
-platforms: ['<max>', '<lin>']
+platforms: ['<osx>', '<lin>']
 root: /usr/local/etc
 files:
 - my.cnf

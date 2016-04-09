@@ -4,6 +4,7 @@ files:
 - <win>:
     backup_path: _gitconfig(win)
     restore_path: .gitconfig
-- <mac>:
+- <osx>:
     backup_path: _gitconfig(osx)
     restore_path: .gitconfig
+

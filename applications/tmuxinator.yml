@@ -1,4 +1,4 @@
 name: Tmuxinator
-platforms: ['<mac>', '<lin>']
+platforms: ['<osx>', '<lin>']
 files:
 - ".tmuxinator"

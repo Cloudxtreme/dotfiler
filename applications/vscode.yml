@@ -1,6 +1,7 @@
 name: Vscode
 root:
-  <win>: ~/AppData/Roaming/Code/User
+    <win>: ~/AppData/Roaming/Code/User
+    <osx>: ~/Library/Application Support/Code/User
 files:
 - settings.json
 - snippets

@@ -1,4 +1,4 @@
 name: Slate
-platforms: ['<mac>', '<lin>']
+platforms: ['<osx>', '<lin>']
 files:
 - .slate
