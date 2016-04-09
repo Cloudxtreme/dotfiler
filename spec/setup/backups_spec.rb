@@ -6,7 +6,7 @@ require 'yaml/store'
 module Setup
 
 RSpec.describe Backup do
-  let(:io)            { instance_double(InputOutput::File_IO) }
+  let(:io)            { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory) { class_double(YAML::Store) }
   let(:backup_store)  { instance_double(YAML::Store, path: '') }
   let(:host_info)     { { test_info: true } }
@@ -17,7 +17,7 @@ RSpec.describe Backup do
   let(:tasks)         { { 'a' => task_a, 'b2' => task_b2, 'c' => task_c, 'd' => task_d } }
 
   def get_backup(tasks, enabled_tasks, disabled_tasks)
-    backup = Backup.new('/backup/dir', host_info, io, backup_store, false)
+    backup = Backup.new('/backup/dir', host_info, io, backup_store)
     backup.enabled_task_names = Set.new enabled_tasks
     backup.disabled_task_names = Set.new disabled_tasks
     backup.tasks = tasks
@@ -149,7 +149,7 @@ RSpec.describe Backup do
 end
 
 RSpec.describe BackupManager do
-  let(:io)             { instance_double(InputOutput::File_IO) }
+  let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:host_info)      { { test_info: true } }
   let(:manager_store)  { instance_double(YAML::Store, path: '') }
   let(:backup_store1)  { instance_double(YAML::Store, path: '') }

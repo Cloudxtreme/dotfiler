@@ -37,6 +37,10 @@ RSpec.describe 'File_IO' do
     CONCRETE_IO.shell 'echo hello world'
   end
   
+  it 'is not dry' do
+    expect(CONCRETE_IO.dry).to be false
+  end
+  
   it 'hardlinks on windows' do
     expect(File).to receive(:link).with('path1', 'path2')
     under_windows { CONCRETE_IO.link 'path1', 'path2' }
@@ -79,6 +83,10 @@ RSpec.describe 'Dry_IO' do
   it 'prints symlink on unix' do
     stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
     expect(capture_log { DRY_IO.junction 'path1', 'path2' }).to eq("I: > ln -s \"path1\" \"path2\"\n")
+  end
+  
+  it 'is dry' do
+    expect(DRY_IO.dry).to be true
   end
 end
 

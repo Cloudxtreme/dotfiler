@@ -23,12 +23,12 @@ RSpec.shared_examples 'CLIHelper' do |cli|
 
   describe '#init_command' do
     it 'creates backup manager with default parameters when no options given' do
-      expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO, dry: false).and_return backup_manager
+      expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO).and_return backup_manager
       expect(get_backup_manager).to eq(backup_manager)
     end
 
     it 'creates backup manager with passed in options' do
-      expect(Setup::BackupManager).to receive(:from_config).with(io: DRY_IO, dry: true).and_return backup_manager
+      expect(Setup::BackupManager).to receive(:from_config).with(io: DRY_IO).and_return backup_manager
       expect(get_backup_manager({ dry: true })).to eq(backup_manager)
     end
   end

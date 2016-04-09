@@ -16,11 +16,10 @@ class CommonCLI < Thor
     def init_command(command, options)
       return help command if options[:help]
       LOGGER.level = options[:verbose] ? :verbose : :info
-      dry = options[:dry] || false
       @io = options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
       @cli = HighLine.new
 
-      yield Setup::BackupManager.from_config(io: @io, dry: dry).tap(&:load_backups!)
+      yield Setup::BackupManager.from_config(io: @io).tap(&:load_backups!)
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""

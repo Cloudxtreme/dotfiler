@@ -29,6 +29,10 @@ class File_IO < Common_IO
   def_delegators FileUtils, :cp_r, :mkdir_p, :mv, :rm_rf
   def_delegators Kernel, :system
   
+  def dry
+    false
+  end
+  
   def link(target_path, link_path)
     if Platform::unix?
       File.symlink target_path, link_path
@@ -43,6 +47,9 @@ class File_IO < Common_IO
 end
 
 class Dry_IO < Common_IO
+  def dry
+    true
+  end
 
   def mv(source, dest)
     LOGGER.info "> mv \"#{source}\" \"#{dest}\""

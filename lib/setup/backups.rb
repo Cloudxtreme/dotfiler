@@ -31,25 +31,24 @@ class Backup
   BACKUP_TASKS_PATH = '_tasks'
   APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
-  def initialize(backup_path, host_info, io, store, dry)
+  def initialize(backup_path, host_info, io, store)
     @backup_path = backup_path
     @backup_tasks_path = File.join(@backup_path, BACKUP_TASKS_PATH)
     @host_info = host_info
     @io = io
     @store = store
-    @dry = dry
 
     @tasks = {}
     @enabled_task_names = Set.new
     @disabled_task_names = Set.new
   end
 
-  def Backup.from_config(backup_path: nil, host_info: {}, io: nil, dry: false)
-    io.mkdir_p backup_path unless io.exist? backup_path
+  def Backup.from_config(backup_path: nil, host_info: {}, io: nil)
+    io.mkdir_p backup_path
     host_info = host_info.merge backup_root: backup_path
     backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
-    Backup.new(backup_path, host_info, io, store, dry).tap(&:load_config!)
+    Backup.new(backup_path, host_info, io, store).tap(&:load_config!)
   end
 
   # Loads the configuration and the tasks.
@@ -67,7 +66,7 @@ class Backup
   end
 
   def save_config!
-    return if @dry
+    return if @io.dry
     @store.transaction(false) do |s|
       s['enabled_task_names'] = @enabled_task_names.to_a
       s['disabled_task_names'] = @disabled_task_names.to_a
@@ -176,15 +175,14 @@ class BackupManager
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
-  def initialize(host_info = nil, io = nil, store = nil, dry = false)
+  def initialize(host_info = nil, io = nil, store = nil)
     @host_info = host_info
     @io = io
     @store = store
-    @dry = dry
   end
 
   # Loads backup manager configuration and backups it references.
-  def BackupManager.from_config(io: nil, dry: false)
+  def BackupManager.from_config(io: nil)
     # TODO(drognanar): How to add extra labels into host_info?
     # TODO(drognanar): These can only be obtained after running #load_config!
     # TODO(drognanar): Hardcode the config path?
@@ -193,7 +191,7 @@ class BackupManager
 
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
 
-    BackupManager.new(host_info, io, store, dry).tap(&:load_config!)
+    BackupManager.new(host_info, io, store).tap(&:load_config!)
   end
 
   def load_config!
@@ -203,11 +201,11 @@ class BackupManager
   end
 
   def load_backups!
-    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, host_info: @host_info, io: @io, dry: @dry }
+    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, host_info: @host_info, io: @io }
   end
 
   def save_config!
-    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @dry
+    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @io.dry
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
@@ -243,8 +241,9 @@ class BackupManager
   private
 
   # Gets the host info of the current machine.
+  # TODO(drognanar): Can this be redesigned?
   def BackupManager.get_host_info
-    {label: Platform.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new}
+    { label: Platform.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new }
   end
 end
 
