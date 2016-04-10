@@ -28,7 +28,7 @@ class CommonCLI < Thor
   end
 end
 
-class PackageCLI < CommonCLI
+class Package < CommonCLI
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
     init_command(:add, options) do |backup_manager|
@@ -76,9 +76,9 @@ class PackageCLI < CommonCLI
   end
 end
 
-class SetupCLI < CommonCLI
+class Program < CommonCLI
   no_commands do
-    def self.common_options
+    def self.sync_options
       option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
       option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
       option 'copy', type: :boolean, default: false, desc: 'Copy files instead of symlinking them.'
@@ -147,23 +147,21 @@ class SetupCLI < CommonCLI
     end
 
     def ask_overwrite(backup_path, restore_path)
-      # TODO(drognanar): Allow to persist the answer.
+      # TODO(drognanar): Persist answers (ba) and (br).
       LOGGER.warn "Needs to overwrite a file"
       LOGGER.warn "Backup: \"#{backup_path}\""
       LOGGER.warn "Restore: \"#{restore_path}\""
-      while true
-        answer = @cli.ask "Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?"
-        if answer == 'b'
-          return :backup
-        elsif answer == 'r'
-          return :restore
-        end
+      @cli.choose do |menu|
+        menu.prompt = "Keep back up, restore, back up for all, restore for all?"
+        menu.choice(:b) { return :backup }
+        menu.choice(:r) { return :restore }
+        menu.choice(:ba) { return :backup }
+        menu.choice(:br) { return :restore }
       end
     end
 
     # Runs tasks while showing the progress bar.
-    def run_tasks_with_progress(backup_manager, title: '', empty: '')
-      # TODO(drognanar): This is only run for sync! so simplify.
+    def run_tasks_with_progress(backup_manager)
       tasks = get_tasks(backup_manager, options)
       if tasks.empty?
         LOGGER << "Nothing to sync\n"
@@ -183,7 +181,7 @@ class SetupCLI < CommonCLI
   option 'dir', type: :string
   option 'sync', type: :boolean, default: true
   option 'force', type: :boolean
-  SetupCLI.common_options
+  Program.sync_options
   def init(*backup_strs)
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
@@ -201,7 +199,7 @@ class SetupCLI < CommonCLI
   end
 
   desc 'sync', 'Synchronize your settings'
-  SetupCLI.common_options
+  Program.sync_options
   def sync
     init_command(:symc, options, &method(:run_tasks_with_progress))
   end
@@ -242,7 +240,7 @@ class SetupCLI < CommonCLI
   end
 
   desc 'package <subcommand> ...ARGS', 'Add/remove packages to be backed up'
-  subcommand 'package', PackageCLI
+  subcommand 'package', Package
 end
 
 end # module Setup::Cli

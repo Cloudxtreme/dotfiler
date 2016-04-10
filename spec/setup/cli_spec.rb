@@ -34,12 +34,12 @@ RSpec.shared_examples 'CLIHelper' do |cli|
   end
 end
 
-RSpec.describe Cli::PackageCLI do
-  include_examples 'CLIHelper', Cli::PackageCLI.new
+RSpec.describe Cli::Package do
+  include_examples 'CLIHelper', Cli::Package.new
 end
 
-RSpec.describe Cli::SetupCLI do
-  include_examples 'CLIHelper', Cli::SetupCLI.new
+RSpec.describe Cli::Program do
+  include_examples 'CLIHelper', Cli::Program.new
 end
 
 # Integration tests.
@@ -47,7 +47,7 @@ RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
 
   def setup(args)
-    Cli::SetupCLI.start args
+    Cli::Program.start args
   end
 
   # Asserts that a file exists with the specified content.
@@ -114,6 +114,17 @@ RSpec.describe './setup' do
 
   def get_restore_path(path)
     File.join @tmpdir, 'machine', path
+  end
+
+  def get_overwrite_choice
+      menu = instance_double('menu')
+      expect(cmd).to receive(:choose).and_yield menu
+      expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
+      allow(menu).to receive(:choice).with(:b) 
+      allow(menu).to receive(:choice).with(:r)
+      allow(menu).to receive(:choice).with(:ba) 
+      allow(menu).to receive(:choice).with(:ra)
+      menu
   end
 
   # Create a temporary folder where the test should sync data data.
@@ -243,7 +254,7 @@ Options:
 
     context 'when --enable_new=all' do
       it 'should create a local backup and enable found tasks' do
-        expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').and_return 'r'
+        expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
         save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
         assert_ran_with_errors setup %w[init --enable_new=all]
 
@@ -296,7 +307,7 @@ Options:
 
   describe 'sync' do
     it 'should sync with restore overwrite' do
-      expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'r'
+      expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
 
       expect(@output_lines.join).to eq(
@@ -332,7 +343,7 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
     end
     
     it 'should sync with backup overwrite' do
-      expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'b'
+      expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
 
       expect(@output_lines.join).to eq(
@@ -373,7 +384,7 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
 
     context 'when --copy' do
       it 'should generate file copies instead of symlinks' do
-        expect(cmd).to receive(:ask).with('Keep back up, restore, back up for all, restore for all [b/r/ba/ra]?').once.and_return 'r'
+        expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
         expect(setup %w[sync --enable_new=all --copy]).to be true
 
         assert_copies restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')

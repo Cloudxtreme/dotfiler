@@ -67,9 +67,9 @@ class Backup
 
   def save_config!
     return if @io.dry
-    @store.transaction(false) do |s|
-      s['enabled_task_names'] = @enabled_task_names.to_a
-      s['disabled_task_names'] = @disabled_task_names.to_a
+    @store.transaction(false) do |store|
+      store['enabled_task_names'] = @enabled_task_names.to_a
+      store['disabled_task_names'] = @disabled_task_names.to_a
     end
   end
 
@@ -93,6 +93,7 @@ class Backup
     # TODO(drognanar): Use new_package?
     # TODO(drognanar): Then make is_enabled == not is_disabled.
     # TODO(drognanar): Get rid of enabled and just keep ignored.
+    # TODO(drognanar): Rename task to package.
     @tasks.select { |task_name, task| not is_enabled(task_name) and not is_disabled(task_name) and task.should_execute and task.has_data }
   end
 
@@ -242,6 +243,7 @@ class BackupManager
 
   # Gets the host info of the current machine.
   # TODO(drognanar): Can this be redesigned?
+  # TODO(drognanar): Convert into context?
   def BackupManager.get_host_info
     { label: Platform.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new }
   end
