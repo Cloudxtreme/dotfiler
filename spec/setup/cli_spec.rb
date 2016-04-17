@@ -155,6 +155,7 @@ RSpec.describe './setup' do
 
     # Take over the interactions with console in order to stub out user interaction.
     allow(HighLine).to receive(:new).and_return cmd
+    ENV['editor'] = 'vim'
 
     # Create a basic layout of files on the disk.
     FileUtils.mkdir_p File.join(@apps_dir)

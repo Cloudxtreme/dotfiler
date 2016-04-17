@@ -7,7 +7,8 @@ if Setup::Platform::unix?
   SimpleCov.start
 end
 
-ENV["THOR_COLUMNS"] = '120'
+ENV['THOR_COLUMNS'] = '120'
+ENV['editor'] = 'vim'
 
 RSpec.configure do |config|
   include RSpec::LoggingHelper

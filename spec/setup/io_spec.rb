@@ -1,5 +1,6 @@
 # IO unit tests. These tests mock the File instances and thus cannot be run in parallel.
 require 'setup/io'
+require 'setup/platform'
 
 module Setup
 
@@ -21,6 +22,19 @@ RSpec.describe 'Common_IO' do
     assert_delegates DRY_IO, Dir, :glob, 'path'
     assert_delegates DRY_IO, Dir, :entries, 'path'
     assert_delegates DRY_IO, IO, :read, 'path'
+  end
+end
+
+# Redefine the symlink method in order so that it can be mocked for under_osx context.
+# Otherwise rspec throws the NotImplementedException.
+if Platform::windows?
+  begin
+    old_verbose, $VERBOSE = $VERBOSE, nil
+    def File.symlink(path1, path2)
+      raise 'Not supported on windows'
+    end
+  ensure
+    $VERBOSE = old_verbose
   end
 end
 
