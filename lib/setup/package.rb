@@ -39,42 +39,39 @@ end
 # TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
 # TODO(drognanar): Covert sync items into SyncTask objects.
 class Package
-  attr_accessor :name, :should_execute, :io, :sync_items, :loaded_sync_items
-  def initialize(config, host_info, io)
-    @labels = host_info[:label] || []
+  attr_accessor :name, :should_execute, :io, :sync_items
+  def initialize(config, ctx, io)
+    @labels = ctx[:label] || []
     restore_root = Platform.get_config_value(config['root'], @labels) || ''
     platforms = config['platforms'] || []
 
     @io = io
     @name = config['name'] || ''
-    @default_backup_root = host_info[:backup_root] || ''
+    @default_backup_root = ctx[:backup_root] || ''
     @default_backup_root = File.join @default_backup_root, @name
-    @default_restore_root = host_info[:restore_root]
+    @default_restore_root = ctx[:restore_root]
     @should_execute = Platform::has_matching_label @labels, platforms
-    @loaded_sync_items = nil
-    @sync_items = (config['files'] || [])
-      .map { |file_config| resolve_sync_item file_config, restore_root, host_info }
-      .compact
-  end
 
-  def load_context(ctx)
     @ctx = ctx.with_options backup_root: @default_backup_root, restore_root: @default_restore_root, io: @io
-    @loaded_sync_items = @sync_items.map { |sync_item| sync_item.call() }
+    @sync_items = (config['files'] || [])
+      .map { |file_config| resolve_sync_item file_config, restore_root, ctx }
+      .compact
+      .map { |sync_item_factory| sync_item_factory.call() }
   end
 
   # Returns if this is a new package, i.e. none of its targets have been backed up.
   def new_package?
-    info_by_status = @loaded_sync_items.map { |sync_item| sync_item.info }.group_by(&:status)
+    info_by_status = @sync_items.map { |sync_item| sync_item.info }.group_by(&:status)
     info_by_status.keys.length == 1 && info_by_status.fetch(:backup, []).length > 0
   end
 
   # TODO(drognanar): Deprecate #has_data once #new_package is used for discovery.
   def has_data
-    @loaded_sync_items.any? { |sync_item| sync_item.info.status.kind != :error }
+    @sync_items.any? { |sync_item| sync_item.info.status.kind != :error }
   end
 
   def sync!
-    @loaded_sync_items.each do |sync_item|
+    @sync_items.each do |sync_item|
       yield sync_item
       begin
         sync_item.sync!
@@ -112,7 +109,7 @@ class Package
   end
 
   def info
-    @loaded_sync_items.map { |sync_item| sync_item.info }
+    @sync_items.map { |sync_item| sync_item.info }
   end
 
   private

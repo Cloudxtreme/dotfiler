@@ -31,10 +31,10 @@ class Backup
   BACKUP_TASKS_PATH = '_tasks'
   APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
-  def initialize(backup_path, host_info, io, store)
+  def initialize(backup_path, ctx, io, store)
     @backup_path = backup_path
     @backup_tasks_path = File.join(@backup_path, BACKUP_TASKS_PATH)
-    @host_info = host_info
+    @ctx = ctx
     @io = io
     @store = store
 
@@ -43,12 +43,12 @@ class Backup
     @disabled_task_names = Set.new
   end
 
-  def Backup.from_config(backup_path: nil, host_info: {}, io: nil)
+  def Backup.from_config(backup_path: nil, ctx: {}, io: nil)
     io.mkdir_p backup_path
-    host_info = host_info.merge backup_root: backup_path
+    ctx = ctx.with_options backup_root: backup_path
     backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
-    Backup.new(backup_path, host_info, io, store).tap(&:load_config!)
+    Backup.new(backup_path, ctx, io, store).tap(&:load_config!)
   end
 
   # Loads the configuration and the tasks.
@@ -58,8 +58,8 @@ class Backup
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
 
-    backup_tasks = get_backup_tasks @backup_tasks_path, @host_info, @io
-    app_tasks = get_backup_tasks APPLICATIONS_DIR, @host_info, @io
+    backup_tasks = get_backup_tasks @backup_tasks_path, @ctx, @io
+    app_tasks = get_backup_tasks APPLICATIONS_DIR, @ctx, @io
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
@@ -181,23 +181,24 @@ class BackupManager
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
   DEFAULT_RESTORE_ROOT = File.expand_path '~/'
 
-  def initialize(host_info = nil, io = nil, store = nil)
-    @host_info = host_info
+  def initialize(ctx = nil, io = nil, store = nil)
+    @ctx = ctx
     @io = io
     @store = store
   end
 
   # Loads backup manager configuration and backups it references.
-  def BackupManager.from_config(io: nil)
+  def BackupManager.from_config(ctx: nil, io: nil)
     # TODO(drognanar): How to add extra labels into host_info?
     # TODO(drognanar): These can only be obtained after running #load_config!
     # TODO(drognanar): Hardcode the config path?
     # TODO(drognanar): What if we get pluggable packages?
-    host_info = BackupManager.get_host_info
+    ctx ||= SyncContext.new
+    ctx = ctx.with_options BackupManager.get_host_info
 
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
 
-    BackupManager.new(host_info, io, store).tap(&:load_config!)
+    BackupManager.new(ctx, io, store).tap(&:load_config!)
   end
 
   def load_config!
@@ -207,7 +208,7 @@ class BackupManager
   end
 
   def load_backups!
-    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, host_info: @host_info, io: @io }
+    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, ctx: @ctx, io: @io }
   end
 
   def save_config!

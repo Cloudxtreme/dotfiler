@@ -9,22 +9,20 @@ module Setup
 RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:platform)  { Platform::machine_labels[0] }
-  let(:host_info) { { label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
-  let(:ctx)       { SyncContext.new {} }
+  let(:host_info) { SyncContext.new label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
-  def get_package(config, expected_sync_options, ctx = nil)
-    ctx ||= SyncContext.new
+  def get_package(config, expected_sync_options, options = {})
+    # ctx ||= SyncContext.new
     sync_items = expected_sync_options.map do |sync_item|
       info = instance_double('FileSyncInfo', backup_path: sync_item[:backup_path])
       item = instance_double('FileSyncTask', info: info)
       item.tap { expect(FileSyncTask).to receive(:new).with(sync_item, an_instance_of(SyncContext)).and_return item }
     end
-    package = Package.new(config, host_info, io)
-    package.load_context ctx
+    package = Package.new(config, host_info.with_options(options), io)
 
-    expect(package.loaded_sync_items).to eq(sync_items)
+    expect(package.sync_items).to eq(sync_items)
 
     [package, sync_items]
   end
@@ -48,22 +46,22 @@ RSpec.describe 'Package' do
 
   describe 'initialize' do
     it 'use configuration name' do
-      expect(Package.new({}, {}, io).name).to eq('')
-      expect(Package.new({'name' => 'name'}, {}, io).name).to eq('name')
+      expect(Package.new({}, SyncContext.new({}), io).name).to eq('')
+      expect(Package.new({'name' => 'name'}, SyncContext.new({}), io).name).to eq('name')
     end
 
     it 'should execute if plaform is fulfilled' do
-      expect(Package.new({}, {}, io).should_execute).to be true
-      expect(Package.new({'platforms' => nil}, {}, io).should_execute).to be true
-      expect(Package.new({'platforms' => []}, {}, io).should_execute).to be true
-      expect(Package.new({'platforms' => []}, {label: ['<lin>']}, io).should_execute).to be true
-      expect(Package.new({'platforms' => ['<lin>']}, {label: ['<lin>']}, io).should_execute).to be true
-      expect(Package.new({'platforms' => ['<lin>', '<mac>']}, {label: ['<lin>']}, io).should_execute).to be true
+      expect(Package.new({}, SyncContext.new({}), io).should_execute).to be true
+      expect(Package.new({'platforms' => nil}, SyncContext.new({}), io).should_execute).to be true
+      expect(Package.new({'platforms' => []}, SyncContext.new({}), io).should_execute).to be true
+      expect(Package.new({'platforms' => []}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
+      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
+      expect(Package.new({'platforms' => ['<lin>', '<mac>']}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
     end
 
     it 'should not execute if platform is not fulfilled' do
-      expect(Package.new({'platforms' => ['<lin>']}, {}, io).should_execute).to be false
-      expect(Package.new({'platforms' => ['<lin>']}, {label: ['<win>']}, io).should_execute).to be false
+      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({}), io).should_execute).to be false
+      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<win>']}), io).should_execute).to be false
     end
 
     it 'should not create sync objects if files missing' do
@@ -150,7 +148,7 @@ RSpec.describe 'Package' do
 
     expect(package.cleanup).to eq([File.expand_path('/backup/root/task/setup-backup-file')])
 
-    package, _ = get_package(task_config, expected_sync_options, SyncContext.new(untracked: true))
+    package, _ = get_package(task_config, expected_sync_options, untracked: true)
     expect(package.cleanup).to eq([
       File.expand_path('/backup/root/task/b'),
       File.expand_path('/backup/root/task/setup-backup-file')])

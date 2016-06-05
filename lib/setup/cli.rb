@@ -20,20 +20,22 @@ class CommonCLI < Thor
       @io = options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
       @cli = HighLine.new
 
-      yield Setup::BackupManager.from_config(io: @io).tap(&:load_backups!)
+      yield Setup::BackupManager.from_config(io: @io, ctx: get_context(options)).tap(&:load_backups!)
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""
       return false
     end
-
-    def get_context(options)
-      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked])
-    end
   end
 end
 
 class Package < CommonCLI
+  no_commands do
+    def get_context(options)
+      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked])
+    end
+  end
+
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
     init_command(:add, options) do |backup_manager|
@@ -52,7 +54,6 @@ class Package < CommonCLI
   def list
     init_command(:list, options) do |backup_manager|
       backup_manager.backups.each do |backup|
-        backup.load_context get_context options
         LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
         LOGGER << "Enabled packages:\n"
         LOGGER << backup.enabled_task_names.to_a.join(', ') + "\n\n"
@@ -90,6 +91,24 @@ class Program < CommonCLI
       option 'copy', type: :boolean, default: false, desc: 'Copy files instead of symlinking them.'
     end
 
+    def get_context(options)
+      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite))
+    end
+
+    def ask_overwrite(backup_path, restore_path)
+      # TODO(drognanar): Persist answers (ba) and (br).
+      LOGGER.warn "Needs to overwrite a file"
+      LOGGER.warn "Backup: \"#{backup_path}\""
+      LOGGER.warn "Restore: \"#{restore_path}\""
+      @cli.choose do |menu|
+        menu.prompt = "Keep back up, restore, back up for all, restore for all?"
+        menu.choice(:b) { return :backup }
+        menu.choice(:r) { return :restore }
+        menu.choice(:ba) { return :backup }
+        menu.choice(:br) { return :restore }
+      end
+    end
+
     # Prompts to enable new tasks.
     def prompt_to_enable_new_tasks(backups_with_new_tasks, options)
       if options[:enable_new] == 'prompt'
@@ -117,8 +136,6 @@ class Program < CommonCLI
       # TODO(drognanar): Perhaps move discovery outside?
       # TODO(drognanar): Only discover on init/discover/update?
       backups = backup_manager.backups
-      context = get_context(options).with_options on_overwrite: method(:ask_overwrite)
-      backups.each { |backup| backup.load_context context }
       backups_with_new_tasks = backups.select { |backup| not backup.new_tasks.empty? }
       if options[:enable_new] != 'skip' and not backups_with_new_tasks.empty?
         prompt_to_enable_new_tasks backups_with_new_tasks, options
@@ -127,7 +144,7 @@ class Program < CommonCLI
     end
 
     def summarize_package_info(package)
-      sync_items_info = package.loaded_sync_items.map do |sync_item|
+      sync_items_info = package.sync_items.map do |sync_item|
         [sync_item.info, sync_item]
       end
       sync_items_groups = sync_items_info.group_by { |sync_item_info, _| sync_item_info.status.kind }
@@ -150,20 +167,6 @@ class Program < CommonCLI
       when :up_to_date then ['up-to-date', nil]
       when :backup, :restore, :resync then ['needs sync', nil]
       when :overwrite_data then ['differs', nil]
-      end
-    end
-
-    def ask_overwrite(backup_path, restore_path)
-      # TODO(drognanar): Persist answers (ba) and (br).
-      LOGGER.warn "Needs to overwrite a file"
-      LOGGER.warn "Backup: \"#{backup_path}\""
-      LOGGER.warn "Restore: \"#{restore_path}\""
-      @cli.choose do |menu|
-        menu.prompt = "Keep back up, restore, back up for all, restore for all?"
-        menu.choice(:b) { return :backup }
-        menu.choice(:r) { return :restore }
-        menu.choice(:ba) { return :backup }
-        menu.choice(:br) { return :restore }
       end
     end
 
@@ -208,7 +211,7 @@ class Program < CommonCLI
   desc 'sync', 'Synchronize your settings'
   Program.sync_options
   def sync
-    init_command(:symc, options, &method(:run_tasks_with_progress))
+    init_command(:sync, options, &method(:run_tasks_with_progress))
   end
 
   desc 'cleanup', 'Cleans up previous backups'
