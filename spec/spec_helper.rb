@@ -18,17 +18,17 @@ RSpec.configure do |config|
     LOGGER.level = :verbose
     Logging.appenders['__rspec__'].layout = Logging.layouts.pattern(pattern: '%.1l: %m\n')
   end
-  
+
   def under_windows
     stub_const 'RUBY_PLATFORM', 'mswin'
     yield
   end
-  
+
   def under_osx
     stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
     yield
   end
-  
+
   def capture_log
     yield
     @log_output.read

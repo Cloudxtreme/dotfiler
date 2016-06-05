@@ -101,7 +101,7 @@ RSpec.describe './setup' do
     @output_lines = @log_output.readlines
     expect(@output_lines).to_not include(start_with 'E:')
   end
-  
+
   def assert_ran_with_errors(result)
     expect(result).to be true
     @output_lines = @log_output.readlines
@@ -120,9 +120,9 @@ RSpec.describe './setup' do
       menu = instance_double('menu')
       expect(cmd).to receive(:choose).and_yield menu
       expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
-      allow(menu).to receive(:choice).with(:b) 
+      allow(menu).to receive(:choice).with(:b)
       allow(menu).to receive(:choice).with(:r)
-      allow(menu).to receive(:choice).with(:ba) 
+      allow(menu).to receive(:choice).with(:ba)
       allow(menu).to receive(:choice).with(:ra)
       menu
   end
@@ -342,7 +342,7 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
       assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
       assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
     end
-    
+
     it 'should sync with backup overwrite' do
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
       assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
@@ -541,18 +541,18 @@ python, rubocop
 ")
       end
     end
-    
+
     describe 'edit' do
       it 'should allow to edit a package' do
         expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'vim.yml')}")
         assert_ran_without_errors setup %w[package edit vim --global]
       end
-      
+
       it 'should create a new package from template' do
         package_path = File.join(@apps_dir, 'unknown.yml')
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
         assert_ran_without_errors setup %w[package edit unknown --global]
-        
+
         assert_yaml_content package_path, { name: 'Unknown', root: '~/', files: [] }
       end
     end

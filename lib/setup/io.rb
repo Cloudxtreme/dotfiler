@@ -74,7 +74,7 @@ class Dry_IO < Common_IO
   def shell(command)
     LOGGER.info "> #{command}"
   end
-  
+
   def system(command)
     LOGGER.info "> #{command}"
   end

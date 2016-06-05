@@ -1,6 +1,7 @@
 require 'setup/backups'
 require 'setup/io'
 require 'setup/logging'
+require 'setup/package'
 
 require 'highline'
 require 'thor'
@@ -25,6 +26,10 @@ class CommonCLI < Thor
       LOGGER.error "Could not load \"#{e.path}\""
       return false
     end
+
+    def get_context(options)
+      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked])
+    end
   end
 end
 
@@ -47,6 +52,7 @@ class Package < CommonCLI
   def list
     init_command(:list, options) do |backup_manager|
       backup_manager.backups.each do |backup|
+        backup.load_context get_context options
         LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
         LOGGER << "Enabled packages:\n"
         LOGGER << backup.enabled_task_names.to_a.join(', ') + "\n\n"
@@ -107,10 +113,12 @@ class Program < CommonCLI
 
     # Get the list of tasks to execute.
     # @param Hash options the options to get the tasks with.
-    def get_tasks(backup_manager, options = {})
+    def get_packages(backup_manager, options = {})
       # TODO(drognanar): Perhaps move discovery outside?
       # TODO(drognanar): Only discover on init/discover/update?
       backups = backup_manager.backups
+      context = get_context(options).with_options on_overwrite: method(:ask_overwrite)
+      backups.each { |backup| backup.load_context context }
       backups_with_new_tasks = backups.select { |backup| not backup.new_tasks.empty? }
       if options[:enable_new] != 'skip' and not backups_with_new_tasks.empty?
         prompt_to_enable_new_tasks backups_with_new_tasks, options
@@ -118,28 +126,27 @@ class Program < CommonCLI
       backups.map(&:tasks_to_run).map(&:values).flatten
     end
 
-    def summarize_task_info(task)
-      sync_items_info = task.sync_items.map do |sync_item, sync_item_options|
-        sync_item_info = sync_item.info sync_item_options
-        [sync_item_info, sync_item_options]
+    def summarize_package_info(package)
+      sync_items_info = package.loaded_sync_items.map do |sync_item|
+        [sync_item.info, sync_item]
       end
-      sync_items_groups = sync_items_info.group_by { |sync_item, _| sync_item.status }
+      sync_items_groups = sync_items_info.group_by { |sync_item_info, _| sync_item_info.status.kind }
 
       if not options[:verbose] and sync_items_groups.keys.length == 1 and sync_items_groups.key? :up_to_date
-        LOGGER << "up-to-date: #{task.name}\n"
+        LOGGER << "up-to-date: #{package.name}\n"
       else
-        sync_items_groups.values.flatten(1).each do |sync_item, sync_item_options|
-          summary, detail = summarize_sync_item_info sync_item
+        sync_items_groups.values.flatten(1).each do |sync_item_info, sync_item|
+          summary, detail = summarize_sync_item_info sync_item_info
           padded_summary = '%-11s' % "#{summary}:"
-          name = "#{task.name}:#{sync_item_options[:name]}"
+          name = "#{package.name}:#{sync_item.name}"
           LOGGER << [padded_summary, name, detail].compact.join(' ') + "\n"
         end
       end
     end
 
     def summarize_sync_item_info(sync_item_info)
-      case sync_item_info.status
-      when :error then ['error', sync_item_info.errors]
+      case sync_item_info.status.kind
+      when :error then ['error', sync_item_info.status.status_msg]
       when :up_to_date then ['up-to-date', nil]
       when :backup, :restore, :resync then ['needs sync', nil]
       when :overwrite_data then ['differs', nil]
@@ -162,17 +169,17 @@ class Program < CommonCLI
 
     # Runs tasks while showing the progress bar.
     def run_tasks_with_progress(backup_manager)
-      tasks = get_tasks(backup_manager, options)
-      if tasks.empty?
+      packages = get_packages(backup_manager, options)
+      if packages.empty?
         LOGGER << "Nothing to sync\n"
         return true
       end
 
-      log_sync_item = proc { |sync_item_options| LOGGER.info "Syncing #{sync_item_options[:name]}" }
+      log_sync_item = proc { |sync_item| LOGGER.info "Syncing #{sync_item.name}" }
       LOGGER << "Syncing:\n"
-      tasks.each do |task|
-        LOGGER.info "Syncing package #{task.name}:"
-        task.sync! copy: options[:copy], on_overwrite: method(:ask_overwrite), &log_sync_item
+      packages.each do |package|
+        LOGGER.info "Syncing package #{package.name}:"
+        package.sync! &log_sync_item
       end
     end
   end
@@ -210,8 +217,8 @@ class Program < CommonCLI
   option 'untracked', type: :boolean
   def cleanup
     init_command(:cleanup, options) do |backup_manager|
-      tasks = get_tasks(backup_manager, options.merge(enable_new: 'skip'))
-      cleanup_files = tasks.map { |task| task.cleanup untracked: options[:untracked] }.flatten(1)
+      packages = get_packages(backup_manager, options.merge(enable_new: 'skip'))
+      cleanup_files = packages.map { |package| package.cleanup }.flatten(1)
 
       if cleanup_files.empty?
         LOGGER << "Nothing to clean.\n"
@@ -228,13 +235,13 @@ class Program < CommonCLI
   desc 'status', 'Returns the sync status'
   def status
     init_command(:status, options) do |backup_manager|
-      tasks = get_tasks(backup_manager, options)
-      if tasks.empty?
+      packages = get_packages(backup_manager, options)
+      if packages.empty?
         LOGGER.warn "No packages enabled."
         LOGGER.warn "Use ./setup package add to enable packages."
       else
         LOGGER << "Current status:\n\n"
-        tasks.each(&method(:summarize_task_info))
+        packages.each(&method(:summarize_package_info))
       end
     end
   end

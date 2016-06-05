@@ -10,19 +10,21 @@ RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:platform)  { Platform::machine_labels[0] }
   let(:host_info) { { label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' } }
+  let(:ctx)       { SyncContext.new {} }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
-  def get_package(config, expected_sync_options)
+  def get_package(config, expected_sync_options, ctx = nil)
+    ctx ||= SyncContext.new
     sync_items = expected_sync_options.map do |sync_item|
       info = instance_double('FileSyncInfo', backup_path: sync_item[:backup_path])
-      instance_double('FileSync', info: info)
+      item = instance_double('FileSyncTask', info: info)
+      item.tap { expect(FileSyncTask).to receive(:new).with(sync_item, an_instance_of(SyncContext)).and_return item }
     end
-    sync_items.each { |item| expect(FileSync).to receive(:new).with('sync_time', io).and_return item }
     package = Package.new(config, host_info, io)
+    package.load_context ctx
 
-    expected_sync_items = sync_items.zip(expected_sync_options)
-    expect(package.sync_items).to eq(expected_sync_items)
+    expect(package.loaded_sync_items).to eq(sync_items)
 
     [package, sync_items]
   end
@@ -46,7 +48,7 @@ RSpec.describe 'Package' do
 
   describe 'initialize' do
     it 'use configuration name' do
-      expect(Package.new({}, {}, io).name).to be_nil
+      expect(Package.new({}, {}, io).name).to eq('')
       expect(Package.new({'name' => 'name'}, {}, io).name).to eq('name')
     end
 
@@ -122,16 +124,12 @@ RSpec.describe 'Package' do
     expected_sync_options = [options]
 
     package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:sync!).with(options).once }
+    sync_items.each { |item| expect(item).to receive(:sync!).once }
     package.sync! {}
 
     package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:info).once }
+    sync_items.each { |item| expect(item).to receive(:info).once }
     package.info
-
-    package, sync_items = get_package(task_config, expected_sync_options)
-    sync_items.each { |item, _| expect(item).to receive(:has_data).once }
-    package.has_data
   end
 
   it 'should find cleanup files' do
@@ -151,8 +149,9 @@ RSpec.describe 'Package' do
       File.expand_path('/backup/root/task/setup-backup-file')]
 
     expect(package.cleanup).to eq([File.expand_path('/backup/root/task/setup-backup-file')])
-    
-    expect(package.cleanup untracked: true).to eq([
+
+    package, _ = get_package(task_config, expected_sync_options, SyncContext.new(untracked: true))
+    expect(package.cleanup).to eq([
       File.expand_path('/backup/root/task/b'),
       File.expand_path('/backup/root/task/setup-backup-file')])
   end
