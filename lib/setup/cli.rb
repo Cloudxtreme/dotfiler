@@ -1,7 +1,6 @@
 require 'setup/backups'
 require 'setup/io'
 require 'setup/logging'
-require 'setup/package'
 
 require 'highline'
 require 'thor'
@@ -70,9 +69,10 @@ class Package < CommonCLI
   def edit(name)
     init_command(:edit, options) do |backup_manager|
       packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
-      task_path = File.join packages_dir, "#{name}.yml"
+      task_path = File.join packages_dir, "#{name}.rb"
 
       if not File.exist? task_path
+        # TODO(drognanar): Create the .rb package from template instead.
         default_package_content = YAML::dump({ name: name.capitalize, root: '~/', files: [] })
         File.write task_path, default_package_content if not File.exist? task_path
       end

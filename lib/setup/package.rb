@@ -1,6 +1,4 @@
-require 'setup/file_sync'
 require 'setup/file_sync_task'
-require 'setup/io'
 require 'setup/logging'
 require 'setup/platform'
 
@@ -155,42 +153,4 @@ class PackageBase
 
 end
 
-# Represents a package generated from a yaml configuration file.
-# TODO(drognanar): Permit regular expressions in task config?
-# TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
-# TODO(drognanar): Start loading .rb file packages.
-# TODO(drognanar): Deprecate once tests stop using the Package instances.
-class Package < PackageBase
-  attr_accessor :name, :platforms
-
-  def initialize(config, ctx)
-    @name = config['name'] || ''
-    @files = config['files'] || []
-    @platforms = (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
-
-    super ctx
-  end
-
-  def steps
-    @files.each { |file_config| resolve_sync_item_config file_config }
-  end
-
-  private
-
-  # Resolve `file_config` into `FileSyncStatus` configuration.
-  def resolve_sync_item_config(file_config)
-    resolved = Platform.get_config_value(file_config, Platform.label_from_platform)
-    return nil if resolved.nil?
-
-    if resolved.is_a? String
-      file(resolved)
-    elsif resolved.is_a? Hash
-      resolved = Hash[resolved.map { |k, v| [k.to_sym, v] }]
-      restore_path = Platform.get_config_value(resolved[:restore_path], Platform.label_from_platform)
-      backup_path = Platform.get_config_value(resolved[:backup_path], Platform.label_from_platform)
-      file(restore_path).save_as(backup_path)
-    end
-  end
-end
-
-end
+end # module Setup

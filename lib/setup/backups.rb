@@ -1,8 +1,6 @@
 # Allows to discover backups instances under a given machine.
-require 'setup/io'
 require 'setup/logging'
 require 'setup/package'
-require 'setup/platform'
 
 require 'pathname'
 require 'yaml'
@@ -137,7 +135,10 @@ class Backup
 
   private
 
-  def get_backup_task_from_ruby_file(task_pathname)
+  # Constructs a backup task given a task yaml configuration.
+  def get_backup_task(task_pathname)
+    return unless File.extname(task_pathname) == '.rb'
+
     mod = Module.new
     package_script = @ctx[:io].read task_pathname
     mod.class_eval package_script
@@ -150,30 +151,13 @@ class Backup
         return const.new @ctx
       end
     end
-  end
-
-  def get_backup_task_from_yaml_file(task_pathname)
-    config = YAML.load(@ctx[:io].read(task_pathname))
-    if config.nil?
-      raise InvalidConfigFileError.new task_pathname
-    end
-
-    Package.new(config, @ctx)
-  end
-
-  # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_pathname)
-    if File.extname(task_pathname) == '.rb'
-      get_backup_task_from_ruby_file task_pathname
-    elsif File.extname(task_pathname) == '.yaml' or File.extname(task_pathname) == '.yml'
-      get_backup_task_from_yaml_file task_pathname
-    end
+  rescue Exception
+    raise InvalidConfigFileError.new task_pathname
   end
 
   # Constructs backup tasks that can be found a task folder.
-  # TODO: load with context.
   def get_backup_tasks(tasks_path)
-    (@ctx[:io].glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
+    (@ctx[:io].glob File.join(tasks_path, '*.rb'))
       .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path)] }
       .select { |task_name, task| not task.nil? }
       .to_h

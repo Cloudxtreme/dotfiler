@@ -554,12 +554,12 @@ python, rubocop
 
     describe 'edit' do
       it 'should allow to edit a package' do
-        expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'vim.yml')}")
+        expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'vim.rb')}")
         assert_ran_without_errors setup %w[package edit vim --global]
       end
 
       it 'should create a new package from template' do
-        package_path = File.join(@apps_dir, 'unknown.yml')
+        package_path = File.join(@apps_dir, 'unknown.rb')
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
         assert_ran_without_errors setup %w[package edit unknown --global]
 
@@ -595,7 +595,7 @@ python, rubocop
   context 'when a task config file is invalid' do
     it 'should fail commands' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      assert_commands_fail_if_corrupt File.join(@tmpdir, 'apps/vim.yml')
+      assert_commands_fail_if_corrupt File.join(@tmpdir, 'apps/vim.rb')
     end
   end
 end

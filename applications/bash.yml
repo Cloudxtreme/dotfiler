@@ -1,9 +1,0 @@
-name: Bash
-files:
-- .bashrc
-- .bash_profile
-- .bash_functions
-- .bash_aliases
-- <osx>:
-    backup_path: _bash_local(osx)
-    restore_path: .bash_local

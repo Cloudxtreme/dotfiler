@@ -1,5 +1,0 @@
-name: Nginx
-platforms: ['<osx>', '<lin>']
-root: /usr/local/etc
-files:
-- nginx

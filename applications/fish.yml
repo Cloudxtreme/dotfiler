@@ -1,6 +1,0 @@
-name: Fish
-platforms: ['<osx>', '<lin>']
-root: .config/fish
-files:
-- config.fish
-- functions

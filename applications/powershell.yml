@@ -1,5 +1,0 @@
-name: PowerShell
-platforms: ['<win>']
-root: ~/Documents/WindowsPowerShell
-files:
-- Microsoft.PowerShell_profile.ps1

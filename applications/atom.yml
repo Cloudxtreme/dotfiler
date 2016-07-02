@@ -1,8 +1,0 @@
-name: Atom
-root: ~/.atom
-files:
-- config.cson
-- init.coffee
-- keymap.cson
-- snippets.cson
-- styles.less

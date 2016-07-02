@@ -1,9 +1,0 @@
-name: Vim
-files:
-- .gvimrc
-- .vimrc
-- .vim/autoload
-- .vim/settings
-- .vim/syntax
-- .vim/vimrc
-- .vim/vundles

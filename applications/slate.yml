@@ -1,4 +1,0 @@
-name: Slate
-platforms: ['<osx>', '<lin>']
-files:
-- .slate
