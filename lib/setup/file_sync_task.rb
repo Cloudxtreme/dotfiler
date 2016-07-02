@@ -3,7 +3,7 @@ require 'setup/file_sync'
 module Setup
 
 class FileSyncTask
-  attr_reader :name
+  attr_reader :name, :file_sync_options
 
   def initialize(name, file_sync_options, ctx)
     @name = name
@@ -36,18 +36,15 @@ class FileSyncTask
 
   # TODO(drognanar): Create an object copy?
   def save_as(backup_path)
-    @file_sync_options[:backup_path] = @ctx.backup_path backup_path
-    self
+    self.tap { @file_sync_options[:backup_path] = @ctx.backup_path backup_path }
   end
 
   def sync!
-    file_sync_options = @file_sync_options
-    FileSync.new(@ctx[:sync_time], @ctx[:io]).sync! file_sync_options
+    FileSync.new(@ctx[:sync_time], @ctx[:io]).sync! @file_sync_options
   end
 
   def info
-    file_sync_options = @file_sync_options
-    FileSync.new(@ctx[:sync_time], @ctx[:io]).info file_sync_options
+    FileSync.new(@ctx[:sync_time], @ctx[:io]).info @file_sync_options
   end
 end
 

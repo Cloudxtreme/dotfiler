@@ -8,24 +8,25 @@ module Setup
 
 RSpec.describe PackageBase do
   let(:io)        { instance_double(InputOutput::File_IO) }
-  let(:platform)  { Platform::label_from_platform }
   let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
-  let(:ctx)       { SyncContext.new restore_to: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time', io: io }
+  let(:linctx)    { SyncContext.new restore_to: '/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
+  let(:winctx)    { SyncContext.new restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
 
   let(:package_class) do
     Class.new(PackageBase) do
       name 'Package'
       platforms [:WINDOWS]
-      under_windows { restore_to 'C:/files' }
+      under_windows { restore_to '/windows/files' }
       under_linux   { restore_to '/files'}
 
       def steps
+        under_linux { file '.unknown' }
       end
     end
   end
 
-  let(:package) { package_class.new(ctx) }
-  let(:default_package) { PackageBase.new(ctx) }
+  let(:package) { package_class.new(host_info) }
+  let(:default_package) { PackageBase.new(host_info) }
 
   describe 'default package' do
     it 'should have an empty name' do
@@ -38,7 +39,7 @@ RSpec.describe PackageBase do
   it 'should work under the same platform' do
     under_windows do
       expect(package.name).to eq('Package')
-      expect(package.restore_to).to eq('C:/files')
+      expect(package.restore_to).to eq('/windows/files')
       expect(package.should_execute).to be true
       expect(package.sync_items).to eq []
     end
@@ -49,6 +50,12 @@ RSpec.describe PackageBase do
       expect(package.name).to eq('Package')
       expect(package.restore_to).to eq('/files')
       expect(package.should_execute).to be false
+      expect(package.sync_items).to match_array [an_instance_of(FileSyncTask)]
+      expect(package.sync_items[0].name).to eq '.unknown'
+      expect(package.sync_items[0].file_sync_options).to eq({
+        name: '.unknown',
+        backup_path: linctx.backup_path('_unknown'),
+        restore_path: linctx.restore_path('.unknown') })
     end
   end
 
@@ -60,9 +67,24 @@ RSpec.describe PackageBase do
     end
   end
 
-  # TODO(drognanar): Test adding tasks to a package
-  # TODO(drognanar): In particular calling #file.
-  # TODO(drognanar): Test how the context is used by the package
+  it 'should allow adding sync items' do
+    under_windows do
+      package.file('.another')
+      package.file('.another2').save_as('_anotherTwo')
+      expect(package.sync_items).to match_array [an_instance_of(FileSyncTask), an_instance_of(FileSyncTask)]
+      expect(package.sync_items[0].name).to eq('.another')
+      expect(package.sync_items[0].file_sync_options).to eq({
+        name: '.another',
+        backup_path: winctx.backup_path('_another'),
+        restore_path: winctx.restore_path('.another') })
+
+      expect(package.sync_items[1].name).to eq('.another2')
+      expect(package.sync_items[1].file_sync_options).to eq({
+        name: '.another2',
+        backup_path: winctx.backup_path('_anotherTwo'),
+        restore_path: winctx.restore_path('.another2') })
+    end
+  end
 end
 
 RSpec.describe Package do

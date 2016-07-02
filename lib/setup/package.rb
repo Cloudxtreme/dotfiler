@@ -66,7 +66,7 @@ class PackageBase
     block.call if Platform::linux?
   end
 
-  def_delegators PackageBase, :under_windows?, :under_macos?, :under_linux?
+  def_delegators PackageBase, :under_windows, :under_macos, :under_linux
 
   def skip(reason)
     @skip_reason = reason
@@ -160,22 +160,18 @@ end
 # TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
 # TODO(drognanar): Start loading .rb file packages.
 class Package < PackageBase
-  attr_accessor :name, :skip_reason, :platforms
+  attr_accessor :name, :platforms
 
   def initialize(config, ctx)
     @name = config['name'] || ''
-    @config = config
+    @files = config['files'] || []
     @platforms = (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
 
     super ctx
   end
 
-  def skip(reason)
-    @skip_reason = reason
-  end
-
   def steps
-    (@config['files'] || []).each { |file_config| resolve_sync_item_config file_config }
+    @files.each { |file_config| resolve_sync_item_config file_config }
   end
 
   private
