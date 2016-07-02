@@ -5,6 +5,8 @@ module Setup
 class FileSyncTask
   attr_reader :name
 
+  # TODO(drognanar): Make this API less magic
+  # TODO(drognanar): Aka - Create a static method that resolves using get_file_sync_options
   def initialize(filepath, file_sync_options, ctx)
     @ctx = ctx
 
@@ -30,6 +32,7 @@ class FileSyncTask
       .join(File::Separator)
   end
 
+  # TODO(drognanar): Create an object copy?
   def save_as(backup_path)
     @file_sync_options[:backup_path] = @ctx.backup_path backup_path
     self

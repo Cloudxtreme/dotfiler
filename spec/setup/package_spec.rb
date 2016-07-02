@@ -6,7 +6,66 @@ require 'setup/io'
 
 module Setup
 
-RSpec.describe 'Package' do
+RSpec.describe PackageBase do
+  let(:io)        { instance_double(InputOutput::File_IO) }
+  let(:platform)  { Platform::label_from_platform }
+  let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
+  let(:ctx)       { SyncContext.new restore_to: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time', io: io }
+
+  let(:package_class) do
+    Class.new(PackageBase) do
+      name 'Package'
+      platforms [:WINDOWS]
+      under_windows { restore_to 'C:/files' }
+      under_linux   { restore_to '/files'}
+
+      def steps
+      end
+    end
+  end
+
+  let(:package) { package_class.new(ctx) }
+  let(:default_package) { PackageBase.new(ctx) }
+
+  describe 'default package' do
+    it 'should have an empty name' do
+      expect(default_package.name).to eq('')
+      expect(default_package.platforms).to eq []
+      expect(default_package.should_execute).to be true
+    end
+  end
+
+  it 'should work under the same platform' do
+    under_windows do
+      expect(package.name).to eq('Package')
+      expect(package.restore_to).to eq('C:/files')
+      expect(package.should_execute).to be true
+      expect(package.sync_items).to eq []
+    end
+  end
+
+  it 'should not work under a different platform' do
+    under_linux do
+      expect(package.name).to eq('Package')
+      expect(package.restore_to).to eq('/files')
+      expect(package.should_execute).to be false
+    end
+  end
+
+  it 'should allow skipping' do
+    under_windows do
+      package.skip 'just because'
+      expect(package.should_execute).to eq(false)
+      expect(package.skip_reason).to eq('just because')
+    end
+  end
+
+  # TODO(drognanar): Test adding tasks to a package
+  # TODO(drognanar): In particular calling #file.
+  # TODO(drognanar): Test how the context is used by the package
+end
+
+RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:platform)  { Platform::label_from_platform }
   let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
@@ -15,7 +74,6 @@ RSpec.describe 'Package' do
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
   def get_package(config, expected_sync_options, options = {})
-    # ctx ||= SyncContext.new
     sync_items = expected_sync_options.map do |sync_item|
       filepath, sync_options, save_as = sync_item
       info = instance_double('FileSyncInfo', backup_path: ctx.backup_path(save_as || filepath))
@@ -66,8 +124,8 @@ RSpec.describe 'Package' do
     end
 
     it 'should not execute if platform is not fulfilled' do
-      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({})).should_execute).to be false
-      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<win>']})).should_execute).to be false
+      under_windows { expect(Package.new({'platforms' => ['<linux>']}, SyncContext.new({})).should_execute).to be false }
+      under_windows { expect(Package.new({'platforms' => ['<linux>']}, SyncContext.new({})).should_execute).to be false }
     end
 
     it 'should not create sync objects if files missing' do

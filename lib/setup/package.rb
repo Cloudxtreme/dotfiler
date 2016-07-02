@@ -40,18 +40,18 @@ end
 class PackageBase
   extend Forwardable
 
-  attr_accessor :sync_items
+  attr_accessor :sync_items, :skip_reason
 
   def self.restore_to(value)
     self.class_eval "def restore_to; #{JSON.dump(value) if value}; end"
   end
 
   def self.name(value)
-    self.class_eval "def name; #{JSON.dump(value)}; end"
+    self.class_eval "def name; #{JSON.dump(value) if value}; end"
   end
 
-  def self.skip(reason)
-    self.class_eval "def skip_reason; #{JSON.dump(reason)}; end"
+  def self.platforms(platforms)
+    self.class_eval "def platforms; #{platforms if platforms}; end"
   end
 
   def self.under_windows(&block)
@@ -66,23 +66,21 @@ class PackageBase
     block.call if Platform::linux?
   end
 
-  def_delegators PackageBase, :under_windows?, :under_macos?, :under_linux?, :skip
+  def_delegators PackageBase, :under_windows?, :under_macos?, :under_linux?
+
+  def skip(reason)
+    @skip_reason = reason
+  end
 
   name ''
   restore_to nil
-  skip nil
+  platforms []
 
   def steps
   end
 
   def should_execute
-    return skip_reason.nil?
-  end
-
-  def platforms(platforms)
-    unless platforms.empty? or platforms.include? Platform.get_platform
-      skip 'Unsupported platform'
-    end
+    return @skip_reason.nil?
   end
 
   def initialize(ctx)
@@ -94,6 +92,12 @@ class PackageBase
     @default_restore_to = restore_to || ctx[:restore_to]
 
     @ctx = ctx.with_options backup_root: @default_backup_root, restore_to: @default_restore_to
+
+    unless platforms.empty? or platforms.include? Platform.get_platform
+      skip 'Unsupported platform'
+    end
+
+    steps
   end
 
   # Adds a new file sync task.
@@ -156,15 +160,14 @@ end
 # TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
 # TODO(drognanar): Start loading .rb file packages.
 class Package < PackageBase
-  attr_accessor :name, :skip_reason
+  attr_accessor :name, :skip_reason, :platforms
 
   def initialize(config, ctx)
     @name = config['name'] || ''
     @config = config
-    super ctx
-    platforms (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
+    @platforms = (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
 
-    steps
+    super ctx
   end
 
   def skip(reason)

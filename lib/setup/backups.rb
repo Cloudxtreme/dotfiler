@@ -57,8 +57,8 @@ class Backup
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
 
-    backup_tasks = get_backup_tasks @backup_tasks_path, @ctx
-    app_tasks = get_backup_tasks APPLICATIONS_DIR, @ctx
+    backup_tasks = get_backup_tasks @backup_tasks_path
+    app_tasks = get_backup_tasks APPLICATIONS_DIR
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
@@ -156,29 +156,29 @@ class Backup
     end
   end
 
-  def get_backup_task_from_yaml_file(task_pathname, ctx)
-    config = YAML.load(ctx[:io].read(task_pathname))
+  def get_backup_task_from_yaml_file(task_pathname)
+    config = YAML.load(@ctx[:io].read(task_pathname))
     if config.nil?
       raise InvalidConfigFileError.new task_pathname
     end
 
-    Package.new(config, ctx)
+    Package.new(config, @ctx)
   end
 
   # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_pathname, ctx)
+  def get_backup_task(task_pathname)
     if File.extname(task_pathname) == '.rb'
-      get_backup_task_from_ruby_file task_pathname, ctx
+      get_backup_task_from_ruby_file task_pathname
     elsif File.extname(task_pathname) == '.yaml' or File.extname(task_pathname) == '.yml'
-      get_backup_task_from_yaml_file task_pathname, ctx
+      get_backup_task_from_yaml_file task_pathname
     end
   end
 
   # Constructs backup tasks that can be found a task folder.
   # TODO: load with context.
-  def get_backup_tasks(tasks_path, ctx)
-    (ctx[:io].glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
-      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, ctx)] }
+  def get_backup_tasks(tasks_path)
+    (@ctx[:io].glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
+      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path)] }
       .select { |task_name, task| not task.nil? }
       .to_h
   end
