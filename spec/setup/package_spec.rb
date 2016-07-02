@@ -10,16 +10,21 @@ RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:platform)  { Platform::machine_labels[0] }
   let(:host_info) { SyncContext.new label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
+  let(:ctx)       { SyncContext.new label: [platform], restore_root: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time' }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
   def get_package(config, expected_sync_options, options = {})
     # ctx ||= SyncContext.new
     sync_items = expected_sync_options.map do |sync_item|
-      info = instance_double('FileSyncInfo', backup_path: sync_item[:backup_path])
+      filepath, sync_options, save_as = sync_item
+      info = instance_double('FileSyncInfo', backup_path: ctx.backup_path(save_as || filepath))
       item = instance_double('FileSyncTask', info: info)
-      item.tap { expect(FileSyncTask).to receive(:new).with(sync_item, an_instance_of(SyncContext)).and_return item }
+      expect(FileSyncTask).to receive(:new).with(filepath, sync_options, an_instance_of(SyncContext)).and_return item
+      expect(item).to receive(:save_as).with(save_as).and_return(item) if not save_as.nil?
+      item
     end
+
     package = Package.new(config, host_info.with_options(options), io)
 
     expect(package.sync_items).to eq(sync_items)
@@ -70,35 +75,27 @@ RSpec.describe 'Package' do
     end
 
     it 'should generate sync items' do
-      assert_sync_items ['a'], [
-        { name: 'a', backup_path: backup('a'), restore_path: restore('a') }]
+      assert_sync_items ['a'], [['a', {}]]
 
-      assert_sync_items ['a', 'b'], [
-        { name: 'a', backup_path: backup('a'), restore_path: restore('a') },
-        { name: 'b', backup_path: backup('b'), restore_path: restore('b') }]
+      assert_sync_items ['a', 'b'], [['a', {}], ['b', {}]]
 
       backup_path, restore_path = File.expand_path('/a'), File.expand_path('/b')
-      assert_sync_items [{backup_path: backup_path, restore_path: restore_path}], [
-        { name: File.expand_path('/b'), backup_path: backup_path, restore_path: restore_path}]
+      assert_sync_items [{backup_path: backup_path, restore_path: restore_path}], [[restore_path, {}, backup_path]]
 
-      assert_sync_items [{ backup_path: 'bp', restore_path: 'rp' }], [
-        { name: 'rp', backup_path: backup('bp'), restore_path: restore('rp') }]
+      assert_sync_items [{ backup_path: 'bp', restore_path: 'rp' }], [['rp', {}, 'bp']]
 
       assert_sync_items [{ backup_path: File.expand_path('/bp'), restore_path: File.expand_path('/rp') }], [
-        { name: File.expand_path('/rp'), backup_path: File.expand_path('/bp'), restore_path: File.expand_path('/rp') }]
+        [File.expand_path('/rp'), {}, File.expand_path('/bp')]]
     end
     
     it 'should process string keys' do
-      assert_sync_items [{ 'backup_path' => 'a', 'restore_path' => 'b' }], [
-        { name: 'b', backup_path: backup('a'), restore_path: restore('b') }]
+      assert_sync_items [{ 'backup_path' => 'a', 'restore_path' => 'b' }], [['b', {}, 'a']]
     end
 
     it 'should handle labels' do
-      assert_sync_items [{ platform => 'b', '<>' => 'c' }], [
-        { name: 'b', backup_path: backup('b'), restore_path: restore('b') }]
+      assert_sync_items [{ platform => 'b', '<>' => 'c' }], [['b', {}]]
 
-      assert_sync_items [{ backup_path: { platform => 'c' }, restore_path: { platform => 'd' } }], [
-        { name: 'd', backup_path: backup('c'), restore_path: restore('d') }]
+      assert_sync_items [{ backup_path: { platform => 'c' }, restore_path: { platform => 'd' } }], [['d', {}, 'c']]
     end
 
     it 'should skip sync items with different labels' do
@@ -107,36 +104,27 @@ RSpec.describe 'Package' do
       get_package(task_config, expected_sync_options)
 
       task_config = config [{platform => 'a'}]
-      expected_sync_options = [
-        { name: 'a', backup_path: backup('a'), restore_path: restore('a') }]
+      expected_sync_options = [['a', {}]]
       get_package(task_config, expected_sync_options)
     end
   end
 
   it 'should forward the message to all sync items' do
     task_config = config ['a']
-    options = {
-      name: 'a',
-      backup_path: File.expand_path('/backup/root/task/a'),
-      restore_path: File.expand_path('/restore/root/a') }
-    expected_sync_options = [options]
+    options = [['a', {}]]
 
-    package, sync_items = get_package(task_config, expected_sync_options)
+    package, sync_items = get_package(task_config, options)
     sync_items.each { |item| expect(item).to receive(:sync!).once }
     package.sync! {}
 
-    package, sync_items = get_package(task_config, expected_sync_options)
+    package, sync_items = get_package(task_config, options)
     sync_items.each { |item| expect(item).to receive(:info).once }
     package.info
   end
 
   it 'should find cleanup files' do
     task_config = config ['a']
-    options = {
-      name: 'a',
-      backup_path: File.expand_path('/backup/root/task/a'),
-      restore_path: File.expand_path('/restore/root/a') }
-    expected_sync_options = [options]
+    expected_sync_options = [['a', {}]]
 
     package, _ = get_package(task_config, expected_sync_options)
     expect(io).to receive(:glob).twice.with('/backup/root/task/**/*').and_return [
@@ -152,26 +140,6 @@ RSpec.describe 'Package' do
     expect(package.cleanup).to eq([
       File.expand_path('/backup/root/task/b'),
       File.expand_path('/backup/root/task/setup-backup-file')])
-  end
-
-  describe 'escape_dotfile_path' do
-    it 'should not escape regular files' do
-      expect(Package.escape_dotfile_path 'file_path').to eq('file_path')
-      expect(Package.escape_dotfile_path '_file_path').to eq('_file_path')
-      expect(Package.escape_dotfile_path 'dir/file_path').to eq('dir/file_path')
-    end
-
-    it 'should not escape regular files with extensions' do
-      expect(Package.escape_dotfile_path 'file_path.ext').to eq('file_path.ext')
-      expect(Package.escape_dotfile_path 'file_path.ext1.ext2').to eq('file_path.ext1.ext2')
-      expect(Package.escape_dotfile_path 'dir.e/file_path.ext1.ext2').to eq('dir.e/file_path.ext1.ext2')
-    end
-
-    it 'should escape dot files' do
-      expect(Package.escape_dotfile_path '.file_path').to eq('_file_path')
-      expect(Package.escape_dotfile_path 'dir/.file_path').to eq('dir/_file_path')
-      expect(Package.escape_dotfile_path '.dir.dir/dir.dir/.file_path.ext').to eq('_dir.dir/dir.dir/_file_path.ext')
-    end
   end
 end
 
