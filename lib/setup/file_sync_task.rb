@@ -34,6 +34,10 @@ class FileSyncTask
       .join(File::Separator)
   end
 
+  def backup_path
+    @file_sync_options[:backup_path]
+  end
+
   # TODO(drognanar): Create an object copy?
   def save_as(backup_path)
     self.tap { @file_sync_options[:backup_path] = @ctx.backup_path backup_path }

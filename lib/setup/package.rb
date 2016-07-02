@@ -128,7 +128,7 @@ class PackageBase
   # NOTE: Unless all paths are provided. 
   def cleanup
     all_files = @ctx[:io].glob(File.join(@default_backup_root, '**', '*')).sort
-    backed_up_list = info.map(&:backup_path).sort
+    backed_up_list = @sync_items.map(&:backup_path).sort
     files_to_cleanup = []
 
     # Because all files are sorted then:
@@ -159,6 +159,7 @@ end
 # TODO(drognanar): Permit regular expressions in task config?
 # TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
 # TODO(drognanar): Start loading .rb file packages.
+# TODO(drognanar): Deprecate once tests stop using the Package instances.
 class Package < PackageBase
   attr_accessor :name, :platforms
 

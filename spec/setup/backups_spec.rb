@@ -10,10 +10,10 @@ RSpec.describe Backup do
   let(:store_factory) { class_double(YAML::Store) }
   let(:backup_store)  { instance_double(YAML::Store, path: '') }
   let(:host_info)     { { test_info: true, io: io } }
-  let(:task_a)  { instance_double(Package) }
-  let(:task_c)  { instance_double(Package) }
-  let(:task_d)  { instance_double(Package) }
-  let(:task_b2)   { instance_double(Package) }
+  let(:task_a)        { instance_double(PackageBase) }
+  let(:task_c)        { instance_double(PackageBase) }
+  let(:task_d)        { instance_double(PackageBase) }
+  let(:task_b2)       { instance_double(PackageBase) }
   let(:tasks)         { { 'a' => task_a, 'b2' => task_b2, 'c' => task_c, 'd' => task_d } }
 
   def get_backup(tasks, enabled_tasks, disabled_tasks)

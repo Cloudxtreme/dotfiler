@@ -22,6 +22,8 @@ RSpec.describe FileSyncTask do
       expect(FileSyncTask.escape_dotfile_path '.dir.dir/dir.dir/.file_path.ext').to eq('_dir.dir/dir.dir/_file_path.ext')
     end
   end
+
+  # TODO(drognanar): Test #info and #sync! methods
 end
 
 end

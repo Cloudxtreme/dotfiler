@@ -9,6 +9,7 @@ module Setup
 RSpec.describe PackageBase do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
+  let(:untracked) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io, untracked: true }
   let(:linctx)    { SyncContext.new restore_to: '/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
   let(:winctx)    { SyncContext.new restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
 
@@ -25,14 +26,21 @@ RSpec.describe PackageBase do
     end
   end
 
-  let(:package) { package_class.new(host_info) }
-  let(:default_package) { PackageBase.new(host_info) }
+  let(:package)           { package_class.new(host_info) }
+  let(:package_untracked) { package_class.new(untracked) }
+  let(:default_package)   { PackageBase.new(host_info) }
 
   describe 'default package' do
     it 'should have an empty name' do
+      default_package.file 'a'
+
       expect(default_package.name).to eq('')
+      expect(default_package.restore_to).to eq(nil)
       expect(default_package.platforms).to eq []
       expect(default_package.should_execute).to be true
+
+      expect(default_package.sync_items).to match_array [an_instance_of(FileSyncTask)]
+      expect(default_package.sync_items[0].backup_path).to eq(host_info.backup_path('a'))
     end
   end
 
@@ -52,6 +60,7 @@ RSpec.describe PackageBase do
       expect(package.should_execute).to be false
       expect(package.sync_items).to match_array [an_instance_of(FileSyncTask)]
       expect(package.sync_items[0].name).to eq '.unknown'
+      expect(package.sync_items[0].backup_path).to eq(linctx.backup_path('_unknown'))
       expect(package.sync_items[0].file_sync_options).to eq({
         name: '.unknown',
         backup_path: linctx.backup_path('_unknown'),
@@ -73,16 +82,37 @@ RSpec.describe PackageBase do
       package.file('.another2').save_as('_anotherTwo')
       expect(package.sync_items).to match_array [an_instance_of(FileSyncTask), an_instance_of(FileSyncTask)]
       expect(package.sync_items[0].name).to eq('.another')
+      expect(package.sync_items[0].backup_path).to eq(winctx.backup_path('_another'))
       expect(package.sync_items[0].file_sync_options).to eq({
         name: '.another',
         backup_path: winctx.backup_path('_another'),
         restore_path: winctx.restore_path('.another') })
 
       expect(package.sync_items[1].name).to eq('.another2')
+      expect(package.sync_items[1].backup_path).to eq(winctx.backup_path('_anotherTwo'))
       expect(package.sync_items[1].file_sync_options).to eq({
         name: '.another2',
         backup_path: winctx.backup_path('_anotherTwo'),
         restore_path: winctx.restore_path('.another2') })
+    end
+  end
+
+  it 'should find cleanup files' do
+    under_windows do
+      expect(io).to receive(:glob).twice.with(winctx.backup_path('**/*')).and_return [
+        File.expand_path(winctx.backup_path('a')),
+        File.expand_path(winctx.backup_path('a/file')),
+        File.expand_path(winctx.backup_path('b')),
+        File.expand_path(winctx.backup_path('b/subfile')),
+        File.expand_path(winctx.backup_path('setup-backup-file'))]
+
+      package.file 'a'
+      expect(package.cleanup).to eq([File.expand_path(winctx.backup_path('setup-backup-file'))])
+
+      package_untracked.file 'a'
+      expect(package_untracked.cleanup).to eq([
+        File.expand_path(winctx.backup_path('b')),
+        File.expand_path(winctx.backup_path('setup-backup-file'))])
     end
   end
 end
@@ -98,8 +128,7 @@ RSpec.describe Package do
   def get_package(config, expected_sync_options, options = {})
     sync_items = expected_sync_options.map do |sync_item|
       filepath, sync_options, save_as = sync_item
-      info = instance_double('FileSyncInfo', backup_path: ctx.backup_path(save_as || filepath))
-      item = instance_double('FileSyncTask', info: info)
+      item = instance_double('FileSyncTask', backup_path: ctx.backup_path(save_as || filepath))
       expect(FileSyncTask).to receive(:create).with(filepath, sync_options, an_instance_of(SyncContext)).and_return item
       expect(item).to receive(:save_as).with(save_as).and_return(item) if not save_as.nil?
       item
@@ -201,26 +230,6 @@ RSpec.describe Package do
     package, sync_items = get_package(task_config, options)
     sync_items.each { |item| expect(item).to receive(:info).once }
     package.info
-  end
-
-  it 'should find cleanup files' do
-    task_config = config ['a']
-    expected_sync_options = [['a', {}]]
-
-    package, _ = get_package(task_config, expected_sync_options)
-    expect(io).to receive(:glob).twice.with('/backup/root/task/**/*').and_return [
-      File.expand_path('/backup/root/task/a'),
-      File.expand_path('/backup/root/task/a/file'),
-      File.expand_path('/backup/root/task/b'),
-      File.expand_path('/backup/root/task/b/subfile'),
-      File.expand_path('/backup/root/task/setup-backup-file')]
-
-    expect(package.cleanup).to eq([File.expand_path('/backup/root/task/setup-backup-file')])
-
-    package, _ = get_package(task_config, expected_sync_options, untracked: true)
-    expect(package.cleanup).to eq([
-      File.expand_path('/backup/root/task/b'),
-      File.expand_path('/backup/root/task/setup-backup-file')])
   end
 end
 
