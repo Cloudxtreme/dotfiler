@@ -86,10 +86,6 @@ class Backup
     save_config! if not task_names_set.empty?
   end
 
-  def load_context(ctx)
-    @tasks.each { |task_name, task| task.load_context ctx }
-  end
-
   # Finds newly added tasks that can be run on this machine.
   # These tasks have not been yet added to the config file's enabled_task_names or disabled_task_names properties.
   def new_tasks

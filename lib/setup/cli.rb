@@ -178,11 +178,10 @@ class Program < CommonCLI
         return true
       end
 
-      log_sync_item = proc { |sync_item| LOGGER.info "Syncing #{sync_item.name}" }
       LOGGER << "Syncing:\n"
       packages.each do |package|
         LOGGER.info "Syncing package #{package.name}:"
-        package.sync! &log_sync_item
+        package.sync! { |sync_item| LOGGER.info "Syncing #{sync_item.name}" }
       end
     end
   end
