@@ -31,11 +31,10 @@ class Backup
   BACKUP_TASKS_PATH = '_tasks'
   APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
-  def initialize(backup_path, ctx, io, store)
+  def initialize(backup_path, ctx, store)
     @backup_path = backup_path
     @backup_tasks_path = File.join(@backup_path, BACKUP_TASKS_PATH)
     @ctx = ctx
-    @io = io
     @store = store
 
     @tasks = {}
@@ -43,12 +42,12 @@ class Backup
     @disabled_task_names = Set.new
   end
 
-  def Backup.from_config(backup_path: nil, ctx: {}, io: nil)
-    io.mkdir_p backup_path
+  def Backup.from_config(backup_path: nil, ctx: {})
+    ctx[:io].mkdir_p backup_path
     ctx = ctx.with_options backup_root: backup_path
     backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
-    Backup.new(backup_path, ctx, io, store).tap(&:load_config!)
+    Backup.new(backup_path, ctx, store).tap(&:load_config!)
   end
 
   # Loads the configuration and the tasks.
@@ -58,15 +57,15 @@ class Backup
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
 
-    backup_tasks = get_backup_tasks @backup_tasks_path, @ctx, @io
-    app_tasks = get_backup_tasks APPLICATIONS_DIR, @ctx, @io
+    backup_tasks = get_backup_tasks @backup_tasks_path, @ctx
+    app_tasks = get_backup_tasks APPLICATIONS_DIR, @ctx
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
   end
 
   def save_config!
-    return if @io.dry
+    return if @ctx[:io].dry
     @store.transaction(false) do |store|
       store['enabled_task_names'] = @enabled_task_names.to_a
       store['disabled_task_names'] = @disabled_task_names.to_a
@@ -142,7 +141,7 @@ class Backup
 
   private
 
-  def get_backup_task_from_ruby_file(task_pathname, host_info, io)
+  def get_backup_task_from_ruby_file(task_pathname, host_info)
     mod = Module.new
     package_script = io.read task_pathname
     mod.class_eval package_script
@@ -152,34 +151,34 @@ class Backup
     mod.constants.map do |name|
       const = mod.const_get name
       if not const.nil? and const < PackageBase
-        return const.new host_info, io
+        return const.new host_info
       end
     end
   end
 
-  def get_backup_task_from_yaml_file(task_pathname, host_info, io)
-    config = YAML.load(io.read(task_pathname))
+  def get_backup_task_from_yaml_file(task_pathname, ctx)
+    config = YAML.load(ctx[:io].read(task_pathname))
     if config.nil?
       raise InvalidConfigFileError.new task_pathname
     end
 
-    Package.new(config, host_info, io)
+    Package.new(config, ctx)
   end
 
   # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_pathname, host_info, io)
+  def get_backup_task(task_pathname, ctx)
     if File.extname(task_pathname) == '.rb'
-      get_backup_task_from_ruby_file task_pathname, host_info, io
+      get_backup_task_from_ruby_file task_pathname, ctx
     elsif File.extname(task_pathname) == '.yaml' or File.extname(task_pathname) == '.yml'
-      get_backup_task_from_yaml_file task_pathname, host_info, io
+      get_backup_task_from_yaml_file task_pathname, ctx
     end
   end
 
   # Constructs backup tasks that can be found a task folder.
   # TODO: load with context.
-  def get_backup_tasks(tasks_path, host_info, io)
-    (io.glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
-      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, host_info, io)] }
+  def get_backup_tasks(tasks_path, ctx)
+    (ctx[:io].glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
+      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, ctx)] }
       .select { |task_name, task| not task.nil? }
       .to_h
   end
@@ -197,31 +196,23 @@ class Backup
   end
 end
 
-# TODO(drognanar): Embed labels into the global configs file?
-# TODO(drognanar): Add a label for a local machine.
 class BackupManager
   attr_accessor :backups, :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
-  DEFAULT_RESTORE_ROOT = File.expand_path '~/'
+  DEFAULT_RESTORE_TO = File.expand_path '~/'
 
-  def initialize(ctx = nil, io = nil, store = nil)
+  def initialize(ctx = nil, store = nil)
     @ctx = ctx
-    @io = io
     @store = store
   end
 
   # Loads backup manager configuration and backups it references.
-  def BackupManager.from_config(ctx: nil, io: nil)
-    # TODO(drognanar): How to add extra labels into host_info?
-    # TODO(drognanar): These can only be obtained after running #load_config!
-    # TODO(drognanar): Hardcode the config path?
-    # TODO(drognanar): What if we get pluggable packages?
-    ctx ||= SyncContext.new
+  def BackupManager.from_config(ctx)
     ctx = ctx.with_options BackupManager.get_host_info
 
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
 
-    BackupManager.new(ctx, io, store).tap(&:load_config!)
+    BackupManager.new(ctx, store).tap(&:load_config!)
   end
 
   def load_config!
@@ -231,11 +222,11 @@ class BackupManager
   end
 
   def load_backups!
-    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, ctx: @ctx, io: @io }
+    @backups = @backup_paths.map { |backup_path| Backup.from_config backup_path: backup_path, ctx: @ctx }
   end
 
   def save_config!
-    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @io.dry
+    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx[:io].dry
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
@@ -251,12 +242,12 @@ class BackupManager
 
     # TODO(drognanar): Revise this model.
     # TODO(drognanar): Will not clone the repository if folder exists but will sync.
-    backup_exists = @io.exist?(backup_dir)
-    if not backup_exists or @io.entries(backup_dir).empty?
-      @io.mkdir_p backup_dir if not backup_exists
+    backup_exists = @ctx[:io].exist?(backup_dir)
+    if not backup_exists or @ctx[:io].entries(backup_dir).empty?
+      @ctx[:io].mkdir_p backup_dir if not backup_exists
       if source_url
         LOGGER.info "Cloning repository \"#{source_url}\""
-        @io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
+        @ctx[:io].shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
       end
     elsif not force
       LOGGER.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
@@ -272,9 +263,9 @@ class BackupManager
 
   # Gets the host info of the current machine.
   # TODO(drognanar): Can this be redesigned?
-  # TODO(drognanar): Convert into context?
+  # TODO(drognanar): Create this with global context?
   def BackupManager.get_host_info
-    { restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new }
+    { restore_to: DEFAULT_RESTORE_TO, sync_time: Time.new }
   end
 end
 

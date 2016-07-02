@@ -24,7 +24,7 @@ class SyncContext
   end
 
   def restore_path(relative_path)
-    File.expand_path relative_path, @options[:restore_root]
+    File.expand_path relative_path, @options[:restore_to]
   end
 
   def with_options(new_options)
@@ -40,10 +40,10 @@ end
 class PackageBase
   extend Forwardable
 
-  attr_accessor :io, :sync_items
+  attr_accessor :sync_items
 
-  def self.config_dir(value)
-    self.class_eval "def config_dir; #{JSON.dump(value)}; end"
+  def self.restore_to(value)
+    self.class_eval "def restore_to; #{JSON.dump(value) if value}; end"
   end
 
   def self.name(value)
@@ -69,7 +69,7 @@ class PackageBase
   def_delegators PackageBase, :under_windows?, :under_macos?, :under_linux?, :skip
 
   name ''
-  config_dir ''
+  restore_to nil
   skip nil
 
   def steps
@@ -85,15 +85,15 @@ class PackageBase
     end
   end
 
-  def initialize(ctx, io)
+  def initialize(ctx)
     @sync_items = []
     @skip_reason = nil
-    @io = io
 
     @default_backup_root = ctx[:backup_root] || ''
     @default_backup_root = File.join @default_backup_root, name
+    @default_restore_to = restore_to || ctx[:restore_to]
 
-    @ctx = ctx.with_options backup_root: @default_backup_root, io: @io
+    @ctx = ctx.with_options backup_root: @default_backup_root, restore_to: @default_restore_to
   end
 
   # Adds a new file sync task.
@@ -123,7 +123,7 @@ class PackageBase
   # NOTE: Given that list of backed up paths is platform specific this solution will not work.
   # NOTE: Unless all paths are provided. 
   def cleanup
-    all_files = @io.glob(File.join(@default_backup_root, '**', '*')).sort
+    all_files = @ctx[:io].glob(File.join(@default_backup_root, '**', '*')).sort
     backed_up_list = info.map(&:backup_path).sort
     files_to_cleanup = []
 
@@ -158,10 +158,10 @@ end
 class Package < PackageBase
   attr_accessor :name, :skip_reason
 
-  def initialize(config, ctx, io)
+  def initialize(config, ctx)
     @name = config['name'] || ''
     @config = config
-    super ctx, io
+    super ctx
     platforms (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
 
     steps

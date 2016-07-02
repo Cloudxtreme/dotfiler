@@ -9,7 +9,7 @@ RSpec.describe Backup do
   let(:io)            { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory) { class_double(YAML::Store) }
   let(:backup_store)  { instance_double(YAML::Store, path: '') }
-  let(:host_info)     { { test_info: true } }
+  let(:host_info)     { { test_info: true, io: io } }
   let(:task_a)  { instance_double(Package) }
   let(:task_c)  { instance_double(Package) }
   let(:task_d)  { instance_double(Package) }
@@ -17,7 +17,7 @@ RSpec.describe Backup do
   let(:tasks)         { { 'a' => task_a, 'b2' => task_b2, 'c' => task_c, 'd' => task_d } }
 
   def get_backup(tasks, enabled_tasks, disabled_tasks)
-    backup = Backup.new('/backup/dir', host_info, io, backup_store)
+    backup = Backup.new('/backup/dir', host_info, backup_store)
     backup.enabled_task_names = Set.new enabled_tasks
     backup.disabled_task_names = Set.new disabled_tasks
     backup.tasks = tasks
@@ -150,7 +150,7 @@ end
 
 RSpec.describe BackupManager do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
-  let(:host_info)      { { test_info: true } }
+  let(:host_info)      { { test_info: true, io: io } }
   let(:manager_store)  { instance_double(YAML::Store, path: '') }
   let(:backup_store1)  { instance_double(YAML::Store, path: '') }
   let(:backup_store2)  { instance_double(YAML::Store, path: '') }
@@ -161,7 +161,7 @@ RSpec.describe BackupManager do
     allow(manager_store).to receive(:transaction).and_yield(manager_store)
     allow(backup_store1).to receive(:transaction).and_yield(backup_store1)
     allow(backup_store2).to receive(:transaction).and_yield(backup_store1)
-    BackupManager.new(host_info, io, manager_store)
+    BackupManager.new(host_info, manager_store)
   end
 
   describe '#create_backup!' do

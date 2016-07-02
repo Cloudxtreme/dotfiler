@@ -9,8 +9,8 @@ module Setup
 RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:platform)  { Platform::label_from_platform }
-  let(:host_info) { SyncContext.new restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
-  let(:ctx)       { SyncContext.new restore_root: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time' }
+  let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
+  let(:ctx)       { SyncContext.new restore_to: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time', io: io }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
@@ -25,7 +25,7 @@ RSpec.describe 'Package' do
       item
     end
 
-    package = Package.new(config, host_info.with_options(options), io)
+    package = Package.new(config, host_info.with_options(options))
 
     expect(package.sync_items).to eq(sync_items)
 
@@ -51,28 +51,28 @@ RSpec.describe 'Package' do
 
   describe 'initialize' do
     it 'use configuration name' do
-      expect(Package.new({}, SyncContext.new({}), io).name).to eq('')
-      expect(Package.new({'name' => 'name'}, SyncContext.new({}), io).name).to eq('name')
+      expect(Package.new({}, SyncContext.new({})).name).to eq('')
+      expect(Package.new({'name' => 'name'}, SyncContext.new({})).name).to eq('name')
     end
 
     it 'should execute if plaform is fulfilled' do
-      expect(Package.new({}, SyncContext.new({}), io).should_execute).to be true
-      expect(Package.new({'platforms' => nil}, SyncContext.new({}), io).should_execute).to be true
-      expect(Package.new({'platforms' => []}, SyncContext.new({}), io).should_execute).to be true
-      under_linux { expect(Package.new({'platforms' => []}, SyncContext.new({}), io).should_execute).to be true }
-      under_linux { expect(Package.new({'platforms' => ['<linux>']}, SyncContext.new({}), io).should_execute).to be true }
-      under_linux { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({}), io).should_execute).to be true }
-      under_macos { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({}), io).should_execute).to be true }
+      expect(Package.new({}, SyncContext.new({})).should_execute).to be true
+      expect(Package.new({'platforms' => nil}, SyncContext.new({})).should_execute).to be true
+      expect(Package.new({'platforms' => []}, SyncContext.new({})).should_execute).to be true
+      under_linux { expect(Package.new({'platforms' => []}, SyncContext.new({})).should_execute).to be true }
+      under_linux { expect(Package.new({'platforms' => ['<linux>']}, SyncContext.new({})).should_execute).to be true }
+      under_linux { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({})).should_execute).to be true }
+      under_macos { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({})).should_execute).to be true }
     end
 
     it 'should not execute if platform is not fulfilled' do
-      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({}), io).should_execute).to be false
-      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<win>']}), io).should_execute).to be false
+      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({})).should_execute).to be false
+      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<win>']})).should_execute).to be false
     end
 
     it 'should not create sync objects if files missing' do
       expect(FileSync).to_not receive(:new)
-      Package.new({'name' => 'task', 'files' => []}, host_info, io)
+      Package.new({'name' => 'task', 'files' => []}, host_info)
     end
 
     it 'should generate sync items' do

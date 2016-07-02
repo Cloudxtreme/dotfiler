@@ -20,7 +20,7 @@ class CommonCLI < Thor
       @io = options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
       @cli = HighLine.new
 
-      yield Setup::BackupManager.from_config(io: @io, ctx: get_context(options)).tap(&:load_backups!)
+      yield Setup::BackupManager.from_config(get_context(options)).tap(&:load_backups!)
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""
@@ -32,7 +32,7 @@ end
 class Package < CommonCLI
   no_commands do
     def get_context(options)
-      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked])
+      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], io: @io)
     end
   end
 
@@ -92,7 +92,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite))
+      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), io: @io)
     end
 
     def ask_overwrite(backup_path, restore_path)

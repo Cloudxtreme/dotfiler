@@ -23,12 +23,12 @@ RSpec.shared_examples 'CLIHelper' do |cli|
 
   describe '#init_command' do
     it 'creates backup manager with default parameters when no options given' do
-      expect(Setup::BackupManager).to receive(:from_config).with(io: CONCRETE_IO, ctx: an_instance_of(SyncContext)).and_return backup_manager
+      expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
       expect(get_backup_manager).to eq(backup_manager)
     end
 
     it 'creates backup manager with passed in options' do
-      expect(Setup::BackupManager).to receive(:from_config).with(io: DRY_IO, ctx: an_instance_of(SyncContext)).and_return backup_manager
+      expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
       expect(get_backup_manager({ dry: true })).to eq(backup_manager)
     end
   end
@@ -139,7 +139,7 @@ RSpec.describe './setup' do
   before(:each) do
     @apps_dir      = File.join(@tmpdir, 'apps')
     @default_config_root   = File.join(@tmpdir, 'setup.yml')
-    @default_restore_root  = File.join(@tmpdir, 'machine')
+    @default_restore_to  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
     @default_backup_dir    = File.join(@tmpdir, 'dotfiles/local')
     @default_backup_config = File.join(@tmpdir, 'dotfiles/local/config.yml')
@@ -149,7 +149,7 @@ RSpec.describe './setup' do
 
     stub_const 'Setup::Backup::APPLICATIONS_DIR', @apps_dir
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
-    stub_const 'Setup::BackupManager::DEFAULT_RESTORE_ROOT', @default_restore_root
+    stub_const 'Setup::BackupManager::DEFAULT_RESTORE_TO', @default_restore_to
     stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
     stub_const 'Setup::Backup::DEFAULT_BACKUP_DIR', @default_backup_dir
 
