@@ -102,7 +102,7 @@ class PackageBase
 
   # Adds a new file sync task.
   def file(filepath, options = {})
-    FileSyncTask.new(filepath, options, @ctx).tap { |task| @sync_items << task }
+    FileSyncTask.create(filepath, options, @ctx).tap { |task| @sync_items << task }
   end
 
   def has_data

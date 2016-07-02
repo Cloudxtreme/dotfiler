@@ -5,15 +5,17 @@ module Setup
 class FileSyncTask
   attr_reader :name
 
-  # TODO(drognanar): Make this API less magic
-  # TODO(drognanar): Aka - Create a static method that resolves using get_file_sync_options
-  def initialize(filepath, file_sync_options, ctx)
+  def initialize(name, file_sync_options, ctx)
+    @name = name
+    @file_sync_options = file_sync_options
     @ctx = ctx
+  end
 
-    @file_sync_options = FileSyncTask.get_file_sync_options(filepath, file_sync_options, ctx)
-    @file_sync_options[:copy] = ctx[:copy] if ctx[:copy]
-    @file_sync_options[:on_overwrite] = ctx[:on_overwrite] if ctx[:on_overwrite]
-    @name = @file_sync_options[:name]
+  def self.create(filepath, file_sync_options, ctx)
+    file_sync_options = FileSyncTask.get_file_sync_options(filepath, file_sync_options, ctx)
+    file_sync_options[:copy] = ctx[:copy] if ctx[:copy]
+    file_sync_options[:on_overwrite] = ctx[:on_overwrite] if ctx[:on_overwrite]
+    FileSyncTask.new file_sync_options[:name], file_sync_options, ctx
   end
 
   def self.get_file_sync_options(filepath, options, ctx)

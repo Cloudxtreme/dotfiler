@@ -78,7 +78,7 @@ RSpec.describe Package do
       filepath, sync_options, save_as = sync_item
       info = instance_double('FileSyncInfo', backup_path: ctx.backup_path(save_as || filepath))
       item = instance_double('FileSyncTask', info: info)
-      expect(FileSyncTask).to receive(:new).with(filepath, sync_options, an_instance_of(SyncContext)).and_return item
+      expect(FileSyncTask).to receive(:create).with(filepath, sync_options, an_instance_of(SyncContext)).and_return item
       expect(item).to receive(:save_as).with(save_as).and_return(item) if not save_as.nil?
       item
     end
