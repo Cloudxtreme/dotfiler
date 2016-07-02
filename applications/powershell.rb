@@ -1,4 +1,4 @@
-class PowerShellPackage < PackageBase
+class PowerShellPackage < Package
   name 'PowerShell'
   platforms [:WINDOWS]
   restore_to '~/Documents/WindowsPowerShell'

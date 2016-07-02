@@ -34,8 +34,7 @@ class SyncContext
   end
 end
 
-# Make it easy to subclass PackageBase as well for a single Package.
-class PackageBase
+class Package
   extend Forwardable
 
   attr_accessor :sync_items, :skip_reason
@@ -64,7 +63,7 @@ class PackageBase
     block.call if Platform::linux?
   end
 
-  def_delegators PackageBase, :under_windows, :under_macos, :under_linux
+  def_delegators Package, :under_windows, :under_macos, :under_linux
 
   def skip(reason)
     @skip_reason = reason
@@ -123,7 +122,7 @@ class PackageBase
   # A file is not included if its parent is being backed up.
   # A file is not included if its parent is being cleaned up.
   # NOTE: Given that list of backed up paths is platform specific this solution will not work.
-  # NOTE: Unless all paths are provided. 
+  # NOTE: Unless all paths are provided.
   def cleanup
     all_files = @ctx[:io].glob(File.join(@default_backup_root, '**', '*')).sort
     backed_up_list = @sync_items.map(&:backup_path).sort

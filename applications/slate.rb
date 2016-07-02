@@ -1,4 +1,4 @@
-class SlatePackage < PackageBase
+class SlatePackage < Package
   name 'Slate'
   platforms [:MACOS, :LINUX]
 

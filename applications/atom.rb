@@ -1,4 +1,4 @@
-class AtomPackage < PackageBase
+class AtomPackage < Package
   name 'Atom'
   restore_to '~/.atom'
 

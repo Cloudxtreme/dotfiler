@@ -1,4 +1,4 @@
-class GitPackage < PackageBase
+class GitPackage < Package
   name 'Git'
 
   def steps

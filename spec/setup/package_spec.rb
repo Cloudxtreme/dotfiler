@@ -6,7 +6,7 @@ require 'setup/io'
 
 module Setup
 
-RSpec.describe PackageBase do
+RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:task)      { instance_double(FileSyncTask) }
   let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
@@ -15,7 +15,7 @@ RSpec.describe PackageBase do
   let(:winctx)    { SyncContext.new restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
 
   let(:package_class) do
-    Class.new(PackageBase) do
+    Class.new(Package) do
       name 'Package'
       platforms [:WINDOWS]
       under_windows { restore_to '/windows/files' }
@@ -29,7 +29,7 @@ RSpec.describe PackageBase do
 
   let(:package)           { package_class.new(host_info) }
   let(:package_untracked) { package_class.new(untracked) }
-  let(:default_package)   { PackageBase.new(host_info) }
+  let(:default_package)   { Package.new(host_info) }
 
   describe 'default package' do
     it 'should have an empty name' do

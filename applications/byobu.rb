@@ -1,4 +1,4 @@
-class ByobuPackage < PackageBase
+class ByobuPackage < Package
   name 'Byobu'
   platforms [:MACOS, :LINUX]
   restore_to '.byobu'

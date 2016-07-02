@@ -1,4 +1,4 @@
-class BashPackage < PackageBase
+class BashPackage < Package
   name 'Bash'
 
   def steps

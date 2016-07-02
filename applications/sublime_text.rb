@@ -1,4 +1,4 @@
-class SublimeTextPackage < PackageBase
+class SublimeTextPackage < Package
   name 'Sublime Text 3'
   platforms [:MACOS, :WINDOWS]
   under_macos   { restore_to '~/Library/Application Support/Sublime Text 3' }

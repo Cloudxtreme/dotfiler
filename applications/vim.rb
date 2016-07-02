@@ -1,4 +1,4 @@
-class VimPackage < PackageBase
+class VimPackage < Package
   name 'Vim'
 
   def steps

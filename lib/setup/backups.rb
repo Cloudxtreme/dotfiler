@@ -147,7 +147,7 @@ class Backup
     # If a constant defines a package return it.
     mod.constants.map do |name|
       const = mod.const_get name
-      if not const.nil? and const < PackageBase
+      if not const.nil? and const < Package
         return const.new @ctx
       end
     end

@@ -1,4 +1,4 @@
-class IntelliJPackage < PackageBase
+class IntelliJPackage < Package
   name 'IntelliJ IDEA'
 
   def steps

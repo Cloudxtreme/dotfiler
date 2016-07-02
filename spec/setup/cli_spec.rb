@@ -44,7 +44,7 @@ RSpec.describe Cli::Program do
 end
 
 PACKAGE_TEMPLATE = "
-class <%= name.capitalize %>Package < PackageBase
+class <%= name.capitalize %>Package < Package
     name '<%= name %>'
 
     def steps
