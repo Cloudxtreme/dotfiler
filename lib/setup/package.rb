@@ -4,6 +4,8 @@ require 'setup/io'
 require 'setup/logging'
 require 'setup/platform'
 
+require 'forwardable'
+require 'json'
 require 'pathname'
 
 module Setup
@@ -34,38 +36,72 @@ class SyncContext
   end
 end
 
-# Represents a single task that copies multiple files.
-# TODO(drognanar): Permit regular expressions in task config?
-# TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
-# TODO(drognanar): Covert sync items into SyncTask objects.
-class Package
-  attr_accessor :name, :should_execute, :io, :sync_items
-  def initialize(config, ctx, io)
-    @labels = ctx[:label] || []
-    restore_root = Platform.get_config_value(config['root'], @labels) || ''
-    platforms = config['platforms'] || []
+# Make it easy to subclass PackageBase as well for a single Package.
+class PackageBase
+  extend Forwardable
 
-    @io = io
-    @name = config['name'] || ''
+  attr_accessor :io, :sync_items
+  attr_reader :should_execute, :skip_message
+
+  def self.name(value)
+    self.class_eval "def name; #{JSON.dump(value)}; end"
+  end
+
+  def self.config_dir(value)
+    self.class_eval "def config_dir; #{JSON.dump(value)}; end"
+  end
+
+  def self.under_windows(&block)
+    block.call if Platform::windows?
+  end
+
+  def self.under_macos(&block)
+    block.call if Platform::macos?
+  end
+
+  def self.under_linux(&block)
+    block.call if Platform::linux?
+  end
+
+  def_delegators PackageBase, :under_windows?, :under_macos?, :under_linux?
+
+  def steps
+  end
+
+  name ''
+  config_dir ''
+
+  # TODO(drognanar): Should work under the class as well.
+  def skip(msg)
+    @should_execute = false
+    @skip_message = msg
+  end
+
+  def platforms(platforms)
+    unless Platform::has_matching_label @labels, platforms
+      skip 'Unsupported platform'
+    end
+  end
+
+  # TODO: get rid of @labels.
+  def initialize(ctx, io)
+    @sync_items = []
     @default_backup_root = ctx[:backup_root] || ''
-    @default_backup_root = File.join @default_backup_root, @name
+    @default_backup_root = File.join @default_backup_root, name
     @default_restore_root = ctx[:restore_root]
-    @should_execute = Platform::has_matching_label @labels, platforms
+    @should_execute = true
+    @io = io
+    @labels = ctx[:label] || []
 
     @ctx = ctx.with_options backup_root: @default_backup_root, restore_root: @default_restore_root, io: @io
-    @sync_items = (config['files'] || [])
-      .map { |file_config| resolve_sync_item file_config, restore_root, ctx }
-      .compact
-      .map { |sync_item_factory| sync_item_factory.call() }
   end
 
-  # Returns if this is a new package, i.e. none of its targets have been backed up.
-  def new_package?
-    info_by_status = @sync_items.map { |sync_item| sync_item.info }.group_by(&:status)
-    info_by_status.keys.length == 1 && info_by_status.fetch(:backup, []).length > 0
+  def file(filepath)
+
   end
 
-  # TODO(drognanar): Deprecate #has_data once #new_package is used for discovery.
+  # TODO(drognanar): Deprecate #has_data once #new_package is used for discovery?
+  # TODO(drognanar): Determine if this claim is still valid.
   def has_data
     @sync_items.any? { |sync_item| sync_item.info.status.kind != :error }
   end
@@ -85,6 +121,8 @@ class Package
   # This algorithm ensures to list only the top level folder to be cleaned up.
   # A file is not included if its parent is being backed up.
   # A file is not included if its parent is being cleaned up.
+  # NOTE: Given that list of backed up paths is platform specific this solution will not work.
+  # NOTE: Unless all paths are provided. 
   def cleanup
     all_files = @io.glob(File.join(@default_backup_root, '**', '*')).sort
     backed_up_list = info.map(&:backup_path).sort
@@ -112,6 +150,32 @@ class Package
     @sync_items.map { |sync_item| sync_item.info }
   end
 
+end
+
+# Represents a package generated from a yaml configuration file.
+# TODO(drognanar): Permit regular expressions in task config?
+# TODO(drognanar): Just allow .rb files? Then they can do everything! Including calling regexps.
+# TODO(drognanar): Start loading .rb file packages.
+# TODO(drognanar): Covert sync items into SyncTask objects.
+class Package < PackageBase
+  attr_accessor :name
+
+  def initialize(config, ctx, io)
+    @name = config['name'] || ''
+    @config = config
+    super ctx, io
+    platforms (config['platforms'] || [])
+
+    steps
+  end
+
+  def steps
+    restore_root = Platform.get_config_value(@config['root'], @labels) || ''
+    @sync_items = (@config['files'] || [])
+      .map { |file_config| resolve_sync_item file_config, restore_root, @ctx }
+      .compact
+  end
+
   private
 
   # This function replaces the first dot of a filename.
@@ -127,11 +191,8 @@ class Package
   def resolve_sync_item(file_config, restore_root, host_info)
     resolved = resolve_sync_item_config(file_config, restore_root)
     if resolved
-      proc do
-        FileSyncTask.new resolved, @ctx
-      end
+      FileSyncTask.new(resolved, @ctx)
     end
-    # resolved ? [FileSync.new(host_info[:sync_time], @io), resolved] : nil
   end
 
   # Resolve `file_config` into `FileSyncStatus` configuration.
@@ -145,13 +206,11 @@ class Package
       resolved = Hash[resolved.map { |k, v| [k.to_sym, v] }]
     end
 
-    if resolved.fetch(:type, 'file') == 'file'
-      resolved[:restore_path] = Platform.get_config_value(resolved[:restore_path], @labels)
-      resolved[:backup_path] = Platform.get_config_value(resolved[:backup_path], @labels)
-      resolved[:name] = resolved[:restore_path]
-      resolved[:restore_path] = File.expand_path(Pathname(restore_root).join(resolved[:restore_path]), @default_restore_root)
-      resolved[:backup_path] = File.expand_path(resolved[:backup_path], @default_backup_root)
-    end
+    resolved[:restore_path] = Platform.get_config_value(resolved[:restore_path], @labels)
+    resolved[:backup_path] = Platform.get_config_value(resolved[:backup_path], @labels)
+    resolved[:name] = resolved[:restore_path]
+    resolved[:restore_path] = File.expand_path(Pathname(restore_root).join(resolved[:restore_path]), @default_restore_root)
+    resolved[:backup_path] = File.expand_path(resolved[:backup_path], @default_backup_root)
 
     resolved
   end

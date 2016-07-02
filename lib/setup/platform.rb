@@ -34,6 +34,14 @@ module Setup::Platform
   def self.windows?(platform = nil)
     get_platform(platform) == :WINDOWS
   end
+
+  def self.macos?(platform = nil)
+    get_platform(platform) == :MAC_OS
+  end
+
+  def self.linux?(platform = nil)
+    get_platform(platform) == :LINUX
+  end
   
   def self.unix?(platform = nil)
     not windows?(platform)

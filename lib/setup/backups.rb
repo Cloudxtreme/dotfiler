@@ -142,8 +142,22 @@ class Backup
 
   private
 
-  # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_pathname, host_info, io)
+  def get_backup_task_from_ruby_file(task_pathname, host_info, io)
+    mod = Module.new
+    package_script = io.read task_pathname
+    mod.class_eval package_script
+
+    # Iterate over all constants/classes defined by the script.
+    # If a constant defines a package return it.
+    mod.constants.map do |name|
+      const = mod.const_get name
+      if not const.nil? and const < PackageBase
+        return const.new host_info, io
+      end
+    end
+  end
+
+  def get_backup_task_from_yaml_file(task_pathname, host_info, io)
     config = YAML.load(io.read(task_pathname))
     if config.nil?
       raise InvalidConfigFileError.new task_pathname
@@ -152,10 +166,19 @@ class Backup
     Package.new(config, host_info, io)
   end
 
+  # Constructs a backup task given a task yaml configuration.
+  def get_backup_task(task_pathname, host_info, io)
+    if File.extname(task_pathname) == '.rb'
+      get_backup_task_from_ruby_file task_pathname, host_info, io
+    elsif File.extname(task_pathname) == '.yaml' or File.extname(task_pathname) == '.yml'
+      get_backup_task_from_yaml_file task_pathname, host_info, io
+    end
+  end
+
   # Constructs backup tasks that can be found a task folder.
   # TODO: load with context.
   def get_backup_tasks(tasks_path, host_info, io)
-    (io.glob File.join(tasks_path, '*.yml'))
+    (io.glob [File.join(tasks_path, '*.yml'), File.join(tasks_path, '*.rb')])
       .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path, host_info, io)] }
       .select { |task_name, task| not task.nil? }
       .to_h
