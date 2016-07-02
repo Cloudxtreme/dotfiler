@@ -24,8 +24,13 @@ RSpec.configure do |config|
     yield
   end
 
-  def under_osx
+  def under_macos
     stub_const 'RUBY_PLATFORM', 'x86_64-darwin14'
+    yield
+  end
+
+  def under_linux
+    stub_const 'RUBY_PLATFORM', 'arch'
     yield
   end
 

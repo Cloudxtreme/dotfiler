@@ -25,7 +25,7 @@ RSpec.describe 'Common_IO' do
   end
 end
 
-# Redefine the symlink method in order so that it can be mocked for under_osx context.
+# Redefine the symlink method in order so that it can be mocked for under_macos context.
 # Otherwise rspec throws the NotImplementedException.
 if Platform::windows?
   begin
@@ -62,7 +62,7 @@ RSpec.describe 'File_IO' do
   
   it 'symlinks on unix' do
     expect(File).to receive(:symlink).with('path1', 'path2')
-    under_osx { CONCRETE_IO.link 'path1', 'path2' }
+    under_macos { CONCRETE_IO.link 'path1', 'path2' }
   end
 
   it 'sends junction for execution to shell' do
@@ -72,7 +72,7 @@ RSpec.describe 'File_IO' do
   
   it 'symlinks on unix' do
     expect(File).to receive(:symlink).with('path1', 'path2')
-    under_osx { CONCRETE_IO.junction 'path1', 'path2' }
+    under_macos { CONCRETE_IO.junction 'path1', 'path2' }
   end
 end
 

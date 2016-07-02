@@ -3,29 +3,23 @@
 module Setup::Platform
   # Resolves data that can be either a value or a hash from labels to value.
   # For example:
-  # get_config_value({ '<win>' => 1, '<mac>' => 2}, ['<win>']) == 1
-  # get_config_value('concrete', ['<win>']) == 'concrete'
-  def self.get_config_value(data, machine_labels)
+  # get_config_value({ '<win>' => 1, '<mac>' => 2}, '<win>') == 1
+  # get_config_value('concrete', '<win>') == 'concrete'
+  def self.get_config_value(data, machine_label)
     is_label_hash = (data.is_a?(Hash) and data.keys.all?(&method(:is_label)))
     if is_label_hash
-      matching_data = data.select { |label, _| has_matching_label(machine_labels, [label]) }
+      matching_data = data.select { |label, _| machine_label == label }
       return matching_data.values[0]
     else
       return data
     end
   end
 
-  # Checks if the two sets of labels have an intersection.
-  # has_matching_label(['<win>', '<osx>'], ['<win>']) == true
-  def self.has_matching_label(machine_labels, task_labels)
-    task_labels.empty? or Set.new(task_labels).intersect?(Set.new(machine_labels))
-  end
-
   # Gets the platform of the machine.
   def self.get_platform(platform = nil)
     platform ||= RUBY_PLATFORM
     case platform
-    when /darwin/ then :MAC_OS
+    when /darwin/ then :MACOS
     when /cygwin|mswin|mingw|bccwin|wince|emx/ then :WINDOWS
     else :LINUX
     end
@@ -36,7 +30,7 @@ module Setup::Platform
   end
 
   def self.macos?(platform = nil)
-    get_platform(platform) == :MAC_OS
+    get_platform(platform) == :MACOS
   end
 
   def self.linux?(platform = nil)
@@ -49,11 +43,20 @@ module Setup::Platform
 
   # Gets the machine specific labels.
   # Produces labels for the os, screen resolution.
-  def self.machine_labels(platform = nil)
-    case get_platform(platform)
-    when :MAC_OS then ['<unix>', '<osx>', '<mac>']
-    when :WINDOWS then ['<win>']
-    when :LINUX then ['<unix>', '<linux>']
+  def self.get_platform_from_label(label)
+    case label
+    when '<macos>' then :MACOS
+    when '<win>' then :WINDOWS
+    when '<linux>' then :LINUX
+    end
+  end
+
+  # TODO(drognanar): Deprecate soon after config is removed.
+  def self.label_from_platform(platform = nil)
+    case self.get_platform platform
+    when :MACOS then '<macos>'
+    when :WINDOWS then '<cygwin>'
+    when :LINUX then '<ubuntu>'
     end
   end
 

@@ -274,7 +274,7 @@ class BackupManager
   # TODO(drognanar): Can this be redesigned?
   # TODO(drognanar): Convert into context?
   def BackupManager.get_host_info
-    { label: Platform.machine_labels, restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new }
+    { restore_root: DEFAULT_RESTORE_ROOT, sync_time: Time.new }
   end
 end
 

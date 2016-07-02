@@ -8,9 +8,9 @@ module Setup
 
 RSpec.describe 'Package' do
   let(:io)        { instance_double(InputOutput::File_IO) }
-  let(:platform)  { Platform::machine_labels[0] }
-  let(:host_info) { SyncContext.new label: [platform], restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
-  let(:ctx)       { SyncContext.new label: [platform], restore_root: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time' }
+  let(:platform)  { Platform::label_from_platform }
+  let(:host_info) { SyncContext.new restore_root: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
+  let(:ctx)       { SyncContext.new restore_root: '/restore/root/task', backup_root: '/backup/root/task', sync_time: 'sync_time' }
 
   # Creates a new package with a given config and mocked host_info, io.
   # Asserts that sync_items are created with expected_sync_options.
@@ -59,9 +59,10 @@ RSpec.describe 'Package' do
       expect(Package.new({}, SyncContext.new({}), io).should_execute).to be true
       expect(Package.new({'platforms' => nil}, SyncContext.new({}), io).should_execute).to be true
       expect(Package.new({'platforms' => []}, SyncContext.new({}), io).should_execute).to be true
-      expect(Package.new({'platforms' => []}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
-      expect(Package.new({'platforms' => ['<lin>']}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
-      expect(Package.new({'platforms' => ['<lin>', '<mac>']}, SyncContext.new({label: ['<lin>']}), io).should_execute).to be true
+      under_linux { expect(Package.new({'platforms' => []}, SyncContext.new({}), io).should_execute).to be true }
+      under_linux { expect(Package.new({'platforms' => ['<linux>']}, SyncContext.new({}), io).should_execute).to be true }
+      under_linux { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({}), io).should_execute).to be true }
+      under_macos { expect(Package.new({'platforms' => ['<linux>', '<macos>']}, SyncContext.new({}), io).should_execute).to be true }
     end
 
     it 'should not execute if platform is not fulfilled' do

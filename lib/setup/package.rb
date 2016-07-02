@@ -80,23 +80,20 @@ class PackageBase
   end
 
   def platforms(platforms)
-    # TODO(drognanar): Just use current platform's labels.
-    unless Platform::has_matching_label @labels, platforms
+    unless platforms.empty? or platforms.include? Platform.get_platform
       skip 'Unsupported platform'
     end
   end
 
-  # TODO: get rid of @labels.
   def initialize(ctx, io)
     @sync_items = []
-    @default_backup_root = ctx[:backup_root] || ''
-    @default_backup_root = File.join @default_backup_root, name
-    @default_restore_root = ctx[:restore_root]
     @skip_reason = nil
     @io = io
-    @labels = ctx[:label] || []
 
-    @ctx = ctx.with_options backup_root: @default_backup_root, restore_root: @default_restore_root, io: @io
+    @default_backup_root = ctx[:backup_root] || ''
+    @default_backup_root = File.join @default_backup_root, name
+
+    @ctx = ctx.with_options backup_root: @default_backup_root, io: @io
   end
 
   # Adds a new file sync task.
@@ -165,7 +162,7 @@ class Package < PackageBase
     @name = config['name'] || ''
     @config = config
     super ctx, io
-    platforms (config['platforms'] || [])
+    platforms (config['platforms'] || []).map { |platform| Platform.get_platform_from_label platform}
 
     steps
   end
@@ -175,24 +172,22 @@ class Package < PackageBase
   end
 
   def steps
-    restore_root = Platform.get_config_value(@config['root'], @labels) || ''
-    (@config['files'] || [])
-      .each { |file_config| resolve_sync_item_config file_config, restore_root }
+    (@config['files'] || []).each { |file_config| resolve_sync_item_config file_config }
   end
 
   private
 
   # Resolve `file_config` into `FileSyncStatus` configuration.
-  def resolve_sync_item_config(file_config, restore_root)
-    resolved = Platform.get_config_value(file_config, @labels)
+  def resolve_sync_item_config(file_config)
+    resolved = Platform.get_config_value(file_config, Platform.label_from_platform)
     return nil if resolved.nil?
 
     if resolved.is_a? String
       file(resolved)
     elsif resolved.is_a? Hash
       resolved = Hash[resolved.map { |k, v| [k.to_sym, v] }]
-      restore_path = Platform.get_config_value(resolved[:restore_path], @labels)
-      backup_path = Platform.get_config_value(resolved[:backup_path], @labels)
+      restore_path = Platform.get_config_value(resolved[:restore_path], Platform.label_from_platform)
+      backup_path = Platform.get_config_value(resolved[:backup_path], Platform.label_from_platform)
       file(restore_path).save_as(backup_path)
     end
   end
