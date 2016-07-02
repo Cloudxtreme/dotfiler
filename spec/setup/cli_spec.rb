@@ -45,6 +45,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
+  let(:ctx)    { SyncContext.new restore_to: File.join(@tmpdir, 'machine'), backup_root: @dotfiles_dir }
 
   def setup(args)
     Cli::Program.start args
@@ -108,14 +109,6 @@ RSpec.describe './setup' do
     expect(@output_lines).to include(start_with 'E:')
   end
 
-  def get_backup_path(path)
-    File.join @dotfiles_dir, path
-  end
-
-  def get_restore_path(path)
-    File.join @tmpdir, 'machine', path
-  end
-
   def get_overwrite_choice
       menu = instance_double('menu')
       expect(cmd).to receive(:choose).and_yield menu
@@ -168,30 +161,30 @@ RSpec.describe './setup' do
 
     # An app where the file is only present at the restore location.
     save_yaml_content File.join(@apps_dir, '/vim.yml'), 'name' => 'vim', 'files' => ['.vimrc']
-    save_file_content get_restore_path('.vimrc'), '; Vim configuration.'
+    save_file_content ctx.restore_path('.vimrc'), '; Vim configuration.'
 
     # An app where the backup will overwrite files.
     save_yaml_content File.join(@apps_dir, '/code.yml'), 'name' => 'code', 'files' => ['.vscode']
-    save_file_content get_backup_path('code/_vscode'), 'some content'
-    save_file_content get_restore_path('.vscode'), 'different content'
+    save_file_content ctx.backup_path('code/_vscode'), 'some content'
+    save_file_content ctx.restore_path('.vscode'), 'different content'
 
     # An app where only some files exist on the machine.
     # An app which only contains the file in the backup directory.
     save_yaml_content File.join(@apps_dir, '/bash.yml'), 'name' => 'bash', 'files' => ['.bashrc', '.bash_local']
-    save_file_content get_backup_path('bash/_bashrc'), 'bashrc file'
+    save_file_content ctx.backup_path('bash/_bashrc'), 'bashrc file'
 
     # An app where no files exist.
     save_yaml_content File.join(@apps_dir, '/git.yml'), 'name' => 'git', 'files' => ['.gitignore', '.gitconfig']
 
     # An app where the both backup and restore have the same content.
     save_yaml_content File.join(@apps_dir, '/python.yml'), 'name' => 'python', 'files' => ['.pythonrc']
-    save_file_content get_backup_path('python/_pythonrc'), 'pythonrc'
-    save_file_content get_restore_path('.pythonrc'), 'pythonrc'
+    save_file_content ctx.backup_path('python/_pythonrc'), 'pythonrc'
+    save_file_content ctx.restore_path('.pythonrc'), 'pythonrc'
 
     # An app where all files have been completely synced.
     save_yaml_content File.join(@apps_dir, '/rubocop.yml'), 'name' => 'rubocop', 'files' => ['.rubocop']
-    save_file_content get_backup_path('rubocop/_rubocop'), 'rubocop'
-    link_files get_backup_path('rubocop/_rubocop'), get_restore_path('.rubocop')
+    save_file_content ctx.backup_path('rubocop/_rubocop'), 'rubocop'
+    link_files ctx.backup_path('rubocop/_rubocop'), ctx.restore_path('.rubocop')
   end
 
   describe '--help' do
@@ -299,11 +292,11 @@ Options:
   end
 
   def assert_files_unchanged
-    expect(File.exist? get_backup_path('vim/_vimrc')).to be false
-    assert_file_content get_backup_path('code/_vscode'), 'some content'
-    assert_file_content get_restore_path('.vscode'), 'different content'
-    expect(File.exist? get_restore_path('.bashrc')).to be false
-    expect(File.identical? get_restore_path('.pythonrc'), get_backup_path('python/_pythonrc')).to be false
+    expect(File.exist? ctx.backup_path('vim/_vimrc')).to be false
+    assert_file_content ctx.backup_path('code/_vscode'), 'some content'
+    assert_file_content ctx.restore_path('.vscode'), 'different content'
+    expect(File.exist? ctx.restore_path('.bashrc')).to be false
+    expect(File.identical? ctx.restore_path('.pythonrc'), ctx.backup_path('python/_pythonrc')).to be false
   end
 
   describe 'sync' do
@@ -315,32 +308,32 @@ Options:
 "Syncing:
 I: Syncing package bash:
 I: Syncing .bashrc
-V: Symlinking \"#{get_backup_path('bash/_bashrc')}\" with \"#{get_restore_path('.bashrc')}\"
+V: Symlinking \"#{ctx.backup_path('bash/_bashrc')}\" with \"#{ctx.restore_path('.bashrc')}\"
 I: Syncing .bash_local
 E: Cannot sync. Missing both backup and restore.
 I: Syncing package code:
 I: Syncing .vscode
 W: Needs to overwrite a file
-W: Backup: \"#{get_backup_path('code/_vscode')}\"
-W: Restore: \"#{get_restore_path('.vscode')}\"
-V: Saving a copy of file \"#{get_backup_path('code/_vscode')}\" under \"#{get_backup_path('code')}\"
-V: Moving file from \"#{get_restore_path('.vscode')}\" to \"#{get_backup_path('code/_vscode')}\"
-V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
+W: Backup: \"#{ctx.backup_path('code/_vscode')}\"
+W: Restore: \"#{ctx.restore_path('.vscode')}\"
+V: Saving a copy of file \"#{ctx.backup_path('code/_vscode')}\" under \"#{ctx.backup_path('code')}\"
+V: Moving file from \"#{ctx.restore_path('.vscode')}\" to \"#{ctx.backup_path('code/_vscode')}\"
+V: Symlinking \"#{ctx.backup_path('code/_vscode')}\" with \"#{ctx.restore_path('.vscode')}\"
 I: Syncing package python:
 I: Syncing .pythonrc
-V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
+V: Symlinking \"#{ctx.backup_path('python/_pythonrc')}\" with \"#{ctx.restore_path('.pythonrc')}\"
 I: Syncing package rubocop:
 I: Syncing .rubocop
 I: Syncing package vim:
 I: Syncing .vimrc
-V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
-V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
+V: Moving file from \"#{ctx.restore_path('.vimrc')}\" to \"#{ctx.backup_path('vim/_vimrc')}\"
+V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.vimrc')}\"
 ")
 
-      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
-      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+      assert_symlinks restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
+      assert_symlinks restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'different content'
+      assert_symlinks restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
     end
 
     it 'should sync with backup overwrite' do
@@ -351,31 +344,31 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
 "Syncing:
 I: Syncing package bash:
 I: Syncing .bashrc
-V: Symlinking \"#{get_backup_path('bash/_bashrc')}\" with \"#{get_restore_path('.bashrc')}\"
+V: Symlinking \"#{ctx.backup_path('bash/_bashrc')}\" with \"#{ctx.restore_path('.bashrc')}\"
 I: Syncing .bash_local
 E: Cannot sync. Missing both backup and restore.
 I: Syncing package code:
 I: Syncing .vscode
 W: Needs to overwrite a file
-W: Backup: \"#{get_backup_path('code/_vscode')}\"
-W: Restore: \"#{get_restore_path('.vscode')}\"
-V: Saving a copy of file \"#{get_restore_path('.vscode')}\" under \"#{get_backup_path('code')}\"
-V: Symlinking \"#{get_backup_path('code/_vscode')}\" with \"#{get_restore_path('.vscode')}\"
+W: Backup: \"#{ctx.backup_path('code/_vscode')}\"
+W: Restore: \"#{ctx.restore_path('.vscode')}\"
+V: Saving a copy of file \"#{ctx.restore_path('.vscode')}\" under \"#{ctx.backup_path('code')}\"
+V: Symlinking \"#{ctx.backup_path('code/_vscode')}\" with \"#{ctx.restore_path('.vscode')}\"
 I: Syncing package python:
 I: Syncing .pythonrc
-V: Symlinking \"#{get_backup_path('python/_pythonrc')}\" with \"#{get_restore_path('.pythonrc')}\"
+V: Symlinking \"#{ctx.backup_path('python/_pythonrc')}\" with \"#{ctx.restore_path('.pythonrc')}\"
 I: Syncing package rubocop:
 I: Syncing .rubocop
 I: Syncing package vim:
 I: Syncing .vimrc
-V: Moving file from \"#{get_restore_path('.vimrc')}\" to \"#{get_backup_path('vim/_vimrc')}\"
-V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.vimrc')}\"
+V: Moving file from \"#{ctx.restore_path('.vimrc')}\" to \"#{ctx.backup_path('vim/_vimrc')}\"
+V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.vimrc')}\"
 ")
 
-      assert_symlinks restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-      assert_symlinks restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'some content'
-      assert_symlinks restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+      assert_symlinks restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
+      assert_symlinks restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'some content'
+      assert_symlinks restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
+      assert_symlinks restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
     end
 
     it 'should not sync if the task is disabled' do
@@ -388,23 +381,23 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
         expect(setup %w[sync --enable_new=all --copy]).to be true
 
-        assert_copies restore_path: get_restore_path('.vimrc'), backup_path: get_backup_path('vim/_vimrc')
-        assert_copies restore_path: get_restore_path('.vscode'), backup_path: get_backup_path('code/_vscode'), content: 'different content'
-        assert_copies restore_path: get_restore_path('.bashrc'), backup_path: get_backup_path('bash/_bashrc'), content: 'bashrc file'
-        assert_copies restore_path: get_restore_path('.pythonrc'), backup_path: get_backup_path('python/_pythonrc')
+        assert_copies restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
+        assert_copies restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'different content'
+        assert_copies restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
+        assert_copies restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
       end
     end
   end
 
   describe 'cleanup' do
-    let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&method(:get_backup_path)) }
+    let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&ctx.method(:backup_path)) }
     before(:each) do
       save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'vim']
     end
 
     def create_cleanup_files
       cleanup_files.each { |path| save_file_content path, path }
-      FileUtils.mkdir_p get_backup_path('bash/folder/nested/deeper')
+      FileUtils.mkdir_p ctx.backup_path('bash/folder/nested/deeper')
     end
 
     it 'should report when there is nothing to clean' do
@@ -422,8 +415,8 @@ V: Symlinking \"#{get_backup_path('vim/_vimrc')}\" with \"#{get_restore_path('.v
 
       cleanup_files.each { |path| expect(File.exist? path).to be false }
       expect(@output_lines.join).to eq(
-"Deleting \"#{get_backup_path('bash/setup-backup-1-_bash_local')}\"
-Deleting \"#{get_backup_path('vim/setup-backup-1-_vimrc')}\"
+"Deleting \"#{ctx.backup_path('bash/setup-backup-1-_bash_local')}\"
+Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
 ")
     end
 
@@ -434,9 +427,9 @@ Deleting \"#{get_backup_path('vim/setup-backup-1-_vimrc')}\"
 
       cleanup_files.each { |path| expect(File.exist? path).to be false }
       expect(@output_lines.join).to eq(
-"Deleting \"#{get_backup_path('bash/folder')}\"
-Deleting \"#{get_backup_path('bash/setup-backup-1-_bash_local')}\"
-Deleting \"#{get_backup_path('vim/setup-backup-1-_vimrc')}\"
+"Deleting \"#{ctx.backup_path('bash/folder')}\"
+Deleting \"#{ctx.backup_path('bash/setup-backup-1-_bash_local')}\"
+Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
 ")
     end
 
