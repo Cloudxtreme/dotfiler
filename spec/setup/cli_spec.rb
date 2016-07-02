@@ -2,6 +2,7 @@
 require 'setup/cli'
 require 'setup/io'
 
+require 'erb'
 require 'tmpdir'
 
 module Setup
@@ -42,6 +43,18 @@ RSpec.describe Cli::Program do
   include_examples 'CLIHelper', Cli::Program.new
 end
 
+PACKAGE_TEMPLATE = "
+class <%= name.capitalize %>Package < PackageBase
+    name '<%= name %>'
+
+    def steps
+<% for file in files %>
+        file '<%= file %>'
+<% end %>
+    end
+end"
+
+# TODO(drognanar): Start using the .rb packages
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
@@ -128,6 +141,10 @@ RSpec.describe './setup' do
     end
   end
 
+  def get_package(name, files)
+    ERB.new(PACKAGE_TEMPLATE, 2, '>').result(binding)
+  end
+
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
     @apps_dir      = File.join(@tmpdir, 'apps')
@@ -157,32 +174,32 @@ RSpec.describe './setup' do
     save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
     # An app with no files to sync.
-    save_yaml_content File.join(@apps_dir, '/app.yml'), 'name' => 'app', 'files' => []
+    save_file_content File.join(@apps_dir, '/app.rb'), get_package('app', [])
 
     # An app where the file is only present at the restore location.
-    save_yaml_content File.join(@apps_dir, '/vim.yml'), 'name' => 'vim', 'files' => ['.vimrc']
+    save_file_content File.join(@apps_dir, '/vim.rb'), get_package('vim', ['.vimrc'])
     save_file_content ctx.restore_path('.vimrc'), '; Vim configuration.'
 
     # An app where the backup will overwrite files.
-    save_yaml_content File.join(@apps_dir, '/code.yml'), 'name' => 'code', 'files' => ['.vscode']
+    save_file_content File.join(@apps_dir, '/code.rb'), get_package('code', ['.vscode'])
     save_file_content ctx.backup_path('code/_vscode'), 'some content'
     save_file_content ctx.restore_path('.vscode'), 'different content'
 
     # An app where only some files exist on the machine.
     # An app which only contains the file in the backup directory.
-    save_yaml_content File.join(@apps_dir, '/bash.yml'), 'name' => 'bash', 'files' => ['.bashrc', '.bash_local']
+    save_file_content File.join(@apps_dir, '/bash.rb'), get_package('bash', ['.bashrc', '.bash_local'])
     save_file_content ctx.backup_path('bash/_bashrc'), 'bashrc file'
 
     # An app where no files exist.
-    save_yaml_content File.join(@apps_dir, '/git.yml'), 'name' => 'git', 'files' => ['.gitignore', '.gitconfig']
+    save_file_content File.join(@apps_dir, '/git.rb'), get_package('git', ['.gitignore', '.gitconfig'])
 
     # An app where the both backup and restore have the same content.
-    save_yaml_content File.join(@apps_dir, '/python.yml'), 'name' => 'python', 'files' => ['.pythonrc']
+    save_file_content File.join(@apps_dir, '/python.rb'), get_package('python', ['.pythonrc'])
     save_file_content ctx.backup_path('python/_pythonrc'), 'pythonrc'
     save_file_content ctx.restore_path('.pythonrc'), 'pythonrc'
 
     # An app where all files have been completely synced.
-    save_yaml_content File.join(@apps_dir, '/rubocop.yml'), 'name' => 'rubocop', 'files' => ['.rubocop']
+    save_file_content File.join(@apps_dir, '/rubocop.rb'), get_package('rubocop', ['.rubocop'])
     save_file_content ctx.backup_path('rubocop/_rubocop'), 'rubocop'
     link_files ctx.backup_path('rubocop/_rubocop'), ctx.restore_path('.rubocop')
   end

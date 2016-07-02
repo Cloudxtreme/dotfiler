@@ -137,9 +137,9 @@ class Backup
 
   private
 
-  def get_backup_task_from_ruby_file(task_pathname, host_info)
+  def get_backup_task_from_ruby_file(task_pathname)
     mod = Module.new
-    package_script = io.read task_pathname
+    package_script = @ctx[:io].read task_pathname
     mod.class_eval package_script
 
     # Iterate over all constants/classes defined by the script.
@@ -147,7 +147,7 @@ class Backup
     mod.constants.map do |name|
       const = mod.const_get name
       if not const.nil? and const < PackageBase
-        return const.new host_info
+        return const.new @ctx
       end
     end
   end
