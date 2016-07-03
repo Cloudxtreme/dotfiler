@@ -1,4 +1,4 @@
-class NginxPackage
+class NginxPackage < Package
   name 'Nginx'
   platforms [:MACOS, :LINUX]
   restore_to '/usr/local/etc'
