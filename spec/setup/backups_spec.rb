@@ -11,110 +11,110 @@ RSpec.describe Backup do
   let(:store_factory) { class_double(YAML::Store) }
   let(:backup_store)  { instance_double(YAML::Store, path: '') }
   let(:ctx)           { SyncContext.create(io).with_options test_info: true }
-  let(:task_a)        { instance_double(Package) }
-  let(:task_c)        { instance_double(Package) }
-  let(:task_d)        { instance_double(Package) }
-  let(:task_b2)       { instance_double(Package) }
-  let(:tasks)         { { 'a' => task_a, 'b2' => task_b2, 'c' => task_c, 'd' => task_d } }
+  let(:package_a)     { instance_double(Package) }
+  let(:package_c)     { instance_double(Package) }
+  let(:package_d)     { instance_double(Package) }
+  let(:package_b2)    { instance_double(Package) }
+  let(:packages)      { { 'a' => package_a, 'b2' => package_b2, 'c' => package_c, 'd' => package_d } }
 
-  def get_backup(tasks, enabled_tasks, disabled_tasks)
+  def get_backup(packages, enabled_packages, disabled_packages)
     backup = Backup.new('/backup/dir', ctx, backup_store)
-    backup.enabled_task_names = Set.new enabled_tasks
-    backup.disabled_task_names = Set.new disabled_tasks
-    backup.tasks = tasks
+    backup.enabled_package_names = Set.new enabled_packages
+    backup.disabled_package_names = Set.new disabled_packages
+    backup.packages = packages
     backup
   end
 
   describe '#initialize' do
     it 'should initialize from config files' do
       backup = get_backup({'a' => 12}, ['a', 'b'], ['c', 'd'])
-      expect(backup.enabled_task_names).to eq(Set.new ['a', 'b'])
-      expect(backup.disabled_task_names).to eq(Set.new ['c', 'd'])
-      expect(backup.tasks).to eq({'a' => 12})
+      expect(backup.enabled_package_names).to eq(Set.new ['a', 'b'])
+      expect(backup.disabled_package_names).to eq(Set.new ['c', 'd'])
+      expect(backup.packages).to eq({'a' => 12})
     end
   end
 
-  def verify_backup_save(backup, update_names, expected_task_names)
-    if not Set.new(update_names).intersection(Set.new(backup.tasks.keys)).empty?
+  def verify_backup_save(backup, update_names, expected_package_names)
+    if not Set.new(update_names).intersection(Set.new(backup.packages.keys)).empty?
       expect(backup_store).to receive(:transaction).with(false).and_yield backup_store
-      expect(backup_store).to receive(:[]=).with('enabled_task_names', expected_task_names[:enabled])
-      expect(backup_store).to receive(:[]=).with('disabled_task_names', expected_task_names[:disabled])
+      expect(backup_store).to receive(:[]=).with('enabled_package_names', expected_package_names[:enabled])
+      expect(backup_store).to receive(:[]=).with('disabled_package_names', expected_package_names[:disabled])
     end
   end
 
-  def assert_enable_tasks(initial_task_names, enabled_task_names, expected_task_names)
-    backup = get_backup(tasks, initial_task_names[:enabled], initial_task_names[:disabled])
-    verify_backup_save(backup, enabled_task_names, expected_task_names)
+  def assert_enable_packages(initial_package_names, enabled_package_names, expected_package_names)
+    backup = get_backup(packages, initial_package_names[:enabled], initial_package_names[:disabled])
+    verify_backup_save(backup, enabled_package_names, expected_package_names)
 
-    backup.enable_tasks! enabled_task_names
-    expect(backup.enabled_task_names).to eq(Set.new expected_task_names[:enabled])
-    expect(backup.disabled_task_names).to eq(Set.new expected_task_names[:disabled])
+    backup.enable_packages! enabled_package_names
+    expect(backup.enabled_package_names).to eq(Set.new expected_package_names[:enabled])
+    expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
   end
 
-  def assert_disable_tasks(initial_task_names, disabled_task_names, expected_task_names)
-    backup = get_backup(tasks, initial_task_names[:enabled], initial_task_names[:disabled])
-    verify_backup_save(backup, disabled_task_names, expected_task_names)
+  def assert_disable_packages(initial_package_names, disabled_package_names, expected_package_names)
+    backup = get_backup(packages, initial_package_names[:enabled], initial_package_names[:disabled])
+    verify_backup_save(backup, disabled_package_names, expected_package_names)
 
-    backup.disable_tasks! disabled_task_names
-    expect(backup.enabled_task_names).to eq(Set.new expected_task_names[:enabled])
-    expect(backup.disabled_task_names).to eq(Set.new expected_task_names[:disabled])
+    backup.disable_packages! disabled_package_names
+    expect(backup.enabled_package_names).to eq(Set.new expected_package_names[:enabled])
+    expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
   end
 
-  describe '#enable_tasks!' do
-    it { assert_enable_tasks({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
-    it { assert_enable_tasks({enabled: [], disabled: []}, ['task1', 'task2'], {enabled: [], disabled: []}) }
-    it { assert_enable_tasks({enabled: [], disabled: []}, ['a'], {enabled: ['a'], disabled: []}) }
-    it { assert_enable_tasks({enabled: [], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
-    it { assert_enable_tasks({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
-    it { assert_enable_tasks({enabled: ['a'], disabled: ['b2', 'c']}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: ['c']}) }
+  describe '#enable_packages!' do
+    it { assert_enable_packages({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
+    it { assert_enable_packages({enabled: [], disabled: []}, ['package1', 'package2'], {enabled: [], disabled: []}) }
+    it { assert_enable_packages({enabled: [], disabled: []}, ['a'], {enabled: ['a'], disabled: []}) }
+    it { assert_enable_packages({enabled: [], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
+    it { assert_enable_packages({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
+    it { assert_enable_packages({enabled: ['a'], disabled: ['b2', 'c']}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: ['c']}) }
   end
 
-  describe '#disable_tasks!' do
-    it { assert_disable_tasks({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
-    it { assert_disable_tasks({enabled: [], disabled: []}, ['task1', 'task2'], {enabled: [], disabled: []}) }
-    it { assert_disable_tasks({enabled: [], disabled: []}, ['a'], {enabled: [], disabled: ['a']}) }
-    it { assert_disable_tasks({enabled: [], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
-    it { assert_disable_tasks({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
-    it { assert_disable_tasks({enabled: ['a', 'c'], disabled: ['b2']}, ['A', 'b2'], {enabled: ['c'], disabled: ['b2', 'a']}) }
+  describe '#disable_packages!' do
+    it { assert_disable_packages({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
+    it { assert_disable_packages({enabled: [], disabled: []}, ['package1', 'package2'], {enabled: [], disabled: []}) }
+    it { assert_disable_packages({enabled: [], disabled: []}, ['a'], {enabled: [], disabled: ['a']}) }
+    it { assert_disable_packages({enabled: [], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
+    it { assert_disable_packages({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
+    it { assert_disable_packages({enabled: ['a', 'c'], disabled: ['b2']}, ['A', 'b2'], {enabled: ['c'], disabled: ['b2', 'a']}) }
   end
 
-  describe '#new_tasks' do
-    it 'should include tasks not added to the enabled and disabled tasks that have data' do
-      backup = get_backup(tasks, ['a'], ['D'])
-      expect(task_c).to receive(:should_execute).and_return true
-      expect(task_c).to receive(:has_data).and_return true
-      expect(task_b2).to receive(:should_execute).and_return true
-      expect(task_b2).to receive(:has_data).and_return true
-      expect(backup.new_tasks).to eq({ 'c' => task_c, 'b2' => task_b2 })
+  describe '#new_packages' do
+    it 'should include packages not added to the enabled and disabled packages that have data' do
+      backup = get_backup(packages, ['a'], ['D'])
+      expect(package_c).to receive(:should_execute).and_return true
+      expect(package_c).to receive(:has_data).and_return true
+      expect(package_b2).to receive(:should_execute).and_return true
+      expect(package_b2).to receive(:has_data).and_return true
+      expect(backup.new_packages).to eq({ 'c' => package_c, 'b2' => package_b2 })
     end
 
-    it 'should not include tasks with no data' do
-      backup = get_backup(tasks, ['a'], ['d', 'b2'])
-      expect(task_c).to receive(:should_execute).and_return true
-      expect(task_c).to receive(:has_data).and_return false
-      expect(backup.new_tasks).to eq({})
+    it 'should not include packages with no data' do
+      backup = get_backup(packages, ['a'], ['d', 'b2'])
+      expect(package_c).to receive(:should_execute).and_return true
+      expect(package_c).to receive(:has_data).and_return false
+      expect(backup.new_packages).to eq({})
     end
 
-    it 'should not include tasks with not matching platform' do
-      backup = get_backup(tasks, ['a'], ['d', 'b2'])
-      expect(task_c).to receive(:should_execute).and_return false
-      expect(backup.new_tasks).to eq({})
+    it 'should not include packages with not matching platform' do
+      backup = get_backup(packages, ['a'], ['d', 'b2'])
+      expect(package_c).to receive(:should_execute).and_return false
+      expect(backup.new_packages).to eq({})
     end
   end
 
-  describe '#tasks_to_run' do
-    it 'should include an enabled task with matching platform' do
-      backup = get_backup(tasks, ['a', 'b'], [])
-      expect(task_a).to receive(:should_execute).and_return true
-      expect(backup.tasks_to_run).to eq({ 'a' => task_a })
+  describe '#packages_to_run' do
+    it 'should include an enabled package with matching platform' do
+      backup = get_backup(packages, ['a', 'b'], [])
+      expect(package_a).to receive(:should_execute).and_return true
+      expect(backup.packages_to_run).to eq({ 'a' => package_a })
 
-      backup = get_backup(tasks, ['A', 'B'], [])
-      expect(task_a).to receive(:should_execute).and_return true
-      expect(backup.tasks_to_run).to eq({ 'a' => task_a })
+      backup = get_backup(packages, ['A', 'B'], [])
+      expect(package_a).to receive(:should_execute).and_return true
+      expect(backup.packages_to_run).to eq({ 'a' => package_a })
 
-      backup = get_backup(tasks, ['a'], [])
-      expect(task_a).to receive(:should_execute).and_return false
-      expect(backup.tasks_to_run).to eq({})
+      backup = get_backup(packages, ['a'], [])
+      expect(package_a).to receive(:should_execute).and_return false
+      expect(backup.packages_to_run).to eq({})
     end
   end
 

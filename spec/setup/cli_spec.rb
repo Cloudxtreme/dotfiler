@@ -242,7 +242,7 @@ Options:
         assert_ran_without_errors setup %w[init]
 
         assert_yaml_content @default_config_root, 'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config, 'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
       end
     end
 
@@ -252,7 +252,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config,'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
       end
 
       it 'should create a local backup and disable tasks if user replies n to prompt' do
@@ -260,7 +260,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'rubocop', 'vim']
+        assert_yaml_content @default_backup_config,'enabled_package_names' => [], 'disabled_package_names' => ['code', 'python', 'rubocop', 'vim']
       end
     end
 
@@ -271,8 +271,8 @@ Options:
         assert_ran_with_errors setup %w[init --enable_new=all]
 
         assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir, @default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_task_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
-        assert_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'python', 'rubocop', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @default_backup_config, 'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
+        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
       end
     end
 
@@ -281,7 +281,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=none]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_task_names' => [], 'disabled_task_names' => ['code', 'python', 'rubocop', 'vim']
+        assert_yaml_content @default_backup_config,'enabled_package_names' => [], 'disabled_package_names' => ['code', 'python', 'rubocop', 'vim']
       end
     end
 
@@ -410,7 +410,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
   describe 'cleanup' do
     let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&ctx.method(:backup_path)) }
     before(:each) do
-      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'vim']
+      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'vim']
     end
 
     def create_cleanup_files
@@ -484,7 +484,7 @@ W: Use ./setup package add to enable packages.
 
     it 'should print status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []
+      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_package_names' => []
       assert_ran_without_errors setup %w[status]
 
       expect(@output_lines.join).to eq(
@@ -501,7 +501,7 @@ needs sync: vim:.vimrc
 
     it 'should print verbose status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []
+      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_package_names' => []
       assert_ran_without_errors setup %w[status --verbose]
 
       expect(@output_lines.join).to eq(
@@ -519,20 +519,20 @@ needs sync: vim:.vimrc
 
   describe 'package' do
     before(:each) do
-      save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code'], 'disabled_task_names' => ['vim']
+      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code'], 'disabled_package_names' => ['vim']
     end
 
     describe 'add' do
       it 'should add packages' do
         assert_ran_without_errors setup %w[package add code vim]
-        assert_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim'], 'disabled_task_names' => []
+        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim'], 'disabled_package_names' => []
       end
     end
 
     describe 'remove' do
       it 'should remove packages' do
         assert_ran_without_errors setup %w[package remove code vim]
-        assert_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash'], 'disabled_task_names' => ['vim', 'code']
+        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash'], 'disabled_package_names' => ['vim', 'code']
       end
     end
 

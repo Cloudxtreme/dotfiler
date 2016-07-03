@@ -17,27 +17,27 @@ class InvalidConfigFileError < Exception
 end
 
 # A single backup directory present on a local computer.
-# It contains a config.yml file which defines the tasks that should be run for the backup operations.
-# Enabled task names contains the list of tasks to be run.
-# Disabled task names contains the list of tasks that should be skipped.
-# New tasks are tasks for which there are any files to sync but are not part of any lists.
+# It contains a config.yml file which defines the packages that should be run for the backup operations.
+# Enabled package names contains the list of packages to be run.
+# Disabled package names contains the list of packages that should be skipped.
+# New packages are packages for which there are any files to sync but are not part of any lists.
 class Backup
-  attr_accessor :enabled_task_names, :disabled_task_names, :tasks, :backup_path, :backup_tasks_path
+  attr_accessor :enabled_package_names, :disabled_package_names, :packages, :backup_path, :backup_packages_path
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   DEFAULT_BACKUP_CONFIG_PATH = 'config.yml'
-  BACKUP_TASKS_PATH = '_tasks'
+  BACKUP_PACKAGES_PATH = '_packages'
   APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
 
   def initialize(backup_path, ctx, store)
     @backup_path = backup_path
-    @backup_tasks_path = File.join(@backup_path, BACKUP_TASKS_PATH)
+    @backup_packages_path = File.join(@backup_path, BACKUP_PACKAGES_PATH)
     @ctx = ctx
     @store = store
 
-    @tasks = {}
-    @enabled_task_names = Set.new
-    @disabled_task_names = Set.new
+    @packages = {}
+    @enabled_package_names = Set.new
+    @disabled_package_names = Set.new
   end
 
   def Backup.from_config(backup_path: nil, ctx: {})
@@ -48,16 +48,16 @@ class Backup
     Backup.new(backup_path, ctx, store).tap(&:load_config!)
   end
 
-  # Loads the configuration and the tasks.
+  # Loads the configuration and the packages.
   def load_config!
     @store.transaction(true) do |store|
-      @enabled_task_names = Set.new(store.fetch('enabled_task_names', []))
-      @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
+      @enabled_package_names = Set.new(store.fetch('enabled_package_names', []))
+      @disabled_package_names = Set.new(store.fetch('disabled_package_names', []))
     end
 
-    backup_tasks = get_packages @backup_tasks_path
-    app_tasks = get_packages APPLICATIONS_DIR
-    @tasks = app_tasks.merge(backup_tasks)
+    backup_packages = get_packages @backup_packages_path
+    app_packages = get_packages APPLICATIONS_DIR
+    @packages = app_packages.merge(backup_packages)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
   end
@@ -65,39 +65,35 @@ class Backup
   def save_config!
     return if @ctx.io.dry
     @store.transaction(false) do |store|
-      store['enabled_task_names'] = @enabled_task_names.to_a
-      store['disabled_task_names'] = @disabled_task_names.to_a
+      store['enabled_package_names'] = @enabled_package_names.to_a
+      store['disabled_package_names'] = @disabled_package_names.to_a
     end
   end
 
-  def enable_tasks!(task_names)
-    task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
-    @enabled_task_names += task_names_set
-    @disabled_task_names -= task_names_set
-    save_config! if not task_names_set.empty?
+  def enable_packages!(package_names)
+    package_names_set = Set.new(package_names.map(&:downcase)).intersection Set.new(packages.keys.map(&:downcase))
+    @enabled_package_names += package_names_set
+    @disabled_package_names -= package_names_set
+    save_config! if not package_names_set.empty?
   end
 
-  def disable_tasks!(task_names)
-    task_names_set = Set.new(task_names.map(&:downcase)).intersection Set.new(tasks.keys.map(&:downcase))
-    @enabled_task_names -= task_names_set
-    @disabled_task_names += task_names_set
-    save_config! if not task_names_set.empty?
+  def disable_packages!(package_names)
+    package_names_set = Set.new(package_names.map(&:downcase)).intersection Set.new(packages.keys.map(&:downcase))
+    @enabled_package_names -= package_names_set
+    @disabled_package_names += package_names_set
+    save_config! if not package_names_set.empty?
   end
 
-  # Finds newly added tasks that can be run on this machine.
-  # These tasks have not been yet added to the config file's enabled_task_names or disabled_task_names properties.
-  def new_tasks
-    # TODO(drognanar): Use new_package?
-    # TODO(drognanar): Then make is_enabled == not is_disabled.
-    # TODO(drognanar): Get rid of enabled and just keep ignored.
-    # TODO(drognanar): Rename task to package.
-    @tasks.select { |task_name, task| not is_enabled(task_name) and not is_disabled(task_name) and task.should_execute and task.has_data }
+  # Finds newly added packages that can be run on this machine.
+  # These packages have not been yet added to the config file's enabled_package_names or disabled_package_names properties.
+  def new_packages
+    @packages.select { |package_name, package| not is_enabled(package_name) and not is_disabled(package_name) and package.should_execute and package.has_data }
   end
 
-  # Finds tasks that should be run under a given machine.
-  # This will include tasks that contain errors and do not have data.
-  def tasks_to_run
-    @tasks.select { |task_name, task| is_enabled(task_name) and task.should_execute }
+  # Finds packages that should be run under a given machine.
+  # This will include packages that contain errors and do not have data.
+  def packages_to_run
+    @packages.select { |package_name, package| is_enabled(package_name) and package.should_execute }
   end
 
   # This method resolves a commandline backup name into a backup path/source path pair.
@@ -133,17 +129,17 @@ class Backup
     [File.expand_path(resolved_backup), resolved_source]
   end
 
-  # Constructs a backup task given a task yaml configuration.
-  def Backup.get_package(task_pathname, ctx)
-    return unless File.extname(task_pathname) == '.rb'
+  # Constructs a backup package given a package script.
+  def Backup.get_package(package_path, ctx)
+    return unless File.extname(package_path) == '.rb'
 
     mod = Module.new
-    package_script = ctx.io.read task_pathname
+    package_script = ctx.io.read package_path
 
     begin
       mod.class_eval package_script
     rescue Exception
-      raise InvalidConfigFileError.new task_pathname
+      raise InvalidConfigFileError.new package_path
     end
 
     # Iterate over all constants/classes defined by the script.
@@ -158,20 +154,20 @@ class Backup
 
   private
 
-  # Constructs backup tasks that can be found a task folder.
-  def get_packages(tasks_path)
-    (@ctx.io.glob File.join(tasks_path, '*.rb'))
-      .map { |task_path| [File.basename(task_path, '.*'), Backup.get_package(task_path, @ctx)] }
-      .select { |task_name, task| not task.nil? }
+  # Constructs backup packages that can be found a package folder.
+  def get_packages(packages_dir)
+    (@ctx.io.glob File.join(packages_dir, '*.rb'))
+      .map { |package_path| [File.basename(package_path, '.*'), Backup.get_package(package_path, @ctx)] }
+      .select { |package_name, package| not package.nil? }
       .to_h
   end
 
-  def is_enabled(task_name)
-    @enabled_task_names.any? { |enabled_task_name| enabled_task_name.casecmp(task_name) == 0 }
+  def is_enabled(package_name)
+    @enabled_package_names.any? { |enabled_package_name| enabled_package_name.casecmp(package_name) == 0 }
   end
 
-  def is_disabled(task_name)
-    @disabled_task_names.any? { |disabled_task_name| disabled_task_name.casecmp(task_name) == 0 }
+  def is_disabled(package_name)
+    @disabled_package_names.any? { |disabled_package_name| disabled_package_name.casecmp(package_name) == 0 }
   end
 
   def Backup.is_path(path)

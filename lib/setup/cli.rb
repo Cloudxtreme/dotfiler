@@ -40,14 +40,14 @@ class Package < CommonCLI
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
     init_command(:add, options) do |backup_manager|
-      backup_manager.backups.map { |backup| backup.enable_tasks! names }
+      backup_manager.backups.map { |backup| backup.enable_packages! names }
     end
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
     init_command(:remove, options) do |backup_manager|
-      backup_manager.backups.map { |backup| backup.disable_tasks! names }
+      backup_manager.backups.map { |backup| backup.disable_packages! names }
     end
   end
 
@@ -57,11 +57,11 @@ class Package < CommonCLI
       backup_manager.backups.each do |backup|
         LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
         LOGGER << "Enabled packages:\n"
-        LOGGER << backup.enabled_task_names.to_a.join(', ') + "\n\n"
+        LOGGER << backup.enabled_package_names.to_a.join(', ') + "\n\n"
         LOGGER << "Disabled packages:\n"
-        LOGGER << backup.disabled_task_names.to_a.join(', ') + "\n\n"
+        LOGGER << backup.disabled_package_names.to_a.join(', ') + "\n\n"
         LOGGER << "New packages:\n"
-        LOGGER << backup.new_tasks.keys.join(', ') + "\n"
+        LOGGER << backup.new_packages.keys.join(', ') + "\n"
       end
     end
   end
@@ -70,16 +70,16 @@ class Package < CommonCLI
   option 'global'
   def edit(name)
     init_command(:edit, options) do |backup_manager|
-      packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_tasks_path
-      task_path = File.join packages_dir, "#{name}.rb"
+      packages_dir = options[:global] ? Setup::Backup::APPLICATIONS_DIR : backup_manager.backups[0].backup_packages_path
+      package_path = File.join packages_dir, "#{name}.rb"
 
-      if not File.exist? task_path
+      if not File.exist? package_path
         default_package_content = Setup::get_package(name, [])
-        File.write task_path, default_package_content if not File.exist? task_path
+        File.write package_path, default_package_content if not File.exist? package_path
       end
 
       editor = ENV['editor'] || 'vim'
-      @io.system("#{editor} #{task_path}")
+      @io.system("#{editor} #{package_path}")
     end
   end
 end
@@ -110,13 +110,13 @@ class Program < CommonCLI
       end
     end
 
-    # Prompts to enable new tasks.
-    def prompt_to_enable_new_tasks(backups_with_new_tasks, options)
+    # Prompts to enable new packages.
+    def prompt_to_enable_new_packages(backups_with_new_packages, options)
       if options[:enable_new] == 'prompt'
         LOGGER << "Found new packages to sync:\n\n"
-        backups_with_new_tasks.each do |backup|
+        backups_with_new_packages.each do |backup|
           LOGGER << backup.backup_path + "\n"
-          LOGGER << backup.new_tasks.keys.join(' ') + "\n"
+          LOGGER << backup.new_packages.keys.join(' ') + "\n"
         end
       end
 
@@ -124,24 +124,24 @@ class Program < CommonCLI
       # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
       prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
-        backups_with_new_tasks.each { |backup| backup.enable_tasks! backup.new_tasks.keys }
+        backups_with_new_packages.each { |backup| backup.enable_packages! backup.new_packages.keys }
       else
-        backups_with_new_tasks.each { |backup| backup.disable_tasks! backup.new_tasks.keys }
+        backups_with_new_packages.each { |backup| backup.disable_packages! backup.new_packages.keys }
         LOGGER.warn 'You can always add these apps later using "setup app add <app names>"'
       end
     end
 
-    # Get the list of tasks to execute.
-    # @param Hash options the options to get the tasks with.
+    # Get the list of packages to execute.
+    # @param Hash options the options to get the packages with.
     def get_packages(backup_manager, options = {})
       # TODO(drognanar): Perhaps move discovery outside?
       # TODO(drognanar): Only discover on init/discover/update?
       backups = backup_manager.backups
-      backups_with_new_tasks = backups.select { |backup| not backup.new_tasks.empty? }
-      if options[:enable_new] != 'skip' and not backups_with_new_tasks.empty?
-        prompt_to_enable_new_tasks backups_with_new_tasks, options
+      backups_with_new_packages = backups.select { |backup| not backup.new_packages.empty? }
+      if options[:enable_new] != 'skip' and not backups_with_new_packages.empty?
+        prompt_to_enable_new_packages backups_with_new_packages, options
       end
-      backups.map(&:tasks_to_run).map(&:values).flatten
+      backups.map(&:packages_to_run).map(&:values).flatten
     end
 
     def summarize_package_info(package)
@@ -171,8 +171,8 @@ class Program < CommonCLI
       end
     end
 
-    # Runs tasks while showing the progress bar.
-    def run_tasks_with_progress(backup_manager)
+    # Runs packages while showing the progress bar.
+    def run_packages_with_progress(backup_manager)
       packages = get_packages(backup_manager, options)
       if packages.empty?
         LOGGER << "Nothing to sync\n"
@@ -203,7 +203,7 @@ class Program < CommonCLI
 
       # Cannot run sync in dry mode since the backup creation was run in dry mode.
       if not options[:dry] and options[:sync]
-        backup_manager.tap(&:load_backups!).tap(&method(:run_tasks_with_progress))
+        backup_manager.tap(&:load_backups!).tap(&method(:run_packages_with_progress))
       end
     end
   end
@@ -211,7 +211,7 @@ class Program < CommonCLI
   desc 'sync', 'Synchronize your settings'
   Program.sync_options
   def sync
-    init_command(:sync, options, &method(:run_tasks_with_progress))
+    init_command(:sync, options, &method(:run_packages_with_progress))
   end
 
   desc 'cleanup', 'Cleans up previous backups'
