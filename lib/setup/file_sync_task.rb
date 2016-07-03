@@ -38,7 +38,6 @@ class FileSyncTask
     @file_sync_options[:backup_path]
   end
 
-  # TODO(drognanar): Create an object copy instead of mutating?
   def save_as(backup_path)
     self.tap { @file_sync_options[:backup_path] = @ctx.backup_path backup_path }
   end
