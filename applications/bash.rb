@@ -1,4 +1,4 @@
-class BashPackage < Package
+class BashPackage < Setup::Package
   name 'Bash'
 
   def steps

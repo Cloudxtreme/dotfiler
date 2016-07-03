@@ -1,5 +1,6 @@
 # This tests the overall appliction integration test.
 require 'setup/cli'
+require 'setup/package_template'
 require 'setup/io'
 
 require 'erb'
@@ -7,6 +8,7 @@ require 'tmpdir'
 
 module Setup
 
+APPLICATIONS_DIR = File.join File.dirname(__FILE__), '../../applications'
 $thor_runner = false
 $0 = "setup"
 ARGV.clear
@@ -43,18 +45,15 @@ RSpec.describe Cli::Program do
   include_examples 'CLIHelper', Cli::Program.new
 end
 
-PACKAGE_TEMPLATE = "
-class <%= name.capitalize %>Package < Package
-    name '<%= name %>'
-
-    def steps
-<% for file in files %>
-        file '<%= file %>'
-<% end %>
+RSpec.describe 'applications packages' do
+  # Check that requiring packages throws no exceptions.
+  it 'should be valid packages' do
+    Dir.glob File.join(APPLICATIONS_DIR, '*.rb') do |filepath|
+      require_relative filepath
     end
-end"
+  end
+end
 
-# TODO(drognanar): Start using the .rb packages
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
@@ -141,10 +140,6 @@ RSpec.describe './setup' do
     end
   end
 
-  def get_package(name, files)
-    ERB.new(PACKAGE_TEMPLATE, 2, '>').result(binding)
-  end
-
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
     @apps_dir      = File.join(@tmpdir, 'apps')
@@ -174,32 +169,32 @@ RSpec.describe './setup' do
     save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
     # An app with no files to sync.
-    save_file_content File.join(@apps_dir, '/app.rb'), get_package('app', [])
+    save_file_content File.join(@apps_dir, '/app.rb'), Setup::get_package('app', [])
 
     # An app where the file is only present at the restore location.
-    save_file_content File.join(@apps_dir, '/vim.rb'), get_package('vim', ['.vimrc'])
+    save_file_content File.join(@apps_dir, '/vim.rb'), Setup::get_package('vim', ['.vimrc'])
     save_file_content ctx.restore_path('.vimrc'), '; Vim configuration.'
 
     # An app where the backup will overwrite files.
-    save_file_content File.join(@apps_dir, '/code.rb'), get_package('code', ['.vscode'])
+    save_file_content File.join(@apps_dir, '/code.rb'), Setup::get_package('code', ['.vscode'])
     save_file_content ctx.backup_path('code/_vscode'), 'some content'
     save_file_content ctx.restore_path('.vscode'), 'different content'
 
     # An app where only some files exist on the machine.
     # An app which only contains the file in the backup directory.
-    save_file_content File.join(@apps_dir, '/bash.rb'), get_package('bash', ['.bashrc', '.bash_local'])
+    save_file_content File.join(@apps_dir, '/bash.rb'), Setup::get_package('bash', ['.bashrc', '.bash_local'])
     save_file_content ctx.backup_path('bash/_bashrc'), 'bashrc file'
 
     # An app where no files exist.
-    save_file_content File.join(@apps_dir, '/git.rb'), get_package('git', ['.gitignore', '.gitconfig'])
+    save_file_content File.join(@apps_dir, '/git.rb'), Setup::get_package('git', ['.gitignore', '.gitconfig'])
 
     # An app where the both backup and restore have the same content.
-    save_file_content File.join(@apps_dir, '/python.rb'), get_package('python', ['.pythonrc'])
+    save_file_content File.join(@apps_dir, '/python.rb'), Setup::get_package('python', ['.pythonrc'])
     save_file_content ctx.backup_path('python/_pythonrc'), 'pythonrc'
     save_file_content ctx.restore_path('.pythonrc'), 'pythonrc'
 
     # An app where all files have been completely synced.
-    save_file_content File.join(@apps_dir, '/rubocop.rb'), get_package('rubocop', ['.rubocop'])
+    save_file_content File.join(@apps_dir, '/rubocop.rb'), Setup::get_package('rubocop', ['.rubocop'])
     save_file_content ctx.backup_path('rubocop/_rubocop'), 'rubocop'
     link_files ctx.backup_path('rubocop/_rubocop'), ctx.restore_path('.rubocop')
   end
@@ -563,7 +558,13 @@ python, rubocop
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
         assert_ran_without_errors setup %w[package edit unknown --global]
 
-        assert_yaml_content package_path, { name: 'Unknown', root: '~/', files: [] }
+        assert_file_content package_path, "
+class UnknownPackage < Setup::Package
+    name 'unknown'
+
+    def steps
+    end
+end"
       end
     end
   end

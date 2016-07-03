@@ -1,4 +1,4 @@
-class MySQLPackage < Package
+class MySQLPackage < Setup::Package
   name 'MySQL'
   platforms [:MACOS, :LINUX]
   restore_to '/usr/local/etc'

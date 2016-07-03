@@ -1,4 +1,4 @@
-class ByobuPackage < Package
+class ByobuPackage < Setup::Package
   name 'Byobu'
   platforms [:MACOS, :LINUX]
   restore_to '.byobu'

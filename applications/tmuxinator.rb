@@ -1,4 +1,4 @@
-class TmuxinatorPackage < Package
+class TmuxinatorPackage < Setup::Package
   name 'Tmuxinator'
   platforms [:MACOS, :LINUX]
 

@@ -1,4 +1,4 @@
-class GitPackage < Package
+class GitPackage < Setup::Package
   name 'Git'
 
   def steps

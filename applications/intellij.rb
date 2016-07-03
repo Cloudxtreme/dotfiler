@@ -1,4 +1,4 @@
-class IntelliJPackage < Package
+class IntelliJPackage < Setup::Package
   name 'IntelliJ IDEA'
 
   def steps

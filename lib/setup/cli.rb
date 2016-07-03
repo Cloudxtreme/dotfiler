@@ -1,6 +1,7 @@
 require 'setup/backups'
 require 'setup/io'
 require 'setup/logging'
+require 'setup/package_template'
 require 'setup/sync_context'
 
 require 'highline'
@@ -73,8 +74,7 @@ class Package < CommonCLI
       task_path = File.join packages_dir, "#{name}.rb"
 
       if not File.exist? task_path
-        # TODO(drognanar): Create the .rb package from template instead.
-        default_package_content = YAML::dump({ name: name.capitalize, root: '~/', files: [] })
+        default_package_content = Setup::get_package(name, [])
         File.write task_path, default_package_content if not File.exist? task_path
       end
 

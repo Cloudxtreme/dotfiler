@@ -1,4 +1,4 @@
-class AtomPackage < Package
+class AtomPackage < Setup::Package
   name 'Atom'
   restore_to '~/.atom'
 
