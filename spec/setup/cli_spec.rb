@@ -1,6 +1,7 @@
 # This tests the overall appliction integration test.
 require 'setup/backups'
 require 'setup/cli'
+require 'setup/package'
 require 'setup/package_template'
 require 'setup/io'
 
@@ -47,8 +48,8 @@ RSpec.describe Cli::Program do
 end
 
 RSpec.describe 'applications packages' do
-  let(:ctx)    { SyncContext.new restore_to: '/restore', backup_root: '/backup', io: DRY_IO }
-  
+  let(:ctx)    { SyncContext.create(DRY_IO).with_options restore_to: '/restore', backup_root: '/backup' }
+
   # Check that requiring packages throws no exceptions.
   it 'should be valid packages' do
     Dir.glob File.join(APPLICATIONS_DIR, '*.rb') do |filepath|
@@ -62,7 +63,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
-  let(:ctx)    { SyncContext.new restore_to: File.join(@tmpdir, 'machine'), backup_root: @dotfiles_dir }
+  let(:ctx)    { SyncContext.create.with_options restore_to: File.join(@tmpdir, 'machine'), backup_root: @dotfiles_dir }
 
   def setup(args)
     Cli::Program.start args
@@ -159,7 +160,7 @@ RSpec.describe './setup' do
 
     stub_const 'Setup::Backup::APPLICATIONS_DIR', @apps_dir
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
-    stub_const 'Setup::BackupManager::DEFAULT_RESTORE_TO', @default_restore_to
+    stub_const 'Setup::Package::DEFAULT_RESTORE_TO', @default_restore_to
     stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
     stub_const 'Setup::Backup::DEFAULT_BACKUP_DIR', @default_backup_dir
 
@@ -474,13 +475,13 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
     it 'should print an empty message if no packages exist' do
       save_yaml_content @default_config_root, 'backups' => []
       assert_ran_without_errors setup %w[status]
-      
+
       expect(@output_lines.join).to eq(
 "W: No packages enabled.
 W: Use ./setup package add to enable packages.
 ")
     end
-  
+
     it 'should print status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_yaml_content @dotfiles_config, 'enabled_task_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_task_names' => []

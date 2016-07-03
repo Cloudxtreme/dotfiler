@@ -41,7 +41,7 @@ class Backup
   end
 
   def Backup.from_config(backup_path: nil, ctx: {})
-    ctx[:io].mkdir_p backup_path
+    ctx.io.mkdir_p backup_path
     ctx = ctx.with_options backup_root: backup_path
     backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
@@ -63,7 +63,7 @@ class Backup
   end
 
   def save_config!
-    return if @ctx[:io].dry
+    return if @ctx.io.dry
     @store.transaction(false) do |store|
       store['enabled_task_names'] = @enabled_task_names.to_a
       store['disabled_task_names'] = @disabled_task_names.to_a
@@ -138,7 +138,7 @@ class Backup
     return unless File.extname(task_pathname) == '.rb'
 
     mod = Module.new
-    package_script = ctx[:io].read task_pathname
+    package_script = ctx.io.read task_pathname
 
     begin
       mod.class_eval package_script
@@ -160,7 +160,7 @@ class Backup
 
   # Constructs backup tasks that can be found a task folder.
   def get_packages(tasks_path)
-    (@ctx[:io].glob File.join(tasks_path, '*.rb'))
+    (@ctx.io.glob File.join(tasks_path, '*.rb'))
       .map { |task_path| [File.basename(task_path, '.*'), Backup.get_package(task_path, @ctx)] }
       .select { |task_name, task| not task.nil? }
       .to_h
@@ -182,7 +182,6 @@ end
 class BackupManager
   attr_accessor :backups, :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
-  DEFAULT_RESTORE_TO = File.expand_path '~/'
 
   def initialize(ctx = nil, store = nil)
     @ctx = ctx
@@ -191,9 +190,6 @@ class BackupManager
 
   # Loads backup manager configuration and backups it references.
   def BackupManager.from_config(ctx)
-    # TODO(drognanar): Load the configuration here instead.
-    ctx = ctx.with_options BackupManager.get_host_info
-
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
 
     BackupManager.new(ctx, store).tap(&:load_config!)
@@ -210,7 +206,7 @@ class BackupManager
   end
 
   def save_config!
-    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx[:io].dry
+    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
@@ -226,12 +222,12 @@ class BackupManager
 
     # TODO(drognanar): Revise this model.
     # TODO(drognanar): Will not clone the repository if folder exists but will sync.
-    backup_exists = @ctx[:io].exist?(backup_dir)
-    if not backup_exists or @ctx[:io].entries(backup_dir).empty?
-      @ctx[:io].mkdir_p backup_dir if not backup_exists
+    backup_exists = @ctx.io.exist?(backup_dir)
+    if not backup_exists or @ctx.io.entries(backup_dir).empty?
+      @ctx.io.mkdir_p backup_dir if not backup_exists
       if source_url
         LOGGER.info "Cloning repository \"#{source_url}\""
-        @ctx[:io].shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
+        @ctx.io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
       end
     elsif not force
       LOGGER.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
@@ -241,15 +237,6 @@ class BackupManager
     LOGGER.verbose "Updating \"#{@store.path}\""
     @backup_paths = @backup_paths << backup_dir
     save_config!
-  end
-
-  private
-
-  # Gets the host info of the current machine.
-  # TODO(drognanar): Can this be redesigned?
-  # TODO(drognanar): Create this with global context?
-  def BackupManager.get_host_info
-    { restore_to: DEFAULT_RESTORE_TO, sync_time: Time.new }
   end
 end
 

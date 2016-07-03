@@ -33,7 +33,7 @@ end
 class Package < CommonCLI
   no_commands do
     def get_context(options)
-      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], io: @io)
+      Setup::SyncContext.create(@io).with_options(copy: options[:copy], untracked: options[:untracked])
     end
   end
 
@@ -93,7 +93,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new(copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), io: @io)
+      Setup::SyncContext.create(@io).with_options(copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite))
     end
 
     def ask_overwrite(backup_path, restore_path)

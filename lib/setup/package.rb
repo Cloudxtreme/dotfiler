@@ -12,6 +12,8 @@ module Setup
 class Package
   extend Forwardable
 
+  DEFAULT_RESTORE_TO = File.expand_path '~/'
+
   attr_accessor :sync_items, :skip_reason
 
   def self.restore_to(value)
@@ -61,7 +63,7 @@ class Package
 
     @default_backup_root = ctx[:backup_root] || ''
     @default_backup_root = File.join @default_backup_root, name
-    @default_restore_to = restore_to || ctx[:restore_to]
+    @default_restore_to = restore_to || Package::DEFAULT_RESTORE_TO
 
     @ctx = ctx.with_options backup_root: @default_backup_root, restore_to: @default_restore_to
 
@@ -99,7 +101,7 @@ class Package
   # NOTE: Given that list of backed up paths is platform specific this solution will not work.
   # NOTE: Unless all paths are provided.
   def cleanup
-    all_files = @ctx[:io].glob(File.join(@default_backup_root, '**', '*')).sort
+    all_files = @ctx.io.glob(File.join(@default_backup_root, '**', '*')).sort
     backed_up_list = @sync_items.map(&:backup_path).sort
     files_to_cleanup = []
 
@@ -120,11 +122,6 @@ class Package
 
     files_to_cleanup
   end
-
-  def info
-    @sync_items.map { |sync_item| sync_item.info }
-  end
-
 end
 
 end # module Setup

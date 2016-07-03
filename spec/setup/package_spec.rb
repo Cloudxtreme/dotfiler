@@ -9,10 +9,10 @@ module Setup
 RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:task)      { instance_double(FileSyncTask) }
-  let(:host_info) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io }
-  let(:untracked) { SyncContext.new restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', io: io, untracked: true }
-  let(:linctx)    { SyncContext.new restore_to: '/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
-  let(:winctx)    { SyncContext.new restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time', io: io }
+  let(:ctx)       { SyncContext.create(io).with_options restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
+  let(:untracked) { SyncContext.create(io).with_options restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', untracked: true }
+  let(:linctx)    { SyncContext.create(io).with_options restore_to: '/files', backup_root: '/backup/root/Package', sync_time: 'sync_time' }
+  let(:winctx)    { SyncContext.create(io).with_options restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time' }
 
   let(:package_class) do
     Class.new(Package) do
@@ -28,9 +28,9 @@ RSpec.describe Package do
     end
   end
 
-  let(:package)           { package_class.new(host_info) }
+  let(:package)           { package_class.new(ctx) }
   let(:package_untracked) { package_class.new(untracked) }
-  let(:default_package)   { Package.new(host_info) }
+  let(:default_package)   { Package.new(ctx) }
 
   describe 'default package' do
     it 'should have an empty name' do
@@ -42,7 +42,7 @@ RSpec.describe Package do
       expect(default_package.should_execute).to be true
 
       expect(default_package.sync_items).to match_array [an_instance_of(FileSyncTask)]
-      expect(default_package.sync_items[0].backup_path).to eq(host_info.backup_path('a'))
+      expect(default_package.sync_items[0].backup_path).to eq(ctx.backup_path('a'))
     end
   end
 
@@ -131,9 +131,6 @@ RSpec.describe Package do
 
       package.file 'a'
       package.sync! {}
-
-      expect(task).to receive(:info).once
-      package.info
     end
   end
 end

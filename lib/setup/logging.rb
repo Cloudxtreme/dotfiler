@@ -8,7 +8,7 @@ Logging.color_scheme(
     :info  => :green,
     :warn  => :yellow,
     :error => :red,
-    :verbose => :blue})
+    :verbose => :blue })
 
 Logging.appenders.stdout(
   'stdout',
