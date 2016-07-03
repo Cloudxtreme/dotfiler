@@ -188,6 +188,7 @@ class BackupManager
 
   # Loads backup manager configuration and backups it references.
   def BackupManager.from_config(ctx)
+    # TODO(drognanar): Load the configuration here instead.
     ctx = ctx.with_options BackupManager.get_host_info
 
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)

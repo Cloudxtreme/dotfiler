@@ -20,6 +20,7 @@ RSpec.describe Package do
       platforms [:WINDOWS]
       under_windows { restore_to '/windows/files' }
       under_linux   { restore_to '/files'}
+      under_macos   { restore_to '/macos/files' }
 
       def steps
         under_linux { file '.unknown' }
@@ -42,6 +43,12 @@ RSpec.describe Package do
 
       expect(default_package.sync_items).to match_array [an_instance_of(FileSyncTask)]
       expect(default_package.sync_items[0].backup_path).to eq(host_info.backup_path('a'))
+    end
+  end
+
+  it 'should enter #under_macos under macos' do
+    under_macos do
+      expect(package.restore_to).to eq('/macos/files')
     end
   end
 

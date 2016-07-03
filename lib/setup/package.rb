@@ -1,6 +1,7 @@
 require 'setup/file_sync_task'
 require 'setup/logging'
 require 'setup/platform'
+require 'setup/sync_context'
 
 require 'forwardable'
 require 'json'
@@ -8,39 +9,13 @@ require 'pathname'
 
 module Setup
 
-class SyncContext
-  def initialize(options = {})
-    @options = options
-  end
-
-  def [](key)
-    @options[key]
-  end
-
-  def backup_path(relative_path)
-    File.expand_path relative_path, @options[:backup_root]
-  end
-
-  def restore_path(relative_path)
-    File.expand_path relative_path, @options[:restore_to]
-  end
-
-  def with_options(new_options)
-    SyncContext.new @options.merge new_options
-  end
-
-  def to_s
-    @options.to_s
-  end
-end
-
 class Package
   extend Forwardable
 
   attr_accessor :sync_items, :skip_reason
 
   def self.restore_to(value)
-    self.class_eval "def restore_to; #{JSON.dump(value) if value}; end"
+    self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
   end
 
   def self.name(value)

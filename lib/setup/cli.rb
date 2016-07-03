@@ -1,6 +1,7 @@
 require 'setup/backups'
 require 'setup/io'
 require 'setup/logging'
+require 'setup/sync_context'
 
 require 'highline'
 require 'thor'
