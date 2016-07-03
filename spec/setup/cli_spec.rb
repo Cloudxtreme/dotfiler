@@ -1,4 +1,5 @@
 # This tests the overall appliction integration test.
+require 'setup/backups'
 require 'setup/cli'
 require 'setup/package_template'
 require 'setup/io'
@@ -46,10 +47,14 @@ RSpec.describe Cli::Program do
 end
 
 RSpec.describe 'applications packages' do
+  let(:ctx)    { SyncContext.new restore_to: '/restore', backup_root: '/backup', io: DRY_IO }
+  
   # Check that requiring packages throws no exceptions.
   it 'should be valid packages' do
     Dir.glob File.join(APPLICATIONS_DIR, '*.rb') do |filepath|
-      require_relative filepath
+      under_windows { Backup.get_package(filepath, ctx) }
+      under_linux   { Backup.get_package(filepath, ctx) }
+      under_macos   { Backup.get_package(filepath, ctx) }
     end
   end
 end

@@ -55,8 +55,8 @@ class Backup
       @disabled_task_names = Set.new(store.fetch('disabled_task_names', []))
     end
 
-    backup_tasks = get_backup_tasks @backup_tasks_path
-    app_tasks = get_backup_tasks APPLICATIONS_DIR
+    backup_tasks = get_packages @backup_tasks_path
+    app_tasks = get_packages APPLICATIONS_DIR
     @tasks = app_tasks.merge(backup_tasks)
   rescue PStore::Error
     raise InvalidConfigFileError.new @store.path
@@ -133,32 +133,35 @@ class Backup
     [File.expand_path(resolved_backup), resolved_source]
   end
 
-  private
-
   # Constructs a backup task given a task yaml configuration.
-  def get_backup_task(task_pathname)
+  def Backup.get_package(task_pathname, ctx)
     return unless File.extname(task_pathname) == '.rb'
 
     mod = Module.new
-    package_script = @ctx[:io].read task_pathname
-    mod.class_eval package_script
+    package_script = ctx[:io].read task_pathname
+
+    begin
+      mod.class_eval package_script
+    rescue Exception
+      raise InvalidConfigFileError.new task_pathname
+    end
 
     # Iterate over all constants/classes defined by the script.
     # If a constant defines a package return it.
     mod.constants.map do |name|
       const = mod.const_get name
       if not const.nil? and const < Package
-        return const.new @ctx
+        return const.new ctx
       end
     end
-  rescue Exception
-    raise InvalidConfigFileError.new task_pathname
   end
 
+  private
+
   # Constructs backup tasks that can be found a task folder.
-  def get_backup_tasks(tasks_path)
+  def get_packages(tasks_path)
     (@ctx[:io].glob File.join(tasks_path, '*.rb'))
-      .map { |task_path| [File.basename(task_path, '.*'), get_backup_task(task_path)] }
+      .map { |task_path| [File.basename(task_path, '.*'), Backup.get_package(task_path, @ctx)] }
       .select { |task_name, task| not task.nil? }
       .to_h
   end
