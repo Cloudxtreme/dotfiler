@@ -48,7 +48,7 @@ RSpec.describe Cli::Program do
 end
 
 RSpec.describe 'applications packages' do
-  let(:ctx)    { SyncContext.create(DRY_IO).with_options restore_to: '/restore', backup_root: '/backup' }
+  let(:ctx)    { SyncContext.create(DRY_IO).with_restore_to('/restore').with_backup_root('/backup') }
 
   # Check that requiring packages throws no exceptions.
   it 'should be valid packages' do
@@ -63,7 +63,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
-  let(:ctx)    { SyncContext.create.with_options restore_to: File.join(@tmpdir, 'machine'), backup_root: @dotfiles_dir }
+  let(:ctx)    { SyncContext.create.with_restore_to(File.join(@tmpdir, 'machine')).with_backup_root(@dotfiles_dir) }
 
   def setup(args)
     Cli::Program.start args

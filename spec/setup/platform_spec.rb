@@ -34,14 +34,6 @@ RSpec.describe Platform do
       under_linux   { expect(Platform.macos?).to be false }
     end
   end
-
-  describe '#unix?' do
-    it 'should return if current platform is windows' do
-      under_windows { expect(Platform.unix?).to be false }
-      under_macos   { expect(Platform.unix?).to be true }
-      under_linux   { expect(Platform.unix?).to be true }
-    end
-  end
 end
 
 end # module Setup

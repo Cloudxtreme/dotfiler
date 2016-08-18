@@ -42,7 +42,7 @@ class Backup
 
   def Backup.from_config(backup_path: nil, ctx: {})
     ctx.io.mkdir_p backup_path
-    ctx = ctx.with_options backup_root: backup_path
+    ctx = ctx.with_backup_root(backup_path)
     backup_config_path = File.join(backup_path, DEFAULT_BACKUP_CONFIG_PATH)
     store = YAML::Store.new backup_config_path
     Backup.new(backup_path, ctx, store).tap(&:load_config!)

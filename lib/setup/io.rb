@@ -34,7 +34,7 @@ class File_IO < Common_IO
   end
   
   def link(target_path, link_path)
-    if Platform::unix?
+    if Platform::macos? or Platform::linux?
       File.symlink target_path, link_path
     elsif Platform::windows?
       File.link target_path, link_path

@@ -61,11 +61,11 @@ class Package
     @sync_items = []
     @skip_reason = nil
 
-    @default_backup_root = ctx[:backup_root] || ''
+    @default_backup_root = ctx.backup_root || ''
     @default_backup_root = File.join @default_backup_root, name
     @default_restore_to = restore_to || Package::DEFAULT_RESTORE_TO
 
-    @ctx = ctx.with_options backup_root: @default_backup_root, restore_to: @default_restore_to
+    @ctx = ctx.with_backup_root(@default_backup_root).with_restore_to(@default_restore_to)
 
     unless platforms.empty? or platforms.include? Platform.get_platform
       skip 'Unsupported platform'

@@ -2,7 +2,7 @@ require 'setup/logging'
 require 'setup/platform'
 
 require 'rspec/logging_helper'
-if Setup::Platform::unix?
+if Setup::Platform::macos? or Setup::Platform::linux?
   require 'simplecov'
   SimpleCov.start
 end

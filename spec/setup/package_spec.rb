@@ -9,11 +9,12 @@ module Setup
 RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO) }
   let(:task)      { instance_double(FileSyncTask) }
-  let(:ctx)       { SyncContext.create(io).with_options restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time' }
-  let(:untracked) { SyncContext.create(io).with_options restore_to: '/restore/root', backup_root: '/backup/root', sync_time: 'sync_time', untracked: true }
-  let(:linctx)    { SyncContext.create(io).with_options restore_to: '/files', backup_root: '/backup/root/Package', sync_time: 'sync_time' }
-  let(:winctx)    { SyncContext.create(io).with_options restore_to: '/windows/files', backup_root: '/backup/root/Package', sync_time: 'sync_time' }
+  let(:ctx)       { SyncContext.create(io).with_restore_to('/restore/root').with_backup_root('/backup/root').with_options sync_time: 'sync_time' }
+  let(:untracked) { SyncContext.create(io).with_restore_to('/restore/root').with_backup_root('/backup/root').with_options sync_time: 'sync_time', untracked: true }
+  let(:linctx)    { SyncContext.create(io).with_restore_to('/files').with_backup_root('/backup/root/Package').with_options sync_time: 'sync_time' }
+  let(:winctx)    { SyncContext.create(io).with_restore_to('/windows/files').with_backup_root('/backup/root/Package').with_options sync_time: 'sync_time' }
 
+  # Lazily instantiated package example.
   let(:package_class) do
     Class.new(Package) do
       name 'Package'
