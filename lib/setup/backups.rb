@@ -27,7 +27,7 @@ class Backup
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   DEFAULT_BACKUP_CONFIG_PATH = 'config.yml'
   BACKUP_PACKAGES_PATH = '_packages'
-  APPLICATIONS_DIR = Pathname(__FILE__).dirname().parent.parent.join('applications').to_s
+  APPLICATIONS_DIR = Pathname(__FILE__).dirname().join('applications').to_s
 
   def initialize(backup_path, ctx, store)
     @backup_path = backup_path
