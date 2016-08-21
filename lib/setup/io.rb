@@ -1,3 +1,6 @@
+# TODO(drognanar): Can we have a more lightweight abstraction?
+# TODO(drognanar): Instead of abstracting IO abstract some classes into DRY and FILE?
+
 # An IO abstraction.
 # Used to switch between actual run/dry run/test run.
 require 'setup/logging'
@@ -26,13 +29,14 @@ class Common_IO
 end
 
 class File_IO < Common_IO
+  def_delegators File, :write
   def_delegators FileUtils, :cp_r, :mkdir_p, :mv, :rm_rf
   def_delegators Kernel, :system
-  
+
   def dry
     false
   end
-  
+
   def link(target_path, link_path)
     if Platform::macos? or Platform::linux?
       File.symlink target_path, link_path
@@ -49,6 +53,10 @@ end
 class Dry_IO < Common_IO
   def dry
     true
+  end
+
+  def write(source, content)
+    LOGGER.info "> echo \"#{content}\" > #{source}"
   end
 
   def mv(source, dest)

@@ -1,5 +1,5 @@
 class SublimeTextPackage < Setup::Package
-  name 'Sublime Text 3'
+  package_name 'Sublime Text 3'
   platforms [:MACOS, :WINDOWS]
   under_macos   { restore_to '~/Library/Application Support/Sublime Text 3' }
   under_windows { restore_to '~/AppData/Roaming/Sublime Text 3' }

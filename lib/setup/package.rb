@@ -20,7 +20,7 @@ class Package
     self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
   end
 
-  def self.name(value)
+  def self.package_name(value)
     self.class_eval "def name; #{JSON.dump(value) if value}; end"
   end
 
@@ -46,7 +46,8 @@ class Package
     @skip_reason = reason
   end
 
-  name ''
+  # TODO(drognanar): Redesign #name since it replaces Class.#name
+  package_name ''
   restore_to nil
   platforms []
 
@@ -94,6 +95,7 @@ class Package
     end
   end
 
+  # TODO(drognanar): Deprecate? Given the platform specific nature of packages.
   # Returns the list of files that should be cleaned up in for this task.
   # This algorithm ensures to list only the top level folder to be cleaned up.
   # A file is not included if its parent is being backed up.

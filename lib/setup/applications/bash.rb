@@ -1,5 +1,5 @@
 class BashPackage < Setup::Package
-  name 'Bash'
+  package_name 'Bash'
 
   def steps
     file '.bashrc'

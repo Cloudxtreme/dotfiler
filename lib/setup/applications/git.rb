@@ -1,5 +1,5 @@
 class GitPackage < Setup::Package
-  name 'Git'
+  package_name 'Git'
 
   def steps
     file '.gitignore'

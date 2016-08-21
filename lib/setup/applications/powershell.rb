@@ -1,5 +1,5 @@
 class PowerShellPackage < Setup::Package
-  name 'PowerShell'
+  package_name 'PowerShell'
   platforms [:WINDOWS]
   restore_to '~/Documents/WindowsPowerShell'
 

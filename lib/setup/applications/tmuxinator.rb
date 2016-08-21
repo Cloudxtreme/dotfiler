@@ -1,5 +1,5 @@
 class TmuxinatorPackage < Setup::Package
-  name 'Tmuxinator'
+  package_name 'Tmuxinator'
   platforms [:MACOS, :LINUX]
 
   def steps

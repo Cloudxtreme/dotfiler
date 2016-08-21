@@ -1,5 +1,5 @@
 class IntelliJPackage < Setup::Package
-  name 'IntelliJ IDEA'
+  package_name 'IntelliJ IDEA'
 
   def steps
     file '.IntelliJIdea15/config'

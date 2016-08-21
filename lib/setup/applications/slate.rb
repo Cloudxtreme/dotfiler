@@ -1,5 +1,5 @@
 class SlatePackage < Setup::Package
-  name 'Slate'
+  package_name 'Slate'
   platforms [:MACOS, :LINUX]
 
   def steps

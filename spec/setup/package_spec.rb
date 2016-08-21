@@ -17,7 +17,7 @@ RSpec.describe Package do
   # Lazily instantiated package example.
   let(:package_class) do
     Class.new(Package) do
-      name 'Package'
+      package_name 'Package'
       platforms [:WINDOWS]
       under_windows { restore_to '/windows/files' }
       under_linux   { restore_to '/files'}

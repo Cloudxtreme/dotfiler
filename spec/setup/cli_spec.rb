@@ -1,16 +1,16 @@
 # This tests the overall appliction integration test.
+require 'setup/applications'
 require 'setup/backups'
 require 'setup/cli'
 require 'setup/package'
 require 'setup/package_template'
+require 'setup/test_applications'
 require 'setup/io'
 
-require 'erb'
 require 'tmpdir'
 
 module Setup
 
-APPLICATIONS_DIR = File.join File.dirname(__FILE__), '../../applications'
 $thor_runner = false
 $0 = "setup"
 ARGV.clear
@@ -47,19 +47,6 @@ RSpec.describe Cli::Program do
   include_examples 'CLIHelper', Cli::Program.new
 end
 
-RSpec.describe 'applications packages' do
-  let(:ctx)    { SyncContext.create(DRY_IO).with_restore_to('/restore').with_backup_root('/backup') }
-
-  # Check that requiring packages throws no exceptions.
-  it 'should be valid packages' do
-    Dir.glob File.join(APPLICATIONS_DIR, '*.rb') do |filepath|
-      under_windows { Backup.get_package(filepath, ctx) }
-      under_linux   { Backup.get_package(filepath, ctx) }
-      under_macos   { Backup.get_package(filepath, ctx) }
-    end
-  end
-end
-
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
@@ -81,6 +68,10 @@ RSpec.describe './setup' do
     expect(YAML::load File.read(path)).to eq(yaml_hash)
   end
 
+  def assert_applications_content(path, applications)
+    assert_file_content path, Setup::get_applications(applications)
+  end
+
   # Saves a file with the specified content.
   def save_file_content(path, content)
     FileUtils.mkdir_p File.dirname path
@@ -90,6 +81,10 @@ RSpec.describe './setup' do
   # Saves a yaml dictionary under path.
   def save_yaml_content(path, yaml_hash)
     save_file_content path, YAML::dump(yaml_hash)
+  end
+
+  def save_applications_content(path, applications)
+    save_file_content path, Setup::get_applications(applications)
   end
 
   # Creates a symlink between files.
@@ -111,30 +106,33 @@ RSpec.describe './setup' do
   end
 
   def assert_ran_unsuccessfully(result)
-    expect(result).to be false
     @output_lines = @log_output.readlines
+
+    expect(result).to be false
   end
 
   def assert_ran_without_errors(result)
-    expect(result).to be true
     @output_lines = @log_output.readlines
+    
+    expect(result).to be true
     expect(@output_lines).to_not include(start_with 'E:')
   end
 
   def assert_ran_with_errors(result)
-    expect(result).to be true
     @output_lines = @log_output.readlines
+
+    expect(result).to be true
     expect(@output_lines).to include(start_with 'E:')
   end
 
   def get_overwrite_choice
-      menu = instance_double('menu')
-      expect(cmd).to receive(:choose).and_yield menu
-      expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
-      allow(menu).to receive(:choice).with(:b)
-      allow(menu).to receive(:choice).with(:r)
-      allow(menu).to receive(:choice).with(:ba)
-      allow(menu).to receive(:choice).with(:ra)
+    menu = instance_double('menu')
+    expect(cmd).to receive(:choose).and_yield menu
+    expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
+    allow(menu).to receive(:choice).with(:b)
+    allow(menu).to receive(:choice).with(:r)
+    allow(menu).to receive(:choice).with(:ba)
+    allow(menu).to receive(:choice).with(:ra)
       menu
   end
 
@@ -148,17 +146,34 @@ RSpec.describe './setup' do
 
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
-    @apps_dir      = File.join(@tmpdir, 'apps')
     @default_config_root   = File.join(@tmpdir, 'setup.yml')
     @default_restore_to  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
-    @default_backup_dir    = File.join(@tmpdir, 'dotfiles/local')
-    @default_backup_config = File.join(@tmpdir, 'dotfiles/local/config.yml')
+    @default_backup_dir    = File.join(@default_backup_root, 'local')
+    @default_applications_dir = File.join(@default_backup_dir, '_packages/applications.rb')
 
-    @dotfiles_dir = File.join(@tmpdir, 'dotfiles/dotfiles1')
-    @dotfiles_config = File.join(@dotfiles_dir, 'config.yml')
+    @dotfiles_dir = File.join(@default_backup_root, 'dotfiles1')
+    @apps_dir      = File.join(@dotfiles_dir, '_packages')
+    @applications_path = File.join(@apps_dir, 'applications.rb')
 
-    stub_const 'Setup::Backup::APPLICATIONS_DIR', @apps_dir
+    # Remove data that can be modified by previous test run.
+    FileUtils.rm_rf @apps_dir
+    FileUtils.rm_rf ctx.restore_to
+    FileUtils.rm_rf ctx.backup_root
+    FileUtils.rm_rf @default_backup_root
+
+    # TODO(drognanar): Perform discovery based on Setup::APPLICATIONS
+    # TODO(drognanar): Start generating applications.rb file alongside config.yml
+    # TODO(drognanar): Deprecate config.yml
+    stub_const 'Setup::APPLICATIONS', [
+      Setup::Test::AppPackage,
+      Setup::Test::BashPackage,
+      Setup::Test::CodePackage,
+      Setup::Test::GitPackage,
+      Setup::Test::PythonPackage,
+      Setup::Test::RubocopPackage,
+      Setup::Test::VimPackage
+    ]
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
     stub_const 'Setup::Package::DEFAULT_RESTORE_TO', @default_restore_to
     stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
@@ -174,33 +189,12 @@ RSpec.describe './setup' do
 
     save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
-    # An app with no files to sync.
-    save_file_content File.join(@apps_dir, '/app.rb'), Setup::get_package('app', [])
-
-    # An app where the file is only present at the restore location.
-    save_file_content File.join(@apps_dir, '/vim.rb'), Setup::get_package('vim', ['.vimrc'])
     save_file_content ctx.restore_path('.vimrc'), '; Vim configuration.'
-
-    # An app where the backup will overwrite files.
-    save_file_content File.join(@apps_dir, '/code.rb'), Setup::get_package('code', ['.vscode'])
     save_file_content ctx.backup_path('code/_vscode'), 'some content'
     save_file_content ctx.restore_path('.vscode'), 'different content'
-
-    # An app where only some files exist on the machine.
-    # An app which only contains the file in the backup directory.
-    save_file_content File.join(@apps_dir, '/bash.rb'), Setup::get_package('bash', ['.bashrc', '.bash_local'])
     save_file_content ctx.backup_path('bash/_bashrc'), 'bashrc file'
-
-    # An app where no files exist.
-    save_file_content File.join(@apps_dir, '/git.rb'), Setup::get_package('git', ['.gitignore', '.gitconfig'])
-
-    # An app where the both backup and restore have the same content.
-    save_file_content File.join(@apps_dir, '/python.rb'), Setup::get_package('python', ['.pythonrc'])
     save_file_content ctx.backup_path('python/_pythonrc'), 'pythonrc'
     save_file_content ctx.restore_path('.pythonrc'), 'pythonrc'
-
-    # An app where all files have been completely synced.
-    save_file_content File.join(@apps_dir, '/rubocop.rb'), Setup::get_package('rubocop', ['.rubocop'])
     save_file_content ctx.backup_path('rubocop/_rubocop'), 'rubocop'
     link_files ctx.backup_path('rubocop/_rubocop'), ctx.restore_path('.rubocop')
   end
@@ -242,7 +236,7 @@ Options:
         assert_ran_without_errors setup %w[init]
 
         assert_yaml_content @default_config_root, 'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
+        assert_applications_content @default_applications_dir, [Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
       end
     end
 
@@ -252,7 +246,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
+        assert_applications_content @default_applications_dir, [Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
       end
 
       it 'should create a local backup and disable tasks if user replies n to prompt' do
@@ -260,7 +254,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=prompt]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_package_names' => [], 'disabled_package_names' => ['code', 'python', 'rubocop', 'vim']
+        expect(File.exist? @default_applications_dir).to be false
       end
     end
 
@@ -271,8 +265,7 @@ Options:
         assert_ran_with_errors setup %w[init --enable_new=all]
 
         assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir, @default_backup_dir]
-        assert_yaml_content @default_backup_config, 'enabled_package_names' => ['code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
-        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'python', 'rubocop', 'vim'], 'disabled_package_names' => []
+        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
       end
     end
 
@@ -281,7 +274,7 @@ Options:
         assert_ran_without_errors setup %w[init --enable_new=none]
 
         assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_yaml_content @default_backup_config,'enabled_package_names' => [], 'disabled_package_names' => ['code', 'python', 'rubocop', 'vim']
+        expect(File.exist? @default_applications_dir).to be false
       end
     end
 
@@ -319,8 +312,10 @@ Options:
 
   describe 'sync' do
     it 'should sync with restore overwrite' do
+      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+
       expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
+      assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -355,8 +350,10 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
     end
 
     it 'should sync with backup overwrite' do
+      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=all --verbose]
+      assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -390,14 +387,18 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
     end
 
     it 'should not sync if the task is disabled' do
+      save_applications_content @applications_path, []
+
       assert_ran_without_errors setup %w[sync --enable_new=none]
       assert_files_unchanged
     end
 
     context 'when --copy' do
       it 'should generate file copies instead of symlinks' do
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        expect(setup %w[sync --enable_new=all --copy]).to be true
+        expect(setup %w[sync --enable_new=none --copy]).to be true
 
         assert_copies restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
         assert_copies restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'different content'
@@ -410,7 +411,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
   describe 'cleanup' do
     let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&ctx.method(:backup_path)) }
     before(:each) do
-      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'vim']
+      save_applications_content @applications_path, [Test::BashPackage, Test::VimPackage]
     end
 
     def create_cleanup_files
@@ -484,7 +485,7 @@ W: Use ./setup package add to enable packages.
 
     it 'should print status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_package_names' => []
+      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
       assert_ran_without_errors setup %w[status]
 
       expect(@output_lines.join).to eq(
@@ -501,7 +502,7 @@ needs sync: vim:.vimrc
 
     it 'should print verbose status' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim', 'python', 'rubocop'], 'disabled_package_names' => []
+      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
       assert_ran_without_errors setup %w[status --verbose]
 
       expect(@output_lines.join).to eq(
@@ -519,20 +520,20 @@ needs sync: vim:.vimrc
 
   describe 'package' do
     before(:each) do
-      save_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code'], 'disabled_package_names' => ['vim']
+      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
     end
 
     describe 'add' do
       it 'should add packages' do
         assert_ran_without_errors setup %w[package add code vim]
-        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash', 'code', 'vim'], 'disabled_package_names' => []
+        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage]
       end
     end
 
     describe 'remove' do
       it 'should remove packages' do
         assert_ran_without_errors setup %w[package remove code vim]
-        assert_yaml_content @dotfiles_config, 'enabled_package_names' => ['bash'], 'disabled_package_names' => ['vim', 'code']
+        assert_applications_content @applications_path, [Test::BashPackage]
       end
     end
 
@@ -544,11 +545,8 @@ needs sync: vim:.vimrc
 "Enabled packages:
 bash, code
 
-Disabled packages:
-vim
-
 New packages:
-python, rubocop
+python, rubocop, vim
 ")
       end
     end
@@ -564,13 +562,14 @@ python, rubocop
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
         assert_ran_without_errors setup %w[package edit unknown --global]
 
-        assert_file_content package_path, "
-class UnknownPackage < Setup::Package
-    name 'unknown'
+        assert_file_content package_path,
+"class UnknownPackage < Setup::Package
+  package_name 'Unknown'
 
-    def steps
-    end
-end"
+  def steps
+  end
+end
+"
       end
     end
   end
@@ -592,17 +591,10 @@ end"
     end
   end
 
-  context 'when a backup config file is invalid' do
+  context 'when a package is invalid' do
     it 'should fail commands' do
       save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      assert_commands_fail_if_corrupt @dotfiles_config
-    end
-  end
-
-  context 'when a task config file is invalid' do
-    it 'should fail commands' do
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      assert_commands_fail_if_corrupt File.join(@tmpdir, 'apps/vim.rb')
+      assert_commands_fail_if_corrupt File.join(@apps_dir, 'vim.rb')
     end
   end
 end

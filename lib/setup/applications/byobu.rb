@@ -1,5 +1,5 @@
 class ByobuPackage < Setup::Package
-  name 'Byobu'
+  package_name 'Byobu'
   platforms [:MACOS, :LINUX]
   restore_to '.byobu'
 

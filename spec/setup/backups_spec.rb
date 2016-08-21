@@ -7,30 +7,27 @@ require 'yaml/store'
 module Setup
 
 RSpec.describe Backup do
-  let(:io)            { instance_double(InputOutput::File_IO, dry: false) }
-  let(:store_factory) { class_double(YAML::Store) }
-  let(:backup_store)  { instance_double(YAML::Store, path: '') }
-  let(:ctx)           { SyncContext.create(io).with_options test_info: true }
-  let(:package_a)     { instance_double(Package) }
-  let(:package_c)     { instance_double(Package) }
-  let(:package_d)     { instance_double(Package) }
-  let(:package_b2)    { instance_double(Package) }
-  let(:packages)      { { 'a' => package_a, 'b2' => package_b2, 'c' => package_c, 'd' => package_d } }
+  let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
+  let(:store_factory)  { class_double(YAML::Store) }
+  let(:ctx)            { SyncContext.create(io).with_options test_info: true }
+  let(:package_a)      { instance_double(Package, name: 'a') }
+  let(:package_c)      { instance_double(Package, name: 'c') }
+  let(:package_d)      { instance_double(Package, name: 'd') }
+  let(:package_b2)     { instance_double(Package, name: 'b2') }
+  let(:package_c_cls)  { class_double(Package) }
+  let(:package_b2_cls) { class_double(Package) }
+  let(:packages)       { [package_a, package_b2, package_c, package_d] }
 
-  def get_backup(packages, enabled_packages, disabled_packages)
-    backup = Backup.new('/backup/dir', ctx, backup_store)
-    backup.enabled_package_names = Set.new enabled_packages
-    backup.disabled_package_names = Set.new disabled_packages
+  def get_backup(packages)
+    backup = Backup.new('/backup/dir', ctx)
     backup.packages = packages
     backup
   end
 
   describe '#initialize' do
     it 'should initialize from config files' do
-      backup = get_backup({'a' => 12}, ['a', 'b'], ['c', 'd'])
-      expect(backup.enabled_package_names).to eq(Set.new ['a', 'b'])
-      expect(backup.disabled_package_names).to eq(Set.new ['c', 'd'])
-      expect(backup.packages).to eq({'a' => 12})
+      backup = get_backup([package_a])
+      expect(backup.packages).to eq([package_a])
     end
   end
 
@@ -60,61 +57,49 @@ RSpec.describe Backup do
     expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
   end
 
-  describe '#enable_packages!' do
-    it { assert_enable_packages({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
-    it { assert_enable_packages({enabled: [], disabled: []}, ['package1', 'package2'], {enabled: [], disabled: []}) }
-    it { assert_enable_packages({enabled: [], disabled: []}, ['a'], {enabled: ['a'], disabled: []}) }
-    it { assert_enable_packages({enabled: [], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
-    it { assert_enable_packages({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: []}) }
-    it { assert_enable_packages({enabled: ['a'], disabled: ['b2', 'c']}, ['A', 'b2'], {enabled: ['a', 'b2'], disabled: ['c']}) }
-  end
-
-  describe '#disable_packages!' do
-    it { assert_disable_packages({enabled: [], disabled: []}, [], {enabled: [], disabled: []}) }
-    it { assert_disable_packages({enabled: [], disabled: []}, ['package1', 'package2'], {enabled: [], disabled: []}) }
-    it { assert_disable_packages({enabled: [], disabled: []}, ['a'], {enabled: [], disabled: ['a']}) }
-    it { assert_disable_packages({enabled: [], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
-    it { assert_disable_packages({enabled: ['a'], disabled: []}, ['A', 'b2'], {enabled: [], disabled: ['a', 'b2']}) }
-    it { assert_disable_packages({enabled: ['a', 'c'], disabled: ['b2']}, ['A', 'b2'], {enabled: ['c'], disabled: ['b2', 'a']}) }
-  end
-
-  describe '#new_packages' do
+  describe '#discover_packages' do
     it 'should include packages not added to the enabled and disabled packages that have data' do
-      backup = get_backup(packages, ['a'], ['D'])
+      stub_const 'Setup::APPLICATIONS', [package_c_cls, package_b2_cls]
+
+      backup = get_backup([package_a, package_d])
+      expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return true
+      expect(package_b2_cls).to receive(:new).and_return package_b2
       expect(package_b2).to receive(:should_execute).and_return true
       expect(package_b2).to receive(:has_data).and_return true
-      expect(backup.new_packages).to eq({ 'c' => package_c, 'b2' => package_b2 })
+      expect(backup.discover_packages).to eq([package_c, package_b2])
     end
 
     it 'should not include packages with no data' do
-      backup = get_backup(packages, ['a'], ['d', 'b2'])
+      stub_const 'Setup::APPLICATIONS', [package_c_cls]
+
+      backup = get_backup(packages)
+      expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return false
-      expect(backup.new_packages).to eq({})
+      expect(backup.discover_packages).to eq([])
     end
 
     it 'should not include packages with not matching platform' do
-      backup = get_backup(packages, ['a'], ['d', 'b2'])
+      stub_const 'Setup::APPLICATIONS', [package_c_cls]
+
+      backup = get_backup(packages)
+      expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return false
-      expect(backup.new_packages).to eq({})
+      expect(backup.discover_packages).to eq([])
     end
   end
 
   describe '#packages_to_run' do
     it 'should include an enabled package with matching platform' do
-      backup = get_backup(packages, ['a', 'b'], [])
+      backup = get_backup([package_a])
       expect(package_a).to receive(:should_execute).and_return true
-      expect(backup.packages_to_run).to eq({ 'a' => package_a })
+      expect(backup.packages_to_run).to eq([package_a])
 
-      backup = get_backup(packages, ['A', 'B'], [])
-      expect(package_a).to receive(:should_execute).and_return true
-      expect(backup.packages_to_run).to eq({ 'a' => package_a })
-
-      backup = get_backup(packages, ['a'], [])
+      backup = get_backup([package_a])
       expect(package_a).to receive(:should_execute).and_return false
-      expect(backup.packages_to_run).to eq({})
+      expect(backup.packages_to_run).to eq([])
     end
   end
 

@@ -1,5 +1,5 @@
 class FishPackage < Setup::Package
-  name 'Fish'
+  package_name 'Fish'
   platforms [:MACOS, :LINUX]
   restore_to '.config/fish'
 

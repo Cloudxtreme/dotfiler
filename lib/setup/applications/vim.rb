@@ -1,5 +1,5 @@
 class VimPackage < Setup::Package
-  name 'Vim'
+  package_name 'Vim'
 
   def steps
     file '.gvimrc'

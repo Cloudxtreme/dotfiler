@@ -1,5 +1,5 @@
 class AtomPackage < Setup::Package
-  name 'Atom'
+  package_name 'Atom'
   restore_to '~/.atom'
 
   def steps

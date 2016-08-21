@@ -1,5 +1,5 @@
 class NginxPackage < Setup::Package
-  name 'Nginx'
+  package_name 'Nginx'
   platforms [:MACOS, :LINUX]
   restore_to '/usr/local/etc'
 
