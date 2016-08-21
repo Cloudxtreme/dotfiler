@@ -16,24 +16,23 @@ require 'setup/applications/vscode'
 
 module Setup
 
-# TODO(drognanar): Prefix these with Setup:: namespace.
 # List of packages for different applications.
 # These packages get automatically discovered when creating new backups.
 APPLICATIONS = [
-  AtomPackage,
-  BashPackage,
-  ByobuPackage,
-  FishPackage,
-  GitPackage,
-  IntelliJPackage,
-  MySQLPackage,
-  NginxPackage,
-  PowerShellPackage,
-  SlatePackage,
-  SublimeTextPackage,
-  TmuxinatorPackage,
-  VimPackage,
-  VsCodePackage
+  Applications::AtomPackage,
+  Applications::BashPackage,
+  Applications::ByobuPackage,
+  Applications::FishPackage,
+  Applications::GitPackage,
+  Applications::IntelliJPackage,
+  Applications::MySQLPackage,
+  Applications::NginxPackage,
+  Applications::PowerShellPackage,
+  Applications::SlatePackage,
+  Applications::SublimeTextPackage,
+  Applications::TmuxinatorPackage,
+  Applications::VimPackage,
+  Applications::VsCodePackage
 ]
 
 end

@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class FishPackage < Setup::Package
   package_name 'Fish'
   platforms [:MACOS, :LINUX]
@@ -7,4 +10,7 @@ class FishPackage < Setup::Package
     file 'config.fish'
     file 'functions'
   end
+end
+
+end
 end

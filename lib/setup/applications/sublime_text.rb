@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class SublimeTextPackage < Setup::Package
   package_name 'Sublime Text 3'
   platforms [:MACOS, :WINDOWS]
@@ -10,4 +13,7 @@ class SublimeTextPackage < Setup::Package
     file 'Packages/User/Preferences.sublime-settings'
     file 'Packages/User/Package Control.sublime-settings'
   end
+end
+
+end
 end

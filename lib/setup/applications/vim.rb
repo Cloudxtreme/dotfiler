@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class VimPackage < Setup::Package
   package_name 'Vim'
 
@@ -10,4 +13,7 @@ class VimPackage < Setup::Package
     file '.vim/vimrc'
     file '.vim/vundles'
   end
+end
+
+end
 end

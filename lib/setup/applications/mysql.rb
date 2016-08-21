@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class MySQLPackage < Setup::Package
   package_name 'MySQL'
   platforms [:MACOS, :LINUX]
@@ -7,4 +10,7 @@ class MySQLPackage < Setup::Package
     file 'my.cnf'
     file 'my.cnf.d'
   end
+end
+
+end
 end

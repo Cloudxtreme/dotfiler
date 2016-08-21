@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class GitPackage < Setup::Package
   package_name 'Git'
 
@@ -6,4 +9,7 @@ class GitPackage < Setup::Package
     under_windows { file('.gitconfig').save_as('_gitconfig(win)') }
     under_macos   { file('.gitconfig').save_as('_gitconfig(osx)') }
   end
+end
+
+end
 end

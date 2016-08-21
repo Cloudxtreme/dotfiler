@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class ByobuPackage < Setup::Package
   package_name 'Byobu'
   platforms [:MACOS, :LINUX]
@@ -6,4 +9,7 @@ class ByobuPackage < Setup::Package
   def steps
     file 'profile.tmux'
   end
+end
+
+end
 end

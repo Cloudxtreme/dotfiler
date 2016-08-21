@@ -1,3 +1,6 @@
+module Setup
+module Applications
+
 class AtomPackage < Setup::Package
   package_name 'Atom'
   restore_to '~/.atom'
@@ -9,4 +12,7 @@ class AtomPackage < Setup::Package
     file 'snippets.cson'
     file 'styles.less'
   end
+end
+
+end
 end

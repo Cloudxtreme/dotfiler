@@ -21,10 +21,7 @@ end
 # TODO(drognanar): Allow to filter enabled packages in backup manager.
 
 # A single backup directory present on a local computer.
-# It contains a config.yml file which defines the packages that should be run for the backup operations.
-# Enabled package names contains the list of packages to be run.
-# Disabled package names contains the list of packages that should be skipped.
-# New packages are packages for which there are any files to sync but are not part of any lists.
+# Discovered packages are packages which are not loaded by backup but have data.
 class Backup
   attr_accessor :packages, :backup_path, :backup_packages_path
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
@@ -35,14 +32,12 @@ class Backup
     @backup_path = backup_path
     @backup_packages_path = File.join(@backup_path, BACKUP_PACKAGES_PATH)
     @ctx = ctx
-
     @packages = []
   end
 
   def discover_packages
-    apps
-      .select { |application| application.should_execute and application.has_data }
-      .select { |application| not @packages.map { |package| package.name }.member?(application.name) }
+    existing_package_names = Set.new @packages.map { |package| package.name }
+    apps.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
   end
 
   def update_applications_file

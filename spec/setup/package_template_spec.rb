@@ -19,9 +19,9 @@ end
 
 RSpec.describe 'get_applications' do
   it 'should generate an applications template' do
-    expect(Setup::get_applications [VimPackage, GitPackage]).to eq(
-'VimPackage = VimPackage
-GitPackage = GitPackage
+    expect(Setup::get_applications [Applications::VimPackage, Applications::GitPackage]).to eq(
+'VimPackage = Setup::Applications::VimPackage
+GitPackage = Setup::Applications::GitPackage
 ')
   end
 end
