@@ -93,16 +93,16 @@ RSpec.describe './setup' do
   end
 
   # Asserts that the two files have the same content.
-  def assert_copies(backup_path: nil, restore_path: nil, content: nil)
-    expect(File.identical? backup_path, restore_path).to be false
-    expect(File.read backup_path).to eq(File.read restore_path)
-    expect(File.read backup_path).to eq(content) unless content.nil?
+  def assert_copies(file1, file2, content: nil)
+    expect(File.identical? file1, file2).to be false
+    expect(File.read file1).to eq(File.read file2)
+    expect(File.read file1).to eq(content) unless content.nil?
   end
 
   # Asserts that the two files are symlinks.
-  def assert_symlinks(backup_path: nil, restore_path: nil, content: nil)
-    expect(File.identical? backup_path, restore_path).to be true
-    assert_file_content backup_path, content unless content.nil?
+  def assert_symlinks(file1, file2, content: nil)
+    expect(File.identical? file1, file2).to be true
+    assert_file_content file1, content unless content.nil?
   end
 
   def assert_ran_unsuccessfully(result)
@@ -162,17 +162,14 @@ RSpec.describe './setup' do
     FileUtils.rm_rf ctx.backup_root
     FileUtils.rm_rf @default_backup_root
 
-    # TODO(drognanar): Perform discovery based on Setup::APPLICATIONS
-    # TODO(drognanar): Start generating applications.rb file alongside config.yml
-    # TODO(drognanar): Deprecate config.yml
     stub_const 'Setup::APPLICATIONS', [
-      Setup::Test::AppPackage,
-      Setup::Test::BashPackage,
-      Setup::Test::CodePackage,
-      Setup::Test::GitPackage,
-      Setup::Test::PythonPackage,
-      Setup::Test::RubocopPackage,
-      Setup::Test::VimPackage
+      Test::AppPackage,
+      Test::BashPackage,
+      Test::CodePackage,
+      Test::GitPackage,
+      Test::PythonPackage,
+      Test::RubocopPackage,
+      Test::VimPackage
     ]
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
     stub_const 'Setup::Package::DEFAULT_RESTORE_TO', @default_restore_to
@@ -189,14 +186,14 @@ RSpec.describe './setup' do
 
     save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
-    save_file_content ctx.restore_path('.vimrc'), '; Vim configuration.'
-    save_file_content ctx.backup_path('code/_vscode'), 'some content'
-    save_file_content ctx.restore_path('.vscode'), 'different content'
-    save_file_content ctx.backup_path('bash/_bashrc'), 'bashrc file'
-    save_file_content ctx.backup_path('python/_pythonrc'), 'pythonrc'
-    save_file_content ctx.restore_path('.pythonrc'), 'pythonrc'
-    save_file_content ctx.backup_path('rubocop/_rubocop'), 'rubocop'
-    link_files ctx.backup_path('rubocop/_rubocop'), ctx.restore_path('.rubocop')
+    save_file_content ctx.restore_path('.test_vimrc'), '; Vim configuration.'
+    save_file_content ctx.backup_path('code/_test_vscode'), 'some content'
+    save_file_content ctx.restore_path('.test_vscode'), 'different content'
+    save_file_content ctx.backup_path('bash/_test_bashrc'), 'bashrc file'
+    save_file_content ctx.backup_path('python/_test_pythonrc'), 'pythonrc'
+    save_file_content ctx.restore_path('.test_pythonrc'), 'pythonrc'
+    save_file_content ctx.backup_path('rubocop/_test_rubocop'), 'rubocop'
+    link_files ctx.backup_path('rubocop/_test_rubocop'), ctx.restore_path('.test_rubocop')
   end
 
   describe '--help' do
@@ -302,14 +299,6 @@ Options:
     end
   end
 
-  def assert_files_unchanged
-    expect(File.exist? ctx.backup_path('vim/_vimrc')).to be false
-    assert_file_content ctx.backup_path('code/_vscode'), 'some content'
-    assert_file_content ctx.restore_path('.vscode'), 'different content'
-    expect(File.exist? ctx.restore_path('.bashrc')).to be false
-    expect(File.identical? ctx.restore_path('.pythonrc'), ctx.backup_path('python/_pythonrc')).to be false
-  end
-
   describe 'sync' do
     it 'should sync with restore overwrite' do
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
@@ -320,33 +309,33 @@ Options:
       expect(@output_lines.join).to eq(
 "Syncing:
 I: Syncing package bash:
-I: Syncing .bashrc
-V: Symlinking \"#{ctx.backup_path('bash/_bashrc')}\" with \"#{ctx.restore_path('.bashrc')}\"
-I: Syncing .bash_local
+I: Syncing .test_bashrc
+V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
+I: Syncing .test_bash_local
 E: Cannot sync. Missing both backup and restore.
 I: Syncing package code:
-I: Syncing .vscode
+I: Syncing .test_vscode
 W: Needs to overwrite a file
-W: Backup: \"#{ctx.backup_path('code/_vscode')}\"
-W: Restore: \"#{ctx.restore_path('.vscode')}\"
-V: Saving a copy of file \"#{ctx.backup_path('code/_vscode')}\" under \"#{ctx.backup_path('code')}\"
-V: Moving file from \"#{ctx.restore_path('.vscode')}\" to \"#{ctx.backup_path('code/_vscode')}\"
-V: Symlinking \"#{ctx.backup_path('code/_vscode')}\" with \"#{ctx.restore_path('.vscode')}\"
+W: Backup: \"#{ctx.backup_path('code/_test_vscode')}\"
+W: Restore: \"#{ctx.restore_path('.test_vscode')}\"
+V: Saving a copy of file \"#{ctx.backup_path('code/_test_vscode')}\" under \"#{ctx.backup_path('code')}\"
+V: Moving file from \"#{ctx.restore_path('.test_vscode')}\" to \"#{ctx.backup_path('code/_test_vscode')}\"
+V: Symlinking \"#{ctx.backup_path('code/_test_vscode')}\" with \"#{ctx.restore_path('.test_vscode')}\"
 I: Syncing package python:
-I: Syncing .pythonrc
-V: Symlinking \"#{ctx.backup_path('python/_pythonrc')}\" with \"#{ctx.restore_path('.pythonrc')}\"
+I: Syncing .test_pythonrc
+V: Symlinking \"#{ctx.backup_path('python/_test_pythonrc')}\" with \"#{ctx.restore_path('.test_pythonrc')}\"
 I: Syncing package rubocop:
-I: Syncing .rubocop
+I: Syncing .test_rubocop
 I: Syncing package vim:
-I: Syncing .vimrc
-V: Moving file from \"#{ctx.restore_path('.vimrc')}\" to \"#{ctx.backup_path('vim/_vimrc')}\"
-V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.vimrc')}\"
+I: Syncing .test_vimrc
+V: Moving file from \"#{ctx.restore_path('.test_vimrc')}\" to \"#{ctx.backup_path('vim/_test_vimrc')}\"
+V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_path('.test_vimrc')}\"
 ")
 
-      assert_symlinks restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
-      assert_symlinks restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'different content'
-      assert_symlinks restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
+      assert_symlinks ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
+      assert_symlinks ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'
+      assert_symlinks ctx.restore_path('.test_bashrc'), ctx.backup_path('bash/_test_bashrc'), content: 'bashrc file'
+      assert_symlinks ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc')
     end
 
     it 'should sync with backup overwrite' do
@@ -358,39 +347,43 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
       expect(@output_lines.join).to eq(
 "Syncing:
 I: Syncing package bash:
-I: Syncing .bashrc
-V: Symlinking \"#{ctx.backup_path('bash/_bashrc')}\" with \"#{ctx.restore_path('.bashrc')}\"
-I: Syncing .bash_local
+I: Syncing .test_bashrc
+V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
+I: Syncing .test_bash_local
 E: Cannot sync. Missing both backup and restore.
 I: Syncing package code:
-I: Syncing .vscode
+I: Syncing .test_vscode
 W: Needs to overwrite a file
-W: Backup: \"#{ctx.backup_path('code/_vscode')}\"
-W: Restore: \"#{ctx.restore_path('.vscode')}\"
-V: Saving a copy of file \"#{ctx.restore_path('.vscode')}\" under \"#{ctx.backup_path('code')}\"
-V: Symlinking \"#{ctx.backup_path('code/_vscode')}\" with \"#{ctx.restore_path('.vscode')}\"
+W: Backup: \"#{ctx.backup_path('code/_test_vscode')}\"
+W: Restore: \"#{ctx.restore_path('.test_vscode')}\"
+V: Saving a copy of file \"#{ctx.restore_path('.test_vscode')}\" under \"#{ctx.backup_path('code')}\"
+V: Symlinking \"#{ctx.backup_path('code/_test_vscode')}\" with \"#{ctx.restore_path('.test_vscode')}\"
 I: Syncing package python:
-I: Syncing .pythonrc
-V: Symlinking \"#{ctx.backup_path('python/_pythonrc')}\" with \"#{ctx.restore_path('.pythonrc')}\"
+I: Syncing .test_pythonrc
+V: Symlinking \"#{ctx.backup_path('python/_test_pythonrc')}\" with \"#{ctx.restore_path('.test_pythonrc')}\"
 I: Syncing package rubocop:
-I: Syncing .rubocop
+I: Syncing .test_rubocop
 I: Syncing package vim:
-I: Syncing .vimrc
-V: Moving file from \"#{ctx.restore_path('.vimrc')}\" to \"#{ctx.backup_path('vim/_vimrc')}\"
-V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.vimrc')}\"
+I: Syncing .test_vimrc
+V: Moving file from \"#{ctx.restore_path('.test_vimrc')}\" to \"#{ctx.backup_path('vim/_test_vimrc')}\"
+V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_path('.test_vimrc')}\"
 ")
 
-      assert_symlinks restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
-      assert_symlinks restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'some content'
-      assert_symlinks restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
-      assert_symlinks restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
+      assert_symlinks ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
+      assert_symlinks ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'some content'
+      assert_symlinks ctx.restore_path('.test_bashrc'), ctx.backup_path('bash/_test_bashrc'), content: 'bashrc file'
+      assert_symlinks ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc')
     end
 
     it 'should not sync if the task is disabled' do
       save_applications_content @applications_path, []
-
       assert_ran_without_errors setup %w[sync --enable_new=none]
-      assert_files_unchanged
+
+      expect(File.exist? ctx.backup_path('vim/_test_vimrc')).to be false
+      assert_file_content ctx.backup_path('code/_test_vscode'), 'some content'
+      assert_file_content ctx.restore_path('.test_vscode'), 'different content'
+      expect(File.exist? ctx.restore_path('.test_bashrc')).to be false
+      expect(File.identical? ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc')).to be false
     end
 
     context 'when --copy' do
@@ -400,10 +393,10 @@ V: Symlinking \"#{ctx.backup_path('vim/_vimrc')}\" with \"#{ctx.restore_path('.v
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
         expect(setup %w[sync --enable_new=none --copy]).to be true
 
-        assert_copies restore_path: ctx.restore_path('.vimrc'), backup_path: ctx.backup_path('vim/_vimrc')
-        assert_copies restore_path: ctx.restore_path('.vscode'), backup_path: ctx.backup_path('code/_vscode'), content: 'different content'
-        assert_copies restore_path: ctx.restore_path('.bashrc'), backup_path: ctx.backup_path('bash/_bashrc'), content: 'bashrc file'
-        assert_copies restore_path: ctx.restore_path('.pythonrc'), backup_path: ctx.backup_path('python/_pythonrc')
+        assert_copies ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
+        assert_copies ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'
+        assert_copies ctx.restore_path('.test_bashrc'), ctx.backup_path('bash/_test_bashrc'), content: 'bashrc file'
+        assert_copies ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc')
       end
     end
   end
@@ -491,12 +484,12 @@ W: Use ./setup package add to enable packages.
       expect(@output_lines.join).to eq(
 "Current status:
 
-needs sync: bash:.bashrc
-error:      bash:.bash_local Cannot sync. Missing both backup and restore.
-differs:    code:.vscode
-needs sync: python:.pythonrc
+needs sync: bash:.test_bashrc
+error:      bash:.test_bash_local Cannot sync. Missing both backup and restore.
+differs:    code:.test_vscode
+needs sync: python:.test_pythonrc
 up-to-date: rubocop
-needs sync: vim:.vimrc
+needs sync: vim:.test_vimrc
 ")
     end
 
@@ -508,23 +501,20 @@ needs sync: vim:.vimrc
       expect(@output_lines.join).to eq(
 "Current status:
 
-needs sync: bash:.bashrc
-error:      bash:.bash_local Cannot sync. Missing both backup and restore.
-differs:    code:.vscode
-needs sync: python:.pythonrc
-up-to-date: rubocop:.rubocop
-needs sync: vim:.vimrc
+needs sync: bash:.test_bashrc
+error:      bash:.test_bash_local Cannot sync. Missing both backup and restore.
+differs:    code:.test_vscode
+needs sync: python:.test_pythonrc
+up-to-date: rubocop:.test_rubocop
+needs sync: vim:.test_vimrc
 ")
     end
   end
 
   describe 'package' do
-    before(:each) do
-      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
-    end
-
     describe 'add' do
       it 'should add packages' do
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
         assert_ran_without_errors setup %w[package add code vim]
         assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage]
       end
@@ -532,6 +522,7 @@ needs sync: vim:.vimrc
 
     describe 'remove' do
       it 'should remove packages' do
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
         assert_ran_without_errors setup %w[package remove code vim]
         assert_applications_content @applications_path, [Test::BashPackage]
       end
@@ -539,6 +530,7 @@ needs sync: vim:.vimrc
 
     describe 'list' do
       it 'should list packages ready to be add/remove' do
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
         assert_ran_without_errors setup %w[package list]
 
         expect(@output_lines.join).to eq(

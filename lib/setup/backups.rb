@@ -23,18 +23,22 @@ end
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
 class Backup
-  attr_accessor :packages, :backup_path, :backup_packages_path
+  attr_accessor :packages, :backup_packages_path
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
 
-  def initialize(backup_path, ctx)
-    @backup_path = backup_path
-    @backup_packages_path = File.join(@backup_path, BACKUP_PACKAGES_PATH)
+  def initialize(ctx)
+    @backup_packages_path = ctx.backup_path BACKUP_PACKAGES_PATH
     @ctx = ctx
     @packages = []
   end
 
+  def backup_path
+    @ctx.backup_root
+  end
+
+  # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
   def discover_packages
     existing_package_names = Set.new @packages.map { |package| package.name }
     apps.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
@@ -63,6 +67,7 @@ class Backup
     @packages = @packages.select { |package| not package_names.member? package.name }
   end
 
+  # TODO(drognanar): Can we move resolve_backup to BackupManager?
   # This method resolves a commandline backup name into a backup path/source path pair.
   # For instance resolve_backup `~/dotfiles` should resolve to backup `~/dotfiles` but no source.
   # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.
@@ -160,7 +165,7 @@ class BackupManager
   def load_backups!
     @backups = @backup_paths.map do |backup_path|
       ctx = @ctx.with_backup_root(backup_path)
-      Backup.new(backup_path, ctx).tap do |backup|
+      Backup.new(ctx).tap do |backup|
         backup.packages = Backup.get_packages backup.backup_packages_path, ctx
       end
     end

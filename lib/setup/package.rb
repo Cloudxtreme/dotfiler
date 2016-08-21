@@ -46,7 +46,6 @@ class Package
     @skip_reason = reason
   end
 
-  # TODO(drognanar): Redesign #name since it replaces Class.#name
   package_name ''
   restore_to nil
   platforms []

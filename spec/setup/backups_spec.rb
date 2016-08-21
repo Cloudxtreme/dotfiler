@@ -9,7 +9,7 @@ module Setup
 RSpec.describe Backup do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory)  { class_double(YAML::Store) }
-  let(:ctx)            { SyncContext.create(io).with_options test_info: true }
+  let(:ctx)            { SyncContext.create(io).with_backup_root('/backup/dir').with_options test_info: true  }
   let(:package_a)      { instance_double(Package, name: 'a') }
   let(:package_c)      { instance_double(Package, name: 'c') }
   let(:package_d)      { instance_double(Package, name: 'd') }
@@ -19,7 +19,7 @@ RSpec.describe Backup do
   let(:packages)       { [package_a, package_b2, package_c, package_d] }
 
   def get_backup(packages)
-    backup = Backup.new('/backup/dir', ctx)
+    backup = Backup.new(ctx)
     backup.packages = packages
     backup
   end
@@ -31,6 +31,7 @@ RSpec.describe Backup do
     end
   end
 
+  # TODO(drognanar): Test new discovery/update mechanism
   def verify_backup_save(backup, update_names, expected_package_names)
     if not Set.new(update_names).intersection(Set.new(backup.packages.keys)).empty?
       expect(backup_store).to receive(:transaction).with(false).and_yield backup_store
@@ -138,15 +139,11 @@ RSpec.describe BackupManager do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:ctx)            { SyncContext.create(io).with_options test_info: true }
   let(:manager_store)  { instance_double(YAML::Store, path: '') }
-  let(:backup_store1)  { instance_double(YAML::Store, path: '') }
-  let(:backup_store2)  { instance_double(YAML::Store, path: '') }
   let(:backup1)        { instance_double(Backup) }
   let(:backup2)        { instance_double(Backup) }
 
   let(:backup_manager) do
     allow(manager_store).to receive(:transaction).and_yield(manager_store)
-    allow(backup_store1).to receive(:transaction).and_yield(backup_store1)
-    allow(backup_store2).to receive(:transaction).and_yield(backup_store1)
     BackupManager.new(ctx, manager_store)
   end
 

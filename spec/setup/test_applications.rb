@@ -1,4 +1,3 @@
-# TODO(drognanar): Prefix all packages files with test to prevent from moving actual dotfiles around.
 require 'setup/package'
 
 module Setup
@@ -17,7 +16,7 @@ class VimPackage < Setup::Package
     package_name 'vim'
 
     def steps
-        file '.vimrc'
+        file '.test_vimrc'
     end
 end
 
@@ -26,7 +25,7 @@ class CodePackage < Setup::Package
     package_name 'code'
 
     def steps
-        file '.vscode'
+        file '.test_vscode'
     end
 end
 
@@ -36,8 +35,8 @@ class BashPackage < Setup::Package
     package_name 'bash'
 
     def steps
-        file '.bashrc'
-        file '.bash_local'
+        file '.test_bashrc'
+        file '.test_bash_local'
     end
 end
 
@@ -46,8 +45,8 @@ class GitPackage < Setup::Package
     package_name 'git'
 
     def steps
-        file '.gitignore'
-        file '.gitconfig'
+        file '.test_gitignore'
+        file '.test_gitconfig'
     end
 end
 
@@ -56,7 +55,7 @@ class PythonPackage < Setup::Package
     package_name 'python'
 
     def steps
-        file '.pythonrc'
+        file '.test_pythonrc'
     end
 end
 
@@ -65,7 +64,7 @@ class RubocopPackage < Setup::Package
     package_name 'rubocop'
 
     def steps
-        file '.rubocop'
+        file '.test_rubocop'
     end
 end
 
