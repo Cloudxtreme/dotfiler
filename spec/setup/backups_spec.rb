@@ -9,7 +9,7 @@ module Setup
 RSpec.describe Backup do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory)  { class_double(YAML::Store) }
-  let(:ctx)            { SyncContext.create(io).with_backup_root('/backup/dir').with_options test_info: true  }
+  let(:ctx)            { SyncContext.create(io).with_backup_root('/backup/dir')  }
   let(:package_a)      { instance_double(Package, name: 'a') }
   let(:package_c)      { instance_double(Package, name: 'c') }
   let(:package_d)      { instance_double(Package, name: 'd') }
@@ -40,8 +40,8 @@ RSpec.describe Backup do
     end
   end
 
-  def assert_enable_packages(initial_package_names, enabled_package_names, expected_package_names)
-    backup = get_backup(packages, initial_package_names[:enabled], initial_package_names[:disabled])
+  def assert_enable_packages(initial_package_names)
+    backup = get_backup packages
     verify_backup_save(backup, enabled_package_names, expected_package_names)
 
     backup.enable_packages! enabled_package_names
@@ -49,8 +49,8 @@ RSpec.describe Backup do
     expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
   end
 
-  def assert_disable_packages(initial_package_names, disabled_package_names, expected_package_names)
-    backup = get_backup(packages, initial_package_names[:enabled], initial_package_names[:disabled])
+  def assert_disable_packages(initial_package_names)
+    backup = get_backup packages
     verify_backup_save(backup, disabled_package_names, expected_package_names)
 
     backup.disable_packages! disabled_package_names
@@ -62,7 +62,7 @@ RSpec.describe Backup do
     it 'should include packages not added to the enabled and disabled packages that have data' do
       stub_const 'Setup::APPLICATIONS', [package_c_cls, package_b2_cls]
 
-      backup = get_backup([package_a, package_d])
+      backup = get_backup [package_a, package_d]
       expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return true
@@ -75,7 +75,7 @@ RSpec.describe Backup do
     it 'should not include packages with no data' do
       stub_const 'Setup::APPLICATIONS', [package_c_cls]
 
-      backup = get_backup(packages)
+      backup = get_backup packages
       expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return false
@@ -85,7 +85,7 @@ RSpec.describe Backup do
     it 'should not include packages with not matching platform' do
       stub_const 'Setup::APPLICATIONS', [package_c_cls]
 
-      backup = get_backup(packages)
+      backup = get_backup packages
       expect(package_c_cls).to receive(:new).and_return package_c
       expect(package_c).to receive(:should_execute).and_return false
       expect(backup.discover_packages).to eq([])
@@ -94,11 +94,11 @@ RSpec.describe Backup do
 
   describe '#packages_to_run' do
     it 'should include an enabled package with matching platform' do
-      backup = get_backup([package_a])
+      backup = get_backup [package_a]
       expect(package_a).to receive(:should_execute).and_return true
       expect(backup.packages_to_run).to eq([package_a])
 
-      backup = get_backup([package_a])
+      backup = get_backup [package_a]
       expect(package_a).to receive(:should_execute).and_return false
       expect(backup.packages_to_run).to eq([])
     end
@@ -137,7 +137,7 @@ end
 
 RSpec.describe BackupManager do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
-  let(:ctx)            { SyncContext.create(io).with_options test_info: true }
+  let(:ctx)            { SyncContext.create(io) }
   let(:manager_store)  { instance_double(YAML::Store, path: '') }
   let(:backup1)        { instance_double(Backup) }
   let(:backup2)        { instance_double(Backup) }

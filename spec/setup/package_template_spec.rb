@@ -5,12 +5,13 @@ module Setup
 
 RSpec.describe 'get_package' do
   it 'should get a package' do
-    expect(Setup::get_package 'app', ['file']).to eq(
+    expect(Setup::get_package 'app', ['file1', 'file2']).to eq(
 'class AppPackage < Setup::Package
   package_name \'App\'
 
   def steps
-    file \'file\'
+    file \'file1\'
+    file \'file2\'
   end
 end
 ')

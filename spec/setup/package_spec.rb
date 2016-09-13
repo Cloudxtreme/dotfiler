@@ -7,12 +7,12 @@ require 'setup/io'
 module Setup
 
 RSpec.describe Package do
-  let(:io)        { instance_double(InputOutput::File_IO) }
+  let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
   let(:ctx)       { SyncContext.create(io).with_restore_to('/restore/root').with_backup_root('/backup/root').with_options sync_time: 'sync_time' }
-  let(:untracked) { SyncContext.create(io).with_restore_to('/restore/root').with_backup_root('/backup/root').with_options sync_time: 'sync_time', untracked: true }
-  let(:linctx)    { SyncContext.create(io).with_restore_to('/files').with_backup_root('/backup/root/Package').with_options sync_time: 'sync_time' }
-  let(:winctx)    { SyncContext.create(io).with_restore_to('/windows/files').with_backup_root('/backup/root/Package').with_options sync_time: 'sync_time' }
+  let(:linctx)    { ctx.with_restore_to('/files').with_backup_root('/backup/root/Package') }
+  let(:winctx)    { ctx.with_restore_to('/windows/files').with_backup_root('/backup/root/Package') }
+  let(:package)   { package_class.new(ctx) }
 
   # Lazily instantiated package example.
   let(:package_class) do
@@ -29,12 +29,10 @@ RSpec.describe Package do
     end
   end
 
-  let(:package)           { package_class.new(ctx) }
-  let(:package_untracked) { package_class.new(untracked) }
-  let(:default_package)   { Package.new(ctx) }
 
   describe 'default package' do
     it 'should have an empty name' do
+      default_package = Package.new winctx
       default_package.file 'a'
 
       expect(default_package.name).to eq('')
@@ -43,7 +41,7 @@ RSpec.describe Package do
       expect(default_package.should_execute).to be true
 
       expect(default_package.sync_items).to match_array [an_instance_of(FileSyncTask)]
-      expect(default_package.sync_items[0].backup_path).to eq(ctx.backup_path('a'))
+      expect(default_package.sync_items[0].backup_path).to eq(winctx.backup_path('a'))
     end
   end
 
@@ -118,6 +116,7 @@ RSpec.describe Package do
       package.file 'a'
       expect(package.cleanup).to eq([File.expand_path(winctx.backup_path('setup-backup-file'))])
 
+      package_untracked = package_class.new ctx.with_options untracked: true
       package_untracked.file 'a'
       expect(package_untracked.cleanup).to eq([
         File.expand_path(winctx.backup_path('b')),

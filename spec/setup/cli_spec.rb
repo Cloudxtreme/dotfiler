@@ -113,7 +113,7 @@ RSpec.describe './setup' do
 
   def assert_ran_without_errors(result)
     @output_lines = @log_output.readlines
-    
+
     expect(result).to be true
     expect(@output_lines).to_not include(start_with 'E:')
   end
