@@ -39,6 +39,7 @@ class Package < CommonCLI
 
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
+    # TODO(drognanar): If no names given perform discovery
     init_command(:add, options) do |backup_manager|
       backup_manager.backups.map do |backup|
         backup.enable_packages! names

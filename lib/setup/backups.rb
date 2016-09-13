@@ -18,8 +18,6 @@ class InvalidConfigFileError < Exception
   end
 end
 
-# TODO(drognanar): Allow to filter enabled packages in backup manager.
-
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
 class Backup
@@ -58,6 +56,7 @@ class Backup
     @packages.select { |package| package.should_execute }
   end
 
+  # TODO(drognanar): Can this be moved out to BackupManager?
   def enable_packages!(package_names)
     disable_packages! package_names
     @packages += apps.select { |application| package_names.member? application.name }
@@ -101,37 +100,10 @@ class Backup
     [File.expand_path(resolved_backup), resolved_source]
   end
 
-  # Finds package definitions inside of a particular path.
-  def Backup.find_package_cls(package_path, io)
-    return [] unless File.extname(package_path) == '.rb'
-
-    mod = Module.new
-    package_script = io.read package_path
-
-    begin
-      mod.class_eval package_script
-    rescue Exception
-      raise InvalidConfigFileError.new package_path
-    end
-
-    # Iterate over all constants/classes defined by the script.
-    # If a constant defines a package return it.
-    mod.constants.sort
-      .map { |name| const = mod.const_get name }
-      .select { |const| not const.nil? and const < Package }
-  end
-
-  # Constructs backup packages that can be found a package folder.
-  def Backup.get_packages(packages_dir, ctx)
-    (ctx.io.glob File.join(packages_dir, '*.rb'))
-      .map { |package_path| Backup.find_package_cls(package_path, ctx.io) }
-      .flatten
-      .map { |package_cls| package_cls.new ctx }
-  end
-
   private
 
   def apps
+    # TODO(drognanar): Perhaps just have an APPLICATION_NAME => APPLICATION_CLASS map?
     APPLICATIONS.map { |package_cls| package_cls.new @ctx }
   end
 
@@ -156,6 +128,34 @@ class BackupManager
     BackupManager.new(ctx, store).tap(&:load_config!)
   end
 
+  # Finds package definitions inside of a particular path.
+  def BackupManager.find_package_cls(package_path, io)
+    return [] unless File.extname(package_path) == '.rb'
+
+    mod = Module.new
+    package_script = io.read package_path
+
+    begin
+      mod.class_eval package_script
+    rescue Exception
+      raise InvalidConfigFileError.new package_path
+    end
+
+    # Iterate over all constants/classes defined by the script.
+    # If a constant defines a package return it.
+    mod.constants.sort
+      .map { |name| const = mod.const_get name }
+      .select { |const| not const.nil? and const < Package }
+  end
+
+  # Constructs backup packages that can be found a package folder.
+  def BackupManager.get_packages(packages_dir, ctx)
+    (ctx.io.glob File.join(packages_dir, '*.rb'))
+      .map { |package_path| BackupManager.find_package_cls(package_path, ctx.io) }
+      .flatten
+      .map { |package_cls| package_cls.new ctx }
+  end
+
   def load_config!
     @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
   rescue PStore::Error
@@ -166,7 +166,7 @@ class BackupManager
     @backups = @backup_paths.map do |backup_path|
       ctx = @ctx.with_backup_root(backup_path)
       Backup.new(ctx).tap do |backup|
-        backup.packages = Backup.get_packages backup.backup_packages_path, ctx
+        backup.packages = BackupManager.get_packages backup.backup_packages_path, ctx
       end
     end
   end
