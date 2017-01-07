@@ -22,11 +22,11 @@ class SyncContext
   end
 
   def with_backup_root(new_backup_root)
-    SyncContext.new @options.merge(backup_root: new_backup_root)
+    SyncContext.new @options.merge(backup_root: backup_path(new_backup_root))
   end
 
   def with_restore_to(new_restore_to)
-    SyncContext.new @options.merge(restore_to: new_restore_to)
+    SyncContext.new @options.merge(restore_to: restore_path(new_restore_to))
   end
 
   def io

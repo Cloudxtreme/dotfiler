@@ -52,12 +52,9 @@ class Package
 
   def initialize(ctx)
     @skip_reason = nil
-
-    @default_backup_root = ctx.backup_path || ''
-    @default_backup_root = File.join @default_backup_root, name
-    @default_restore_to = restore_to || Package::DEFAULT_RESTORE_TO
-
-    @ctx = ctx.with_backup_root(@default_backup_root).with_restore_to(@default_restore_to)
+    @ctx = ctx
+      .with_backup_root(File.join(ctx.backup_path, name))
+      .with_restore_to(restore_to || Package::DEFAULT_RESTORE_TO)
 
     unless platforms.empty? or platforms.include? Platform.get_platform
       skip 'Unsupported platform'
@@ -76,11 +73,7 @@ class Package
   def sync!
     each do |sync_item|
       yield sync_item
-      begin
-        sync_item.sync!
-      rescue FileMissingError => e
-        LOGGER.error e.message
-      end
+      sync_item.sync!
     end
   end
 
@@ -92,7 +85,7 @@ class Package
   # NOTE: Given that list of backed up paths is platform specific this solution will not work.
   # NOTE: Unless all paths are provided.
   def cleanup
-    all_files = @ctx.io.glob(File.join(@default_backup_root, '**', '*')).sort
+    all_files = @ctx.io.glob(File.join(@ctx.backup_path, '**', '*')).sort
     backed_up_list = map(&:backup_path).sort
     files_to_cleanup = []
 
