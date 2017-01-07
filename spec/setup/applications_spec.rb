@@ -7,11 +7,17 @@ module Setup
 RSpec.describe APPLICATIONS do
   let(:ctx)    { SyncContext.new backup_root: '/backup', restore_to: '/restore', io: DRY_IO }
 
+  def validate_applications
+    APPLICATIONS
+      .map { |package_cls| package_cls.new ctx }
+      .map { |package| expect(package.to_a.length).to be >= 1 }
+  end
+
   # Check that requiring packages throws no exceptions.
   it 'should be valid packages' do
-    under_windows { APPLICATIONS.map { |package| package.new ctx } }
-    under_linux   { APPLICATIONS.map { |package| package.new ctx } }
-    under_macos   { APPLICATIONS.map { |package| package.new ctx } }
+    under_windows { validate_applications }
+    under_linux   { validate_applications }
+    under_macos   { validate_applications }
   end
 end
 
