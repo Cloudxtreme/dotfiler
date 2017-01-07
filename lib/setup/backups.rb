@@ -47,7 +47,7 @@ class Backup
 
     applications_path = File.join @backup_packages_path, 'applications.rb'
     @ctx.io.mkdir_p @backup_packages_path
-    @ctx.io.write applications_path, Setup::get_applications(package_cls_to_add)
+    @ctx.io.write applications_path, Setup::Templates::applications(package_cls_to_add)
   end
 
   # Finds packages that should be run under a given machine.

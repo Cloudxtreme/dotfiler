@@ -69,7 +69,7 @@ RSpec.describe './setup' do
   end
 
   def assert_applications_content(path, applications)
-    assert_file_content path, Setup::get_applications(applications)
+    assert_file_content path, Setup::Templates::applications(applications)
   end
 
   # Saves a file with the specified content.
@@ -84,7 +84,7 @@ RSpec.describe './setup' do
   end
 
   def save_applications_content(path, applications)
-    save_file_content path, Setup::get_applications(applications)
+    save_file_content path, Setup::Templates::applications(applications)
   end
 
   # Creates a symlink between files.

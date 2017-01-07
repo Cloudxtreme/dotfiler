@@ -82,7 +82,7 @@ class Package < CommonCLI
       package_path = File.join packages_dir, "#{name}.rb"
 
       if not File.exist? package_path
-        default_package_content = Setup::get_package(name, [])
+        default_package_content = Setup::Templates::package(name, [])
         File.write package_path, default_package_content if not File.exist? package_path
       end
 
