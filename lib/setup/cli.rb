@@ -150,7 +150,7 @@ class Program < CommonCLI
     end
 
     def summarize_package_info(package)
-      sync_items_info = package.sync_items.map do |sync_item|
+      sync_items_info = package.map do |sync_item|
         [sync_item.info, sync_item]
       end
       sync_items_groups = sync_items_info.group_by { |sync_item_info, _| sync_item_info.status.kind }

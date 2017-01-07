@@ -17,18 +17,24 @@ RSpec.describe Package do
   # Lazily instantiated package example.
   let(:package_class) do
     Class.new(Package) do
+      attr_accessor :items
       package_name 'Package'
       platforms [:WINDOWS]
       under_windows { restore_to '/windows/files' }
       under_linux   { restore_to '/files'}
       under_macos   { restore_to '/macos/files' }
 
+      def initialize(ctx)
+        super ctx
+        @items = []
+      end
+
       def steps
-        under_linux { file '.unknown' }
+        under_linux { yield file '.unknown' }
+        @items.each { |item| yield item }
       end
     end
   end
-
 
   describe 'default package' do
     it 'should have an empty name' do
@@ -40,8 +46,20 @@ RSpec.describe Package do
       expect(default_package.platforms).to eq []
       expect(default_package.should_execute).to be true
 
-      expect(default_package.sync_items).to match_array [an_instance_of(FileSyncTask)]
-      expect(default_package.sync_items[0].backup_path).to eq(winctx.backup_path('a'))
+      expect(default_package.to_a).to match_array []
+    end
+  end
+
+  describe 'simple package' do
+    it 'should sync single file' do
+      package.items << package.file('a')
+
+      expect(package.name).to eq('Package')
+      expect(package.platforms).to eq [:WINDOWS]
+
+      sync_items = package.to_a
+      expect(sync_items).to match_array [an_instance_of(FileSyncTask)]
+      expect(sync_items[0].backup_path).to eq(package.ctx.backup_path('a'))
     end
   end
 
@@ -56,7 +74,7 @@ RSpec.describe Package do
       expect(package.name).to eq('Package')
       expect(package.restore_to).to eq('/windows/files')
       expect(package.should_execute).to be true
-      expect(package.sync_items).to eq []
+      expect(package.to_a).to eq []
     end
   end
 
@@ -65,10 +83,12 @@ RSpec.describe Package do
       expect(package.name).to eq('Package')
       expect(package.restore_to).to eq('/files')
       expect(package.should_execute).to be false
-      expect(package.sync_items).to match_array [an_instance_of(FileSyncTask)]
-      expect(package.sync_items[0].name).to eq '.unknown'
-      expect(package.sync_items[0].backup_path).to eq(linctx.backup_path('_unknown'))
-      expect(package.sync_items[0].file_sync_options).to eq({
+      
+      sync_items = package.to_a
+      expect(sync_items).to match_array [an_instance_of(FileSyncTask)]
+      expect(sync_items[0].name).to eq '.unknown'
+      expect(sync_items[0].backup_path).to eq(linctx.backup_path('_unknown'))
+      expect(sync_items[0].file_sync_options).to eq({
         name: '.unknown',
         backup_path: linctx.backup_path('_unknown'),
         restore_path: linctx.restore_path('.unknown') })
@@ -85,19 +105,21 @@ RSpec.describe Package do
 
   it 'should allow adding sync items' do
     under_windows do
-      package.file('.another')
-      package.file('.another2').save_as('_anotherTwo')
-      expect(package.sync_items).to match_array [an_instance_of(FileSyncTask), an_instance_of(FileSyncTask)]
-      expect(package.sync_items[0].name).to eq('.another')
-      expect(package.sync_items[0].backup_path).to eq(winctx.backup_path('_another'))
-      expect(package.sync_items[0].file_sync_options).to eq({
+      package.items << package.file('.another')
+      package.items << package.file('.another2').save_as('_anotherTwo')
+
+      sync_items = package.to_a
+      expect(sync_items).to match_array [an_instance_of(FileSyncTask), an_instance_of(FileSyncTask)]
+      expect(sync_items[0].name).to eq('.another')
+      expect(sync_items[0].backup_path).to eq(winctx.backup_path('_another'))
+      expect(sync_items[0].file_sync_options).to eq({
         name: '.another',
         backup_path: winctx.backup_path('_another'),
         restore_path: winctx.restore_path('.another') })
 
-      expect(package.sync_items[1].name).to eq('.another2')
-      expect(package.sync_items[1].backup_path).to eq(winctx.backup_path('_anotherTwo'))
-      expect(package.sync_items[1].file_sync_options).to eq({
+      expect(sync_items[1].name).to eq('.another2')
+      expect(sync_items[1].backup_path).to eq(winctx.backup_path('_anotherTwo'))
+      expect(sync_items[1].file_sync_options).to eq({
         name: '.another2',
         backup_path: winctx.backup_path('_anotherTwo'),
         restore_path: winctx.restore_path('.another2') })
@@ -113,11 +135,11 @@ RSpec.describe Package do
         File.expand_path(winctx.backup_path('b/subfile')),
         File.expand_path(winctx.backup_path('setup-backup-file'))]
 
-      package.file 'a'
+      package.items << package.file('a')
       expect(package.cleanup).to eq([File.expand_path(winctx.backup_path('setup-backup-file'))])
 
       package_untracked = package_class.new ctx.with_options untracked: true
-      package_untracked.file 'a'
+      package_untracked.items << package_untracked.file('a')
       expect(package_untracked.cleanup).to eq([
         File.expand_path(winctx.backup_path('b')),
         File.expand_path(winctx.backup_path('setup-backup-file'))])
@@ -129,7 +151,7 @@ RSpec.describe Package do
       expect(FileSyncTask).to receive(:new).and_return task
       expect(task).to receive(:sync!).once
 
-      package.file 'a'
+      package.items << package.file('a')
       package.sync! {}
     end
   end

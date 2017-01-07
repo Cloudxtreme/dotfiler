@@ -7,8 +7,8 @@ class MySQLPackage < Setup::Package
   restore_to '/usr/local/etc'
 
   def steps
-    file 'my.cnf'
-    file 'my.cnf.d'
+    yield file 'my.cnf'
+    yield file 'my.cnf.d'
   end
 end
 

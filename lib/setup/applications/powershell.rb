@@ -7,7 +7,7 @@ class PowerShellPackage < Setup::Package
   restore_to '~/Documents/WindowsPowerShell'
 
   def steps
-    file 'Microsoft.PowerShell_profile.ps1'
+    yield file 'Microsoft.PowerShell_profile.ps1'
   end
 end
 

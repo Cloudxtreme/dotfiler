@@ -3,7 +3,7 @@ require 'setup/file_sync'
 module Setup
 
 class FileSyncTask
-  attr_reader :name, :file_sync_options
+  attr_reader :name, :file_sync_options, :ctx
 
   def initialize(name, file_sync_options, ctx)
     @name = name

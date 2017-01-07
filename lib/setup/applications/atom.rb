@@ -6,11 +6,11 @@ class AtomPackage < Setup::Package
   restore_to '~/.atom'
 
   def steps
-    file 'config.cson'
-    file 'init.coffee'
-    file 'keymap.cson'
-    file 'snippets.cson'
-    file 'styles.less'
+    yield file 'config.cson'
+    yield file 'init.coffee'
+    yield file 'keymap.cson'
+    yield file 'snippets.cson'
+    yield file 'styles.less'
   end
 end
 

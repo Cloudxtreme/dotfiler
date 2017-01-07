@@ -7,7 +7,7 @@ class ByobuPackage < Setup::Package
   restore_to '.byobu'
 
   def steps
-    file 'profile.tmux'
+    yield file 'profile.tmux'
   end
 end
 

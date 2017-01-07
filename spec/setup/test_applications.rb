@@ -16,7 +16,7 @@ class VimPackage < Setup::Package
     package_name 'vim'
 
     def steps
-        file '.test_vimrc'
+        yield file '.test_vimrc'
     end
 end
 
@@ -25,7 +25,7 @@ class CodePackage < Setup::Package
     package_name 'code'
 
     def steps
-        file '.test_vscode'
+        yield file '.test_vscode'
     end
 end
 
@@ -35,8 +35,8 @@ class BashPackage < Setup::Package
     package_name 'bash'
 
     def steps
-        file '.test_bashrc'
-        file '.test_bash_local'
+        yield file '.test_bashrc'
+        yield file '.test_bash_local'
     end
 end
 
@@ -45,8 +45,8 @@ class GitPackage < Setup::Package
     package_name 'git'
 
     def steps
-        file '.test_gitignore'
-        file '.test_gitconfig'
+        yield file '.test_gitignore'
+        yield file '.test_gitconfig'
     end
 end
 
@@ -55,7 +55,7 @@ class PythonPackage < Setup::Package
     package_name 'python'
 
     def steps
-        file '.test_pythonrc'
+        yield file '.test_pythonrc'
     end
 end
 
@@ -64,7 +64,7 @@ class RubocopPackage < Setup::Package
     package_name 'rubocop'
 
     def steps
-        file '.test_rubocop'
+        yield file '.test_rubocop'
     end
 end
 

@@ -13,10 +13,11 @@ class Package
   extend Forwardable
   extend Platform
   include Platform
+  include Enumerable
 
   DEFAULT_RESTORE_TO = File.expand_path '~/'
 
-  attr_accessor :sync_items, :skip_reason
+  attr_accessor :sync_items, :skip_reason, :ctx
 
   def self.restore_to(value)
     self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
@@ -38,6 +39,10 @@ class Package
   restore_to nil
   platforms []
 
+  def each
+    steps { |step| yield step }
+  end
+
   def steps
   end
 
@@ -46,7 +51,6 @@ class Package
   end
 
   def initialize(ctx)
-    @sync_items = []
     @skip_reason = nil
 
     @default_backup_root = ctx.backup_path || ''
@@ -58,21 +62,19 @@ class Package
     unless platforms.empty? or platforms.include? Platform.get_platform
       skip 'Unsupported platform'
     end
-
-    steps
   end
 
   # Adds a new file sync task.
   def file(filepath, options = {})
-    FileSyncTask.create(filepath, options, @ctx).tap { |task| @sync_items << task }
+    FileSyncTask.create(filepath, options, @ctx)
   end
 
   def has_data
-    @sync_items.any? { |sync_item| sync_item.info.status.kind != :error }
+    any? { |sync_item| sync_item.info.status.kind != :error }
   end
 
   def sync!
-    @sync_items.each do |sync_item|
+    each do |sync_item|
       yield sync_item
       begin
         sync_item.sync!
@@ -91,7 +93,7 @@ class Package
   # NOTE: Unless all paths are provided.
   def cleanup
     all_files = @ctx.io.glob(File.join(@default_backup_root, '**', '*')).sort
-    backed_up_list = @sync_items.map(&:backup_path).sort
+    backed_up_list = map(&:backup_path).sort
     files_to_cleanup = []
 
     # Because all files are sorted then:

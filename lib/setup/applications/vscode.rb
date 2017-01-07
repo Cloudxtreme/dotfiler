@@ -7,8 +7,8 @@ class VsCodePackage < Setup::Package
   under_macos   { restore_to '~/Library/Application Support/Code/User' }
 
   def steps
-    file 'settings.json'
-    file 'snippets'
+    yield file 'settings.json'
+    yield file 'snippets'
   end
 end
 

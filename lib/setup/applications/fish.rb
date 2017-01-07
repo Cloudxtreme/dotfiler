@@ -7,8 +7,8 @@ class FishPackage < Setup::Package
   restore_to '.config/fish'
 
   def steps
-    file 'config.fish'
-    file 'functions'
+    yield file 'config.fish'
+    yield file 'functions'
   end
 end
 

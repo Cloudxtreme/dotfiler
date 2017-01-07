@@ -6,7 +6,7 @@ class SlatePackage < Setup::Package
   platforms [:MACOS, :LINUX]
 
   def steps
-    file '.slate'
+    yield file '.slate'
   end
 end
 

@@ -3,6 +3,8 @@ require 'setup/io'
 module Setup
 
 class SyncContext
+  attr_reader :options
+
   def [](key)
     @options[key]
   end

@@ -7,7 +7,7 @@ class NginxPackage < Setup::Package
   restore_to '/usr/local/etc'
 
   def steps
-    file 'nginx'
+    yield file 'nginx'
   end
 end
 

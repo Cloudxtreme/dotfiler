@@ -5,11 +5,11 @@ class BashPackage < Setup::Package
   package_name 'Bash'
 
   def steps
-    file '.bashrc'
-    file '.bash_profile'
-    file '.bash_functions'
-    file '.bash_aliases'
-    under_macos { file('.bash_local').save_as('_bash_local(osx)') }
+    yield file '.bashrc'
+    yield file '.bash_profile'
+    yield file '.bash_functions'
+    yield file '.bash_aliases'
+    under_macos { yield file('.bash_local').save_as('_bash_local(osx)') }
   end
 end
 

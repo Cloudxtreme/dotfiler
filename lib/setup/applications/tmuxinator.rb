@@ -6,7 +6,7 @@ class TmuxinatorPackage < Setup::Package
   platforms [:MACOS, :LINUX]
 
   def steps
-    file '.tmuxinator'
+    yield file '.tmuxinator'
   end
 end
 
