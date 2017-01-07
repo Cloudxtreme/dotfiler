@@ -119,7 +119,15 @@ class Program < CommonCLI
     end
 
     # Prompts to enable new packages.
-    def prompt_to_enable_new_packages(backups_with_new_packages, options)
+    def prompt_to_enable_new_packages(backup_manager, options)
+      # TODO(drognanar): Perhaps move discovery outside?
+      # TODO(drognanar): Only discover on init/discover/update?
+      backups = backup_manager.backups
+      backups_with_new_packages = backups.select { |backup| not backup.discover_packages.empty? }
+      if backups_with_new_packages.empty?
+        return
+      end
+
       if options[:enable_new] == 'prompt'
         LOGGER << "Found new packages to sync:\n\n"
         backups_with_new_packages.each do |backup|
@@ -140,16 +148,8 @@ class Program < CommonCLI
     end
 
     # Get the list of packages to execute.
-    # @param Hash options the options to get the packages with.
-    def get_packages(backup_manager, options = {})
-      # TODO(drognanar): Perhaps move discovery outside?
-      # TODO(drognanar): Only discover on init/discover/update?
-      backups = backup_manager.backups
-      backups_with_new_packages = backups.select { |backup| not backup.discover_packages.empty? }
-      if options[:enable_new] != 'skip' and not backups_with_new_packages.empty?
-        prompt_to_enable_new_packages backups_with_new_packages, options
-      end
-      backups.map(&:packages_to_run).flatten
+    def get_packages(backup_manager)
+      backup_manager.backups.map(&:packages_to_run).flatten
     end
 
     def summarize_package_info(package)
@@ -181,7 +181,7 @@ class Program < CommonCLI
 
     # Runs packages while showing the progress bar.
     def run_packages_with_progress(backup_manager)
-      packages = get_packages(backup_manager, options)
+      packages = get_packages(backup_manager)
       if packages.empty?
         LOGGER << "Nothing to sync\n"
         return true
@@ -214,7 +214,10 @@ class Program < CommonCLI
 
       # Cannot run sync in dry mode since the backup creation was run in dry mode.
       if not options[:dry] and options[:sync]
-        backup_manager.tap(&:load_backups!).tap(&method(:run_packages_with_progress))
+        backup_manager.tap(&:load_backups!).tap do |bm|
+          prompt_to_enable_new_packages bm, options
+          run_packages_with_progress bm
+        end
       end
     end
   end
@@ -231,7 +234,7 @@ class Program < CommonCLI
   option 'untracked', type: :boolean
   def cleanup
     init_command(:cleanup, options) do |backup_manager|
-      packages = get_packages(backup_manager, options.merge(enable_new: 'skip'))
+      packages = get_packages backup_manager
       cleanup_files = packages.map { |package| package.cleanup }.flatten(1)
 
       if cleanup_files.empty?
@@ -249,7 +252,7 @@ class Program < CommonCLI
   desc 'status', 'Returns the sync status'
   def status
     init_command(:status, options) do |backup_manager|
-      packages = get_packages(backup_manager, options)
+      packages = get_packages backup_manager
       if packages.empty?
         LOGGER.warn "No packages enabled."
         LOGGER.warn "Use ./setup package add to enable packages."
