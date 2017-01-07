@@ -15,13 +15,16 @@ class CommonCLI < Thor
   class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
 
   no_commands do
+    def initialize(*args)
+      super(*args)
+      LOGGER.level = options[:verbose] ? :verbose : :info
+      @cli = HighLine.new
+      @ctx = get_context(options)
+    end
+
     def init_command(command, options)
       return help command if options[:help]
-      LOGGER.level = options[:verbose] ? :verbose : :info
-      @io = options[:dry] ? Setup::DRY_IO : Setup::CONCRETE_IO
-      @cli = HighLine.new
-
-      yield Setup::BackupManager.from_config(get_context(options)).tap(&:load_backups!)
+      yield Setup::BackupManager.from_config(@ctx).tap(&:load_backups!)
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""
@@ -33,7 +36,7 @@ end
 class Package < CommonCLI
   no_commands do
     def get_context(options)
-      Setup::SyncContext.new io: @io, copy: options[:copy], untracked: options[:untracked]
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked]
     end
   end
 
@@ -84,7 +87,7 @@ class Package < CommonCLI
       end
 
       editor = ENV['editor'] || 'vim'
-      @io.system("#{editor} #{package_path}")
+      @ctx.io.system("#{editor} #{package_path}")
     end
   end
 end
@@ -98,7 +101,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new io: @io, copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite)
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite)
     end
 
     def ask_overwrite(backup_path, restore_path)
@@ -187,7 +190,10 @@ class Program < CommonCLI
       LOGGER << "Syncing:\n"
       packages.each do |package|
         LOGGER.info "Syncing package #{package.name}:"
-        package.sync! { |sync_item| LOGGER.info "Syncing #{sync_item.name}" }
+        package.each do |sync_item|
+          LOGGER.info "Syncing #{sync_item.name}"
+          sync_item.sync!
+        end
       end
     end
   end
@@ -235,7 +241,7 @@ class Program < CommonCLI
       cleanup_files.each do |file|
         LOGGER << "Deleting \"#{file}\"\n"
         confirmed = (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
-        @io.rm_rf file if confirmed
+        @ctx.io.rm_rf file if confirmed
       end
     end
   end
