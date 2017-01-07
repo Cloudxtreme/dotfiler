@@ -11,6 +11,8 @@ module Setup
 
 class Package
   extend Forwardable
+  extend Platform
+  include Platform
 
   DEFAULT_RESTORE_TO = File.expand_path '~/'
 
@@ -27,20 +29,6 @@ class Package
   def self.platforms(platforms)
     self.class_eval "def platforms; #{platforms if platforms}; end"
   end
-
-  def self.under_windows(&block)
-    block.call if Platform::windows?
-  end
-
-  def self.under_macos(&block)
-    block.call if Platform::macos?
-  end
-
-  def self.under_linux(&block)
-    block.call if Platform::linux?
-  end
-
-  def_delegators Package, :under_windows, :under_macos, :under_linux
 
   def skip(reason)
     @skip_reason = reason

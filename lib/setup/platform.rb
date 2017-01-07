@@ -2,8 +2,10 @@
 
 module Setup::Platform
 
+module_function
+
 # Gets the platform of the machine.
-def self.get_platform(platform = nil)
+def get_platform(platform = nil)
   platform ||= RUBY_PLATFORM
   case platform
   when /darwin/ then :MACOS
@@ -12,16 +14,28 @@ def self.get_platform(platform = nil)
   end
 end
 
-def self.windows?(platform = nil)
+def windows?(platform = nil)
   get_platform(platform) == :WINDOWS
 end
 
-def self.macos?(platform = nil)
+def macos?(platform = nil)
   get_platform(platform) == :MACOS
 end
 
-def self.linux?(platform = nil)
+def linux?(platform = nil)
   get_platform(platform) == :LINUX
+end
+
+def under_windows(&block)
+  block.call if windows?
+end
+
+def under_macos(&block)
+  block.call if macos?
+end
+
+def under_linux(&block)
+  block.call if linux?
 end
 
 end # module Setup::Platform
