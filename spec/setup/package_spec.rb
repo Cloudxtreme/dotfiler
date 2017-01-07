@@ -3,6 +3,7 @@
 require 'setup/package'
 require 'setup/platform'
 require 'setup/io'
+require 'setup/tasks'
 
 module Setup
 
@@ -42,8 +43,6 @@ RSpec.describe Package do
       default_package.file 'a'
 
       expect(default_package.name).to eq('')
-      expect(default_package.restore_to).to eq(nil)
-      expect(default_package.platforms).to eq []
       expect(default_package.should_execute).to be true
 
       expect(default_package.to_a).to match_array []

@@ -22,13 +22,14 @@ end
 # Discovered packages are packages which are not loaded by backup but have data.
 class Backup
   attr_accessor :packages, :backup_packages_path
+
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
 
   def initialize(ctx)
     @backup_packages_path = ctx.backup_path BACKUP_PACKAGES_PATH
-    @ctx = ctx
+    @ctx = ctx.with_options backup_manager: self
     @packages = []
   end
 
@@ -37,6 +38,7 @@ class Backup
   end
 
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
+  # TODO(drognanar): Can we get rid of discovery?
   def discover_packages
     existing_package_names = Set.new @packages.map { |package| package.name }
     apps.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
@@ -113,7 +115,7 @@ class Backup
 end
 
 class BackupManager
-  attr_accessor :backups, :backup_paths
+  attr_accessor :backups, :backup_paths, :ctx
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
 
   def initialize(ctx = nil, store = nil)
@@ -124,36 +126,7 @@ class BackupManager
   # Loads backup manager configuration and backups it references.
   def BackupManager.from_config(ctx)
     store = YAML::Store.new(DEFAULT_CONFIG_PATH)
-
-    BackupManager.new(ctx, store).tap(&:load_config!)
-  end
-
-  # Finds package definitions inside of a particular path.
-  def BackupManager.find_package_cls(package_path, io)
-    return [] unless File.extname(package_path) == '.rb'
-
-    mod = Module.new
-    package_script = io.read package_path
-
-    begin
-      mod.class_eval package_script
-    rescue Exception
-      raise InvalidConfigFileError.new package_path
-    end
-
-    # Iterate over all constants/classes defined by the script.
-    # If a constant defines a package return it.
-    mod.constants.sort
-      .map { |name| const = mod.const_get name }
-      .select { |const| not const.nil? and const < Package }
-  end
-
-  # Constructs backup packages that can be found a package folder.
-  def BackupManager.get_packages(packages_dir, ctx)
-    (ctx.io.glob File.join(packages_dir, '*.rb'))
-      .map { |package_path| BackupManager.find_package_cls(package_path, ctx.io) }
-      .flatten
-      .map { |package_cls| package_cls.new ctx }
+    BackupManager.new(ctx, store)
   end
 
   def load_config!
@@ -163,12 +136,7 @@ class BackupManager
   end
 
   def load_backups!
-    @backups = @backup_paths.map do |backup_path|
-      ctx = @ctx.with_backup_root(backup_path)
-      Backup.new(ctx).tap do |backup|
-        backup.packages = BackupManager.get_packages backup.backup_packages_path, ctx
-      end
-    end
+    @backups = @backup_paths.map(&method(:backup))
   end
 
   def save_config!

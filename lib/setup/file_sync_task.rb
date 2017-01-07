@@ -1,14 +1,19 @@
 require 'setup/file_sync'
+require 'setup/task'
 
 module Setup
 
-class FileSyncTask
-  attr_reader :name, :file_sync_options, :ctx
+class FileSyncTask < Task
+  attr_reader :name, :file_sync_options
 
   def initialize(name, file_sync_options, ctx)
+    super(ctx)
     @name = name
     @file_sync_options = file_sync_options
-    @ctx = ctx
+  end
+
+  def description
+    name
   end
 
   def self.create(filepath, file_sync_options, ctx)
@@ -43,8 +48,8 @@ class FileSyncTask
   end
 
   def sync!
-    FileSync.new(@ctx[:sync_time], @ctx.io).sync! @file_sync_options
-  rescue FileMissingError => e
+    execute { FileSync.new(@ctx[:sync_time], @ctx.io).sync! @file_sync_options }
+  rescue FileSyncError => e
     LOGGER.error e.message
   end
 

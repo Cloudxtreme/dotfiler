@@ -1,3 +1,7 @@
+module Setup
+
+# Ensure that this works for tasks and packages
+
 class SyncStatus
   attr_reader :kind
   attr_reader :status_msg
@@ -5,4 +9,6 @@ class SyncStatus
     @kind = kind
     @status_msg = status_msg
   end
+end
+
 end

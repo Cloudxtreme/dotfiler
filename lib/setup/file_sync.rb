@@ -6,7 +6,7 @@ module Setup
 
 DEFAULT_FILESYNC_OPTIONS = { copy: false, backup_prefix: 'setup-backup' }
 
-class FileMissingError < Exception
+class FileSyncError < Exception
 end
 
 # Class that synchronizes files against a backup repository.
@@ -27,7 +27,7 @@ class FileSync
     return if sync_info.status.kind == :up_to_date
 
     case sync_info.status.kind
-    when :error then raise FileMissingError.new(sync_info.status.status_msg)
+    when :error then raise FileSyncError.new(sync_info.status.status_msg)
     when :backup then create_backup_file! sync_info, options
     when :overwrite_data then create_directory = save_overwrite_file! sync_info, options
     when :resync then @io.rm_rf options[:restore_path]

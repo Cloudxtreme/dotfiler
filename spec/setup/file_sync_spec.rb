@@ -55,7 +55,7 @@ RSpec.describe FileSync do
 
     context 'when files are missing' do
       it 'should throw exception' do
-        expect {(file_sync info_with_errors).sync! symlink_sync_options}.to raise_error(FileMissingError)
+        expect {(file_sync info_with_errors).sync! symlink_sync_options}.to raise_error(FileSyncError)
       end
     end
 

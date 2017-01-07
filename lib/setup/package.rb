@@ -1,23 +1,19 @@
 require 'setup/file_sync_task'
 require 'setup/logging'
 require 'setup/platform'
-require 'setup/sync_context'
+require 'setup/task'
 
-require 'forwardable'
 require 'json'
-require 'pathname'
 
 module Setup
 
-class Package
-  extend Forwardable
-  extend Platform
-  include Platform
+# A package is a collection Tasks.
+class Package < Task
   include Enumerable
 
   DEFAULT_RESTORE_TO = File.expand_path '~/'
 
-  attr_accessor :sync_items, :skip_reason, :ctx
+  attr_accessor :sync_items
 
   def self.restore_to(value)
     self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
@@ -31,13 +27,11 @@ class Package
     self.class_eval "def platforms; #{platforms if platforms}; end"
   end
 
-  def skip(reason)
-    @skip_reason = reason
-  end
-
   package_name ''
-  restore_to nil
-  platforms []
+
+  def description
+    "package #{name}"
+  end
 
   def each
     steps { |step| yield step }
@@ -46,24 +40,15 @@ class Package
   def steps
   end
 
-  def should_execute
-    return @skip_reason.nil?
-  end
+  def initialize(parent_ctx)
+    ctx = parent_ctx
+      .with_backup_root(File.join(parent_ctx.backup_path, name))
+      .with_restore_to(defined?(restore_to) ? restore_to : Package::DEFAULT_RESTORE_TO)
+    super(ctx)
 
-  def initialize(ctx)
-    @skip_reason = nil
-    @ctx = ctx
-      .with_backup_root(File.join(ctx.backup_path, name))
-      .with_restore_to(restore_to || Package::DEFAULT_RESTORE_TO)
-
-    unless platforms.empty? or platforms.include? Platform.get_platform
+    if defined?(platforms) and (not platforms.empty?) and (not platforms.include? Platform.get_platform)
       skip 'Unsupported platform'
     end
-  end
-
-  # Adds a new file sync task.
-  def file(filepath, options = {})
-    FileSyncTask.create(filepath, options, @ctx)
   end
 
   def has_data
@@ -71,10 +56,7 @@ class Package
   end
 
   def sync!
-    each do |sync_item|
-      yield sync_item
-      sync_item.sync!
-    end
+    execute { each { |sync_item| sync_item.sync! } }
   end
 
   # TODO(drognanar): Deprecate? Given the platform specific nature of packages.

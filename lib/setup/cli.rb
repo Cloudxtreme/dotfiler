@@ -2,11 +2,15 @@ require 'setup/backups'
 require 'setup/io'
 require 'setup/logging'
 require 'setup/package_template'
+require 'setup/reporter'
 require 'setup/sync_context'
+require 'setup/tasks'
 
 require 'highline'
 require 'thor'
 require 'yaml'
+
+# TODO: Assume some global variable for backup manager.
 
 module Setup::Cli
 
@@ -20,11 +24,14 @@ class CommonCLI < Thor
       LOGGER.level = options[:verbose] ? :verbose : :info
       @cli = HighLine.new
       @ctx = get_context(options)
+      @backup_manager = Setup::BackupManager.from_config(@ctx)
     end
 
     def init_command(command, options)
       return help command if options[:help]
-      yield Setup::BackupManager.from_config(@ctx).tap(&:load_backups!)
+      @backup_manager.load_config!
+      @backup_manager.load_backups!
+      yield @backup_manager
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""
@@ -36,7 +43,7 @@ end
 class Package < CommonCLI
   no_commands do
     def get_context(options)
-      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked]
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], reporter: Setup::LoggerReporter.new
     end
   end
 
@@ -101,7 +108,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite)
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), reporter: Setup::LoggerReporter.new
     end
 
     def ask_overwrite(backup_path, restore_path)
@@ -187,13 +194,10 @@ class Program < CommonCLI
         return true
       end
 
+      # TODO(drognanar): Do not flatten the packages.
       LOGGER << "Syncing:\n"
       packages.each do |package|
-        LOGGER.info "Syncing package #{package.name}:"
-        package.each do |sync_item|
-          LOGGER.info "Syncing #{sync_item.name}"
-          sync_item.sync!
-        end
+        package.sync!
       end
     end
   end

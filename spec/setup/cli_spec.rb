@@ -15,11 +15,12 @@ $thor_runner = false
 $0 = "setup"
 ARGV.clear
 
-RSpec.shared_examples 'CLIHelper' do |cli|
-  let(:cli) { cli }
+RSpec.shared_examples 'CLIHelper' do |cli_cls|
+  let(:cli) { cli_cls.new }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
   def get_backup_manager(options = {})
+    expect(backup_manager).to receive(:load_config!)
     expect(backup_manager).to receive(:load_backups!)
     actual_manager = nil
     cli.init_command(:command, options) { |backup_manager| actual_manager = backup_manager }
@@ -40,11 +41,11 @@ RSpec.shared_examples 'CLIHelper' do |cli|
 end
 
 RSpec.describe Cli::Package do
-  include_examples 'CLIHelper', Cli::Package.new
+  include_examples 'CLIHelper', Cli::Package
 end
 
 RSpec.describe Cli::Program do
-  include_examples 'CLIHelper', Cli::Program.new
+  include_examples 'CLIHelper', Cli::Program
 end
 
 # Integration tests.

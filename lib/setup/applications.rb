@@ -19,20 +19,20 @@ module Setup
 # List of packages for different applications.
 # These packages get automatically discovered when creating new backups.
 APPLICATIONS = [
-  Applications::AtomPackage,
-  Applications::BashPackage,
-  Applications::ByobuPackage,
-  Applications::FishPackage,
-  Applications::GitPackage,
-  Applications::IntelliJPackage,
-  Applications::MySQLPackage,
-  Applications::NginxPackage,
-  Applications::PowerShellPackage,
-  Applications::SlatePackage,
-  Applications::SublimeTextPackage,
-  Applications::TmuxinatorPackage,
-  Applications::VimPackage,
-  Applications::VsCodePackage
+  Setup::Applications::AtomPackage,
+  Setup::Applications::BashPackage,
+  Setup::Applications::ByobuPackage,
+  Setup::Applications::FishPackage,
+  Setup::Applications::GitPackage,
+  Setup::Applications::IntelliJPackage,
+  Setup::Applications::MySQLPackage,
+  Setup::Applications::NginxPackage,
+  Setup::Applications::PowerShellPackage,
+  Setup::Applications::SlatePackage,
+  Setup::Applications::SublimeTextPackage,
+  Setup::Applications::TmuxinatorPackage,
+  Setup::Applications::VimPackage,
+  Setup::Applications::VsCodePackage
 ]
 
 end
