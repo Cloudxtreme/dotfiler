@@ -5,7 +5,7 @@ require 'setup/io'
 module Setup
 
 RSpec.describe APPLICATIONS do
-  let(:ctx)    { SyncContext.create(DRY_IO).with_restore_to('/restore').with_backup_root('/backup') }
+  let(:ctx)    { SyncContext.new backup_root: '/backup', restore_to: '/restore', io: DRY_IO }
 
   # Check that requiring packages throws no exceptions.
   it 'should be valid packages' do

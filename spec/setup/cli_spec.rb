@@ -50,7 +50,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
-  let(:ctx)    { SyncContext.create.with_restore_to(File.join(@tmpdir, 'machine')).with_backup_root(@dotfiles_dir) }
+  let(:ctx)    { SyncContext.new backup_root: @dotfiles_dir, restore_to: File.join(@tmpdir, 'machine') }
 
   def setup(args)
     Cli::Program.start args
@@ -158,8 +158,8 @@ RSpec.describe './setup' do
 
     # Remove data that can be modified by previous test run.
     FileUtils.rm_rf @apps_dir
-    FileUtils.rm_rf ctx.restore_to
-    FileUtils.rm_rf ctx.backup_root
+    FileUtils.rm_rf ctx.restore_path
+    FileUtils.rm_rf ctx.backup_path
     FileUtils.rm_rf @default_backup_root
 
     stub_const 'Setup::APPLICATIONS', [

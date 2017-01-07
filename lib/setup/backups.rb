@@ -33,7 +33,7 @@ class Backup
   end
 
   def backup_path
-    @ctx.backup_root
+    @ctx.backup_path
   end
 
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?

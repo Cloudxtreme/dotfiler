@@ -9,7 +9,7 @@ module Setup
 RSpec.describe Backup do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory)  { class_double(YAML::Store) }
-  let(:ctx)            { SyncContext.create(io).with_backup_root('/backup/dir')  }
+  let(:ctx)            { SyncContext.new backup_root: '/backup_dir', io: io }
   let(:package_a)      { instance_double(Package, name: 'a') }
   let(:package_c)      { instance_double(Package, name: 'c') }
   let(:package_d)      { instance_double(Package, name: 'd') }
@@ -137,7 +137,7 @@ end
 
 RSpec.describe BackupManager do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
-  let(:ctx)            { SyncContext.create(io) }
+  let(:ctx)            { SyncContext.new io: io }
   let(:manager_store)  { instance_double(YAML::Store, path: '') }
   let(:backup1)        { instance_double(Backup) }
   let(:backup2)        { instance_double(Backup) }

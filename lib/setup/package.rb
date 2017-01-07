@@ -61,7 +61,7 @@ class Package
     @sync_items = []
     @skip_reason = nil
 
-    @default_backup_root = ctx.backup_root || ''
+    @default_backup_root = ctx.backup_path || ''
     @default_backup_root = File.join @default_backup_root, name
     @default_restore_to = restore_to || Package::DEFAULT_RESTORE_TO
 

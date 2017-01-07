@@ -9,7 +9,7 @@ module Setup
 RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
-  let(:ctx)       { SyncContext.create(io).with_restore_to('/restore/root').with_backup_root('/backup/root').with_options sync_time: 'sync_time' }
+  let(:ctx)       { SyncContext.new backup_root: '/backup/root', restore_to: '/restore/root', io: io, sync_time: 'sync_time' }
   let(:linctx)    { ctx.with_restore_to('/files').with_backup_root('/backup/root/Package') }
   let(:winctx)    { ctx.with_restore_to('/windows/files').with_backup_root('/backup/root/Package') }
   let(:package)   { package_class.new(ctx) }
