@@ -48,7 +48,7 @@ def find_package_cls(package_path, io)
   # Iterate over all constants/classes defined by the script.
   # If a constant defines a package return it.
   mod.constants.sort
-    .map { |name| const = mod.const_get name }
+    .map(&mod.method(:const_get))
     .select { |const| not const.nil? and const < Package }
 end
 

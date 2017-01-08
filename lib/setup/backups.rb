@@ -37,6 +37,14 @@ class Backup
     @ctx.backup_path
   end
 
+  def sync!
+    packages.each { |package| package.sync! }
+  end
+
+  def children?
+    true
+  end
+
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
   # TODO(drognanar): Can we get rid of discovery?
   def discover_packages
@@ -114,7 +122,7 @@ class Backup
   end
 end
 
-class BackupManager
+class BackupManager < Task
   attr_accessor :backups, :backup_paths, :ctx
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
 
@@ -141,6 +149,14 @@ class BackupManager
 
   def save_config!
     @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
+  end
+
+  def sync!
+    execute { @backups.each { |backup| backup.sync! } }
+  end
+
+  def children?
+    true
   end
 
   # Creates a new backup and registers it in the global yaml configuration.

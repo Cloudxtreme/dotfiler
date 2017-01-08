@@ -16,6 +16,10 @@ class Task
     @skip_reason = reason
   end
 
+  def children?
+    false
+  end
+
   def should_execute
     return @skip_reason.nil?
   end

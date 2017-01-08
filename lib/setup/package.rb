@@ -40,6 +40,10 @@ class Package < Task
   def steps
   end
 
+  def children?
+    true
+  end
+
   def initialize(parent_ctx)
     ctx = parent_ctx
       .with_backup_root(File.join(parent_ctx.backup_path, name))
@@ -56,6 +60,7 @@ class Package < Task
   end
 
   def sync!
+    return unless should_execute
     execute { each { |sync_item| sync_item.sync! } }
   end
 

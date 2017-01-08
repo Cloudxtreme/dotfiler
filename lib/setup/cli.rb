@@ -188,17 +188,16 @@ class Program < CommonCLI
 
     # Runs packages while showing the progress bar.
     def run_packages_with_progress(backup_manager)
-      packages = get_packages(backup_manager)
-      if packages.empty?
-        LOGGER << "Nothing to sync\n"
-        return true
-      end
-
       # TODO(drognanar): Do not flatten the packages.
+      # TODO(drognanar): Make backup_manager a Task on its own.
+      packages = get_packages(backup_manager)
+
       LOGGER << "Syncing:\n"
       packages.each do |package|
         package.sync!
       end
+
+      @ctx.reporter.print_summary
     end
   end
 
