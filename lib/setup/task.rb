@@ -20,15 +20,23 @@ class Task
     false
   end
 
+  def description
+    nil
+  end
+
   def should_execute
     return @skip_reason.nil?
   end
 
-  def execute
-    ctx.reporter.start self
+  def cleanup
+    []
+  end
+
+  def execute(op)
+    ctx.reporter.start self, op
     yield
   ensure
-    ctx.reporter.end self
+    ctx.reporter.end self, op
   end
 end
 

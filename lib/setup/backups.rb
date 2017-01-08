@@ -30,7 +30,7 @@ class Backup < ItemPackage
   def initialize(ctx)
     super(ctx)
     @backup_packages_path = ctx.backup_path BACKUP_PACKAGES_PATH
-    @ctx = ctx.with_options backup_manager: self
+    @ctx = ctx
   end
 
   def backup_path
@@ -41,8 +41,8 @@ class Backup < ItemPackage
     @items.each { |package| package.sync! }
   end
 
-  def children?
-    true
+  def cleanup
+    map { |package| package.cleanup }.flatten(1)
   end
 
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
@@ -58,12 +58,6 @@ class Backup < ItemPackage
     applications_path = File.join @backup_packages_path, 'applications.rb'
     @ctx.io.mkdir_p @backup_packages_path
     @ctx.io.write applications_path, Setup::Templates::applications(package_cls_to_add)
-  end
-
-  # Finds packages that should be run under a given machine.
-  # This will include packages that contain errors and do not have data.
-  def packages_to_run
-    select { |package| package.should_execute }
   end
 
   # TODO(drognanar): Can this be moved out to BackupManager?
@@ -154,12 +148,12 @@ class BackupManager < ItemPackage
     @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
   end
 
-  def children?
-    true
-  end
-
   def description
     nil
+  end
+
+  def cleanup
+    map { |backup| backup.cleanup }.flatten(1)
   end
 
   # Creates a new backup and registers it in the global yaml configuration.

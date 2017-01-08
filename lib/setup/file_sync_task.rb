@@ -48,7 +48,7 @@ class FileSyncTask < Task
   end
 
   def sync!
-    execute { FileSync.new(@ctx[:sync_time], @ctx.io).sync! @file_sync_options }
+    execute(:sync) { FileSync.new(@ctx[:sync_time], @ctx.io).sync! @file_sync_options }
   rescue FileSyncError => e
     ctx.logger.error e.message
   end

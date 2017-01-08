@@ -7,6 +7,16 @@ module Setup
 class SyncContext
   attr_reader :options
 
+  def initialize(options = {})
+    options[:io] ||= options[:dry] ? DRY_IO : CONCRETE_IO
+    options[:sync_time] ||= Time.new
+    options[:backup_root] ||= ''
+    options[:restore_to] ||= ''
+    options[:reporter] ||= Reporter.new
+    options[:logger] ||= Logging.logger['Setup']
+    @options = options
+  end
+
   def [](key)
     @options[key]
   end
@@ -45,16 +55,6 @@ class SyncContext
 
   def logger
     @options[:logger]
-  end
-
-  def initialize(options = {})
-    options[:io] ||= options[:dry] ? DRY_IO : CONCRETE_IO
-    options[:sync_time] ||= Time.new
-    options[:backup_root] ||= ''
-    options[:restore_to] ||= ''
-    options[:reporter] ||= Reporter.new
-    options[:logger] ||= Logging.logger['Setup']
-    @options = options
   end
 end
 

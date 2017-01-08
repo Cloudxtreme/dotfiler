@@ -151,11 +151,6 @@ class Program < CommonCLI
       end
     end
 
-    # Get the list of packages to execute.
-    def get_packages(backup_manager)
-      backup_manager.map(&:packages_to_run).flatten
-    end
-
     def summarize_package_info(package)
       sync_items_info = package.map do |sync_item|
         [sync_item.info, sync_item]
@@ -203,7 +198,7 @@ class Program < CommonCLI
         backup_manager.tap(&:load_backups!).tap do |bm|
           prompt_to_enable_new_packages bm, options
           bm.sync!
-          @ctx.reporter.print_summary
+          @ctx.logger << "Nothing to sync\n" if @ctx.reporter.items.empty?
         end
       end
     end
@@ -214,7 +209,7 @@ class Program < CommonCLI
   def sync
     init_command :sync, options do |bm|
       bm.sync!
-      @ctx.reporter.print_summary
+      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.items.empty?
     end
   end
 
@@ -224,8 +219,7 @@ class Program < CommonCLI
   option 'untracked', type: :boolean
   def cleanup
     init_command(:cleanup, options) do |backup_manager|
-      packages = get_packages backup_manager
-      cleanup_files = packages.map { |package| package.cleanup }.flatten(1)
+      cleanup_files = backup_manager.cleanup
 
       if cleanup_files.empty?
         LOGGER << "Nothing to clean.\n"
@@ -243,7 +237,7 @@ class Program < CommonCLI
   def status
     init_command(:status, options) do |backup_manager|
       LOGGER << "Current status:\n\n"
-      packages = get_packages backup_manager
+      packages = backup_manager.map { |backup| backup.items.select { |package| package.should_execute }}.flatten(1)
       if packages.empty?
         LOGGER.warn "No packages enabled."
         LOGGER.warn "Use ./setup package add to enable packages."

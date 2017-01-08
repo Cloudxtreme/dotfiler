@@ -58,7 +58,7 @@ class Package < Task
 
   def sync!
     return unless should_execute
-    execute { each { |sync_item| sync_item.sync! } }
+    execute(:sync) { each { |sync_item| sync_item.sync! } }
   end
 
   # TODO(drognanar): Deprecate? Given the platform specific nature of packages.
@@ -69,6 +69,7 @@ class Package < Task
   # NOTE: Given that list of backed up paths is platform specific this solution will not work.
   # NOTE: Unless all paths are provided.
   def cleanup
+    return [] unless should_execute
     all_files = @ctx.io.glob(File.join(@ctx.backup_path, '**', '*')).sort
     backed_up_list = map(&:backup_path).sort
     files_to_cleanup = []

@@ -92,18 +92,6 @@ RSpec.describe Backup do
     end
   end
 
-  describe '#packages_to_run' do
-    it 'should include an enabled package with matching platform' do
-      backup = get_backup [package_a]
-      expect(package_a).to receive(:should_execute).and_return true
-      expect(backup.packages_to_run).to eq([package_a])
-
-      backup = get_backup [package_a]
-      expect(package_a).to receive(:should_execute).and_return false
-      expect(backup.packages_to_run).to eq([])
-    end
-  end
-
   def assert_resolve_backup(backup_str, expected_backup_path, expected_source_path, **options)
     expected_backup = [File.expand_path(expected_backup_path), expected_source_path]
     expect(Setup::Backup.resolve_backup(backup_str, options)).to eq(expected_backup)
