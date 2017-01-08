@@ -26,7 +26,7 @@ def backup(backup_path)
   # TODO: Allow to provide a backup.rb file.
   backup_ctx = ctx.with_backup_root(backup_path)
   Backup.new(backup_ctx).tap do |backup|
-    backup.packages = get_packages backup.backup_packages_path, backup_ctx
+    backup.items = get_packages backup.backup_packages_path, backup_ctx
   end
 end
 

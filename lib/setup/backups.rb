@@ -20,17 +20,17 @@ end
 
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
-class Backup
-  attr_accessor :packages, :backup_packages_path
+class Backup < ItemPackage
+  attr_accessor :backup_packages_path
 
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
 
   def initialize(ctx)
+    super(ctx)
     @backup_packages_path = ctx.backup_path BACKUP_PACKAGES_PATH
     @ctx = ctx.with_options backup_manager: self
-    @packages = []
   end
 
   def backup_path
@@ -38,7 +38,7 @@ class Backup
   end
 
   def sync!
-    packages.each { |package| package.sync! }
+    @items.each { |package| package.sync! }
   end
 
   def children?
@@ -48,12 +48,12 @@ class Backup
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
   # TODO(drognanar): Can we get rid of discovery?
   def discover_packages
-    existing_package_names = Set.new @packages.map { |package| package.name }
+    existing_package_names = Set.new @items.map { |package| package.name }
     apps.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
   end
 
   def update_applications_file
-    package_cls_to_add = @packages.map { |package| package.class }.select { |package_cls| APPLICATIONS.member? package_cls }
+    package_cls_to_add = @items.map { |package| package.class }.select { |package_cls| APPLICATIONS.member? package_cls }
 
     applications_path = File.join @backup_packages_path, 'applications.rb'
     @ctx.io.mkdir_p @backup_packages_path
@@ -63,17 +63,17 @@ class Backup
   # Finds packages that should be run under a given machine.
   # This will include packages that contain errors and do not have data.
   def packages_to_run
-    @packages.select { |package| package.should_execute }
+    select { |package| package.should_execute }
   end
 
   # TODO(drognanar): Can this be moved out to BackupManager?
   def enable_packages!(package_names)
     disable_packages! package_names
-    @packages += apps.select { |application| package_names.member? application.name }
+    @items += apps.select { |application| package_names.member? application.name }
   end
 
   def disable_packages!(package_names)
-    @packages = @packages.select { |package| not package_names.member? package.name }
+    @items = @items.select { |package| not package_names.member? package.name }
   end
 
   # TODO(drognanar): Can we move resolve_backup to BackupManager?

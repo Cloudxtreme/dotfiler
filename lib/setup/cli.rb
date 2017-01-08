@@ -74,7 +74,7 @@ class Package < CommonCLI
       backup_manager.each do |backup|
         LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.to_a.length > 1
         LOGGER << "Enabled packages:\n"
-        LOGGER << backup.packages.map { |package| package.name }.to_a.join(', ') + "\n\n"
+        LOGGER << backup.map { |package| package.name }.to_a.join(', ') + "\n\n"
         LOGGER << "New packages:\n"
         LOGGER << backup.discover_packages.map { |package| package.name }.join(', ') + "\n"
       end
@@ -145,7 +145,7 @@ class Program < CommonCLI
       prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
         backups_with_new_packages.each do |backup|
-          backup.packages += backup.discover_packages
+          backup.items += backup.discover_packages
           backup.update_applications_file
         end
       end

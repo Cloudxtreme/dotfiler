@@ -20,20 +20,20 @@ RSpec.describe Backup do
 
   def get_backup(packages)
     backup = Backup.new(ctx)
-    backup.packages = packages
+    backup.items = packages
     backup
   end
 
   describe '#initialize' do
     it 'should initialize from config files' do
       backup = get_backup([package_a])
-      expect(backup.packages).to eq([package_a])
+      expect(backup.to_a).to eq([package_a])
     end
   end
 
   # TODO(drognanar): Test new discovery/update mechanism
   def verify_backup_save(backup, update_names, expected_package_names)
-    if not Set.new(update_names).intersection(Set.new(backup.packages.keys)).empty?
+    if not Set.new(update_names).intersection(Set.new(backup.to_a.keys)).empty?
       expect(backup_store).to receive(:transaction).with(false).and_yield backup_store
       expect(backup_store).to receive(:[]=).with('enabled_package_names', expected_package_names[:enabled])
       expect(backup_store).to receive(:[]=).with('disabled_package_names', expected_package_names[:disabled])
