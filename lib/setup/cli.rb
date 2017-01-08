@@ -43,7 +43,7 @@ end
 class Package < CommonCLI
   no_commands do
     def get_context(options)
-      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], reporter: Setup::LoggerReporter.new
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], reporter: Setup::LoggerReporter.new(LOGGER), logger: LOGGER
     end
   end
 
@@ -108,7 +108,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), reporter: Setup::LoggerReporter.new
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), reporter: Setup::LoggerReporter.new(LOGGER), logger: LOGGER
     end
 
     def ask_overwrite(backup_path, restore_path)
@@ -185,20 +185,6 @@ class Program < CommonCLI
       when :overwrite_data then ['differs', nil]
       end
     end
-
-    # Runs packages while showing the progress bar.
-    def run_packages_with_progress(backup_manager)
-      # TODO(drognanar): Do not flatten the packages.
-      # TODO(drognanar): Make backup_manager a Task on its own.
-      packages = get_packages(backup_manager)
-
-      LOGGER << "Syncing:\n"
-      packages.each do |package|
-        package.sync!
-      end
-
-      @ctx.reporter.print_summary
-    end
   end
 
   desc 'init [<backups>...]', 'Initializes backups'
@@ -219,7 +205,8 @@ class Program < CommonCLI
       if not options[:dry] and options[:sync]
         backup_manager.tap(&:load_backups!).tap do |bm|
           prompt_to_enable_new_packages bm, options
-          run_packages_with_progress bm
+          bm.sync!
+          @ctx.reporter.print_summary
         end
       end
     end
@@ -228,7 +215,10 @@ class Program < CommonCLI
   desc 'sync', 'Synchronize your settings'
   Program.sync_options
   def sync
-    init_command(:sync, options, &method(:run_packages_with_progress))
+    init_command :sync, options do |bm|
+      bm.sync!
+      @ctx.reporter.print_summary
+    end
   end
 
   desc 'cleanup', 'Cleans up previous backups'
@@ -255,12 +245,12 @@ class Program < CommonCLI
   desc 'status', 'Returns the sync status'
   def status
     init_command(:status, options) do |backup_manager|
+      LOGGER << "Current status:\n\n"
       packages = get_packages backup_manager
       if packages.empty?
         LOGGER.warn "No packages enabled."
         LOGGER.warn "Use ./setup package add to enable packages."
       else
-        LOGGER << "Current status:\n\n"
         packages.each(&method(:summarize_package_info))
       end
     end

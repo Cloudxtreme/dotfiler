@@ -1,5 +1,4 @@
 require 'setup/file_sync_task'
-require 'setup/logging'
 require 'setup/platform'
 require 'setup/task'
 
@@ -12,8 +11,6 @@ class Package < Task
   include Enumerable
 
   DEFAULT_RESTORE_TO = File.expand_path '~/'
-
-  attr_accessor :sync_items
 
   def self.restore_to(value)
     self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"

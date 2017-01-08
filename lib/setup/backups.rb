@@ -159,16 +159,20 @@ class BackupManager < Task
     true
   end
 
+  def description
+    nil
+  end
+
   # Creates a new backup and registers it in the global yaml configuration.
   def create_backup!(resolved_backup, force: false)
     backup_dir, source_url = resolved_backup
 
     if @backup_paths.include? backup_dir
-      LOGGER.warn "Backup \"#{backup_dir}\" already exists"
+      ctx.logger.warn "Backup \"#{backup_dir}\" already exists"
       return
     end
 
-    LOGGER << "Creating a backup at \"#{backup_dir}\"\n"
+    ctx.logger << "Creating a backup at \"#{backup_dir}\"\n"
 
     # TODO(drognanar): Revise this model.
     # TODO(drognanar): Will not clone the repository if folder exists but will sync.
@@ -176,15 +180,15 @@ class BackupManager < Task
     if not backup_exists or @ctx.io.entries(backup_dir).empty?
       @ctx.io.mkdir_p backup_dir if not backup_exists
       if source_url
-        LOGGER.info "Cloning repository \"#{source_url}\""
+        ctx.logger.info "Cloning repository \"#{source_url}\""
         @ctx.io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
       end
     elsif not force
-      LOGGER.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
+      ctx.logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end
 
-    LOGGER.verbose "Updating \"#{@store.path}\""
+    ctx.logger.verbose "Updating \"#{@store.path}\""
     @backup_paths = @backup_paths << backup_dir
     save_config!
   end
