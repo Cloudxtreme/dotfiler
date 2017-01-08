@@ -122,11 +122,14 @@ class Backup
   end
 end
 
-class BackupManager < Task
-  attr_accessor :backups, :backup_paths, :ctx
+# TODO(drognanar): Slowly deprecate BackupManager.
+# TODO(drognanar): Having to deal with another global config file makes things more confusing.
+class BackupManager < ItemPackage
+  attr_accessor :backup_paths, :ctx
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
 
   def initialize(ctx = nil, store = nil)
+    super(ctx)
     @ctx = ctx
     @store = store
   end
@@ -144,15 +147,11 @@ class BackupManager < Task
   end
 
   def load_backups!
-    @backups = @backup_paths.map(&method(:backup))
+    @items = @backup_paths.map(&method(:backup))
   end
 
   def save_config!
     @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
-  end
-
-  def sync!
-    execute { @backups.each { |backup| backup.sync! } }
   end
 
   def children?

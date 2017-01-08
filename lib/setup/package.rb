@@ -92,4 +92,17 @@ class Package < Task
   end
 end
 
+class ItemPackage < Package
+  attr_accessor :items
+
+  def initialize(ctx)
+    super(ctx)
+    @items = []
+  end
+
+  def steps
+    items.each { |item| yield item }
+  end
+end
+
 end # module Setup

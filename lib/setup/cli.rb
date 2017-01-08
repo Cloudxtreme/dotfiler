@@ -51,7 +51,7 @@ class Package < CommonCLI
   def add(*names)
     # TODO(drognanar): If no names given perform discovery
     init_command(:add, options) do |backup_manager|
-      backup_manager.backups.map do |backup|
+      backup_manager.map do |backup|
         backup.enable_packages! names
         backup.update_applications_file
       end
@@ -61,7 +61,7 @@ class Package < CommonCLI
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
     init_command(:remove, options) do |backup_manager|
-      backup_manager.backups.map do |backup|
+      backup_manager.map do |backup|
         backup.disable_packages! names
         backup.update_applications_file
       end
@@ -71,8 +71,8 @@ class Package < CommonCLI
   desc 'list', 'Lists packages for which settings can be backed up.'
   def list
     init_command(:list, options) do |backup_manager|
-      backup_manager.backups.each do |backup|
-        LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.backups.length > 1
+      backup_manager.each do |backup|
+        LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.to_a.length > 1
         LOGGER << "Enabled packages:\n"
         LOGGER << backup.packages.map { |package| package.name }.to_a.join(', ') + "\n\n"
         LOGGER << "New packages:\n"
@@ -85,7 +85,7 @@ class Package < CommonCLI
   option 'global'
   def edit(name)
     init_command(:edit, options) do |backup_manager|
-      packages_dir = backup_manager.backups[0].backup_packages_path
+      packages_dir = backup_manager.to_a[0].backup_packages_path
       package_path = File.join packages_dir, "#{name}.rb"
 
       if not File.exist? package_path
@@ -127,10 +127,7 @@ class Program < CommonCLI
 
     # Prompts to enable new packages.
     def prompt_to_enable_new_packages(backup_manager, options)
-      # TODO(drognanar): Perhaps move discovery outside?
-      # TODO(drognanar): Only discover on init/discover/update?
-      backups = backup_manager.backups
-      backups_with_new_packages = backups.select { |backup| not backup.discover_packages.empty? }
+      backups_with_new_packages = backup_manager.select { |backup| not backup.discover_packages.empty? }
       if backups_with_new_packages.empty?
         return
       end
@@ -156,7 +153,7 @@ class Program < CommonCLI
 
     # Get the list of packages to execute.
     def get_packages(backup_manager)
-      backup_manager.backups.map(&:packages_to_run).flatten
+      backup_manager.map(&:packages_to_run).flatten
     end
 
     def summarize_package_info(package)
