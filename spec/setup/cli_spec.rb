@@ -51,7 +51,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
-  let(:ctx)    { SyncContext.new backup_root: @dotfiles_dir, restore_to: File.join(@tmpdir, 'machine') }
+  let(:ctx)    { SyncContext.new backup_root: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
   def setup(args)
     Cli::Program.start args
@@ -148,7 +148,7 @@ RSpec.describe './setup' do
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
     @default_config_root   = File.join(@tmpdir, 'setup.yml')
-    @default_restore_to  = File.join(@tmpdir, 'machine')
+    @default_restore_dir  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
     @default_backup_dir    = File.join(@default_backup_root, 'local')
     @default_applications_dir = File.join(@default_backup_dir, '_packages/applications.rb')
@@ -173,7 +173,7 @@ RSpec.describe './setup' do
       Test::VimPackage
     ]
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
-    stub_const 'Setup::Package::DEFAULT_RESTORE_TO', @default_restore_to
+    stub_const 'Setup::Package::DEFAULT_RESTORE_DIR', @default_restore_dir
     stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
     stub_const 'Setup::Backup::DEFAULT_BACKUP_DIR', @default_backup_dir
 

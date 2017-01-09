@@ -10,10 +10,10 @@ module Setup
 class Package < Task
   include Enumerable
 
-  DEFAULT_RESTORE_TO = File.expand_path '~/'
+  DEFAULT_RESTORE_DIR = File.expand_path '~/'
 
-  def self.restore_to(value)
-    self.class_eval "def restore_to; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
+  def self.restore_dir(value)
+    self.class_eval "def restore_dir; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
   end
 
   def self.package_name(value)
@@ -44,7 +44,7 @@ class Package < Task
   def initialize(parent_ctx)
     ctx = parent_ctx
       .with_backup_root(File.join(parent_ctx.backup_path, name))
-      .with_restore_to(defined?(restore_to) ? restore_to : Package::DEFAULT_RESTORE_TO)
+      .with_restore_dir(defined?(restore_dir) ? restore_dir : Package::DEFAULT_RESTORE_DIR)
     super(ctx)
 
     if defined?(platforms) and (not platforms.empty?) and (not platforms.include? Platform.get_platform)

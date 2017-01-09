@@ -3,7 +3,7 @@ module Applications
 
 class AtomPackage < Setup::Package
   package_name 'Atom'
-  restore_to '~/.atom'
+  restore_dir '~/.atom'
 
   def steps
     yield file 'config.cson'

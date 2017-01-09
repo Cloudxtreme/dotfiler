@@ -11,7 +11,7 @@ class SyncContext
     options[:io] ||= options[:dry] ? DRY_IO : CONCRETE_IO
     options[:sync_time] ||= Time.new
     options[:backup_root] ||= ''
-    options[:restore_to] ||= ''
+    options[:restore_dir] ||= ''
     options[:reporter] ||= Reporter.new
     options[:logger] ||= Logging.logger['Setup']
     @options = options
@@ -26,7 +26,7 @@ class SyncContext
   end
 
   def restore_path(relative_path = './')
-    File.expand_path relative_path, @options[:restore_to]
+    File.expand_path relative_path, @options[:restore_dir]
   end
 
   def with_options(new_options)
@@ -37,8 +37,8 @@ class SyncContext
     dup.tap { |sc| sc.options[:backup_root] = backup_path(new_backup_root) }
   end
 
-  def with_restore_to(new_restore_to)
-    dup.tap { |sc| sc.options[:restore_to] = restore_path(new_restore_to) } 
+  def with_restore_dir(new_restore_dir)
+    dup.tap { |sc| sc.options[:restore_dir] = restore_path(new_restore_dir) } 
   end
 
   def dup

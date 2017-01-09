@@ -11,9 +11,9 @@ RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
   let(:delete)    { instance_double(Proc) }
-  let(:ctx)       { SyncContext.new backup_root: '/backup/root', restore_to: '/restore/root', io: io, sync_time: 'sync_time', on_delete: delete }
-  let(:linctx)    { ctx.with_restore_to('/files').with_backup_root('/backup/root/Package') }
-  let(:winctx)    { ctx.with_restore_to('/windows/files').with_backup_root('/backup/root/Package') }
+  let(:ctx)       { SyncContext.new backup_root: '/backup/root', restore_dir: '/restore/root', io: io, sync_time: 'sync_time', on_delete: delete }
+  let(:linctx)    { ctx.with_restore_dir('/files').with_backup_root('/backup/root/Package') }
+  let(:winctx)    { ctx.with_restore_dir('/windows/files').with_backup_root('/backup/root/Package') }
   let(:package)   { package_class.new(ctx) }
 
   # Lazily instantiated package example.
@@ -22,9 +22,9 @@ RSpec.describe Package do
       attr_accessor :items
       package_name 'Package'
       platforms [:WINDOWS]
-      under_windows { restore_to '/windows/files' }
-      under_linux   { restore_to '/files'}
-      under_macos   { restore_to '/macos/files' }
+      under_windows { restore_dir '/windows/files' }
+      under_linux   { restore_dir '/files'}
+      under_macos   { restore_dir '/macos/files' }
 
       def initialize(ctx)
         super ctx
@@ -65,14 +65,14 @@ RSpec.describe Package do
 
   it 'should enter #under_macos under macos' do
     under_macos do
-      expect(package.restore_to).to eq('/macos/files')
+      expect(package.restore_dir).to eq('/macos/files')
     end
   end
 
   it 'should work under the same platform' do
     under_windows do
       expect(package.name).to eq('Package')
-      expect(package.restore_to).to eq('/windows/files')
+      expect(package.restore_dir).to eq('/windows/files')
       expect(package.should_execute).to be true
       expect(package.to_a).to eq []
     end
@@ -81,7 +81,7 @@ RSpec.describe Package do
   it 'should not work under a different platform' do
     under_linux do
       expect(package.name).to eq('Package')
-      expect(package.restore_to).to eq('/files')
+      expect(package.restore_dir).to eq('/files')
       expect(package.should_execute).to be false
       
       sync_items = package.to_a

@@ -4,7 +4,7 @@ module Applications
 class MySQLPackage < Setup::Package
   package_name 'MySQL'
   platforms [:MACOS, :LINUX]
-  restore_to '/usr/local/etc'
+  restore_dir '/usr/local/etc'
 
   def steps
     yield file 'my.cnf'

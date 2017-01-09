@@ -4,7 +4,7 @@ module Applications
 class NginxPackage < Setup::Package
   package_name 'Nginx'
   platforms [:MACOS, :LINUX]
-  restore_to '/usr/local/etc'
+  restore_dir '/usr/local/etc'
 
   def steps
     yield file 'nginx'

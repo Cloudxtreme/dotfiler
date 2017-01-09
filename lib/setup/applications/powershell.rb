@@ -4,7 +4,7 @@ module Applications
 class PowerShellPackage < Setup::Package
   package_name 'PowerShell'
   platforms [:WINDOWS]
-  restore_to '~/Documents/WindowsPowerShell'
+  restore_dir '~/Documents/WindowsPowerShell'
 
   def steps
     yield file 'Microsoft.PowerShell_profile.ps1'

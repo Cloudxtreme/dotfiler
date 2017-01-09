@@ -4,7 +4,7 @@ module Applications
 class FishPackage < Setup::Package
   package_name 'Fish'
   platforms [:MACOS, :LINUX]
-  restore_to '.config/fish'
+  restore_dir '.config/fish'
 
   def steps
     yield file 'config.fish'
