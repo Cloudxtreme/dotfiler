@@ -1,4 +1,5 @@
 require 'setup/io'
+require 'setup/logging'
 require 'setup/reporter'
 
 module Setup
@@ -34,11 +35,11 @@ class SyncContext
   end
 
   def with_backup_dir(new_backup_dir)
-    dup.tap { |sc| sc.options[:backup_dir] = backup_path(new_backup_dir) }
+    with_options backup_dir: backup_path(new_backup_dir)
   end
 
   def with_restore_dir(new_restore_dir)
-    dup.tap { |sc| sc.options[:restore_dir] = restore_path(new_restore_dir) } 
+    with_options restore_dir: restore_path(new_restore_dir)
   end
 
   def dup

@@ -129,15 +129,17 @@ RSpec.describe Package do
   it 'should find cleanup files' do
     under_windows do
       package.items << package.file('a')
-      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-file').and_return false
-      expect(io).to receive(:glob).with(winctx.backup_path('**/*')).and_return [
-        File.expand_path(winctx.backup_path('a')),
-        File.expand_path(winctx.backup_path('a/file')),
-        File.expand_path(winctx.backup_path('b')),
-        File.expand_path(winctx.backup_path('b/subfile')),
-        File.expand_path(winctx.backup_path('setup-backup-file'))]
+      package.items << package.file('b')
+      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-a').and_return false
+      expect(io).to receive(:glob).with(winctx.backup_path('setup-backup-*-a')).and_return [
+        File.expand_path(winctx.backup_path('setup-backup-x-a'))]
 
-      package.cleanup
+      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-b').and_return true
+      expect(io).to receive(:glob).with(winctx.backup_path('setup-backup-*-b')).and_return [
+        File.expand_path(winctx.backup_path('setup-backup-x-b'))]
+      expect(io).to receive(:rm_rf).with(winctx.backup_path 'setup-backup-x-b')
+
+      package.cleanup!
     end
   end
 

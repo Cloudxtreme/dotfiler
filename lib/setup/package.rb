@@ -1,5 +1,3 @@
-require 'setup/file_sync_task'
-require 'setup/platform'
 require 'setup/task'
 
 require 'json'
@@ -61,41 +59,13 @@ class Package < Task
     execute(:sync) { each { |sync_item| sync_item.sync! } }
   end
 
-  # TODO(drognanar): Deprecate? Given the platform specific nature of packages.
-  # TODO(drognanar): Use the file_sync_task to remove stray files.
-  # Returns the list of files that should be cleaned up in for this task.
-  # This algorithm ensures to list only the top level folder to be cleaned up.
-  # A file is not included if its parent is being backed up.
-  # A file is not included if its parent is being cleaned up.
-  # NOTE: Given that list of backed up paths is platform specific this solution will not work.
-  # NOTE: Unless all paths are provided.
-  def cleanup
-    return [] unless should_execute
-    all_files = @ctx.io.glob(File.join(@ctx.backup_path, '**', '*')).sort
-    backed_up_list = map(&:backup_path).sort
-    files_to_cleanup = []
-
-    # Because all files are sorted then:
-    # If a file is being backed up it will be at the start of backed_up_list.
-    # If a file's parent is being backed up it will be at the start of backed_up_list.
-    # If a file's parent is being cleaned up it will be at the end of files_to_cleanup.
-    all_files.each do |file|
-      backed_up_list = backed_up_list.drop_while { |backed_up_file| backed_up_file < file and not file.start_with? backed_up_file }
-      already_cleaned_up = (not files_to_cleanup.empty? and file.start_with? files_to_cleanup[-1])
-      already_backed_up = (not backed_up_list.empty? and file.start_with? backed_up_list[0])
-      should_clean_up = File.basename(file).start_with?('setup-backup-')
-
-      if not already_cleaned_up and not already_backed_up and should_clean_up
-        files_to_cleanup << file
-        confirm_delete = @ctx[:on_delete].call(file)
-        @ctx.io.rm_rf file if confirm_delete
-      end
-    end
-
-    files_to_cleanup
+  def cleanup!
+    return unless should_execute
+    each { |item| item.cleanup! }
   end
 end
 
+# A package which contains a field with the list of tasks that it should execute.
 class ItemPackage < Package
   attr_accessor :items
 

@@ -403,7 +403,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
   end
 
   describe 'cleanup' do
-    let(:cleanup_files) { ['bash/setup-backup-1-_bash_local', 'vim/setup-backup-1-_vimrc'].map(&ctx.method(:backup_path)) }
+    let(:cleanup_files) { ['bash/setup-backup-1-_test_bash_local', 'vim/setup-backup-1-_test_vimrc'].map(&ctx.method(:backup_path)) }
     before(:each) do
       save_applications_content @applications_path, [Test::BashPackage, Test::VimPackage]
     end
@@ -428,8 +428,8 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
       cleanup_files.each { |path| expect(File.exist? path).to be false }
       expect(@output_lines.join).to eq(
-"Deleting \"#{ctx.backup_path('bash/setup-backup-1-_bash_local')}\"
-Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
+"Deleting \"#{ctx.backup_path('bash/setup-backup-1-_test_bash_local')}\"
+Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
 ")
     end
 

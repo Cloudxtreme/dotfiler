@@ -203,7 +203,7 @@ class Program < CommonCLI
         backup_manager.tap(&:load_backups!).tap do |bm|
           prompt_to_enable_new_packages bm, options
           bm.sync!
-          @ctx.logger << "Nothing to sync\n" if @ctx.reporter.items.empty?
+          @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
         end
       end
     end
@@ -214,7 +214,7 @@ class Program < CommonCLI
   def sync
     init_command :sync, options do |bm|
       bm.sync!
-      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.items.empty?
+      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
     end
   end
 
@@ -224,17 +224,10 @@ class Program < CommonCLI
   option 'untracked', type: :boolean
   def cleanup
     init_command(:cleanup, options) do |backup_manager|
-      cleanup_files = backup_manager.cleanup
-
-      if cleanup_files.empty?
+      backup_manager.cleanup!
+      if @ctx.reporter.events(:delete).empty?
         LOGGER << "Nothing to clean.\n"
       end
-
-      # cleanup_files.each do |file|
-      #   LOGGER << "Deleting \"#{file}\"\n"
-      #   confirmed = (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
-      #   @ctx.io.rm_rf file if confirmed
-      # end
     end
   end
 

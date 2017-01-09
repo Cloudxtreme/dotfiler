@@ -28,8 +28,7 @@ class Task
     return @skip_reason.nil?
   end
 
-  def cleanup
-    []
+  def cleanup!
   end
 
   def execute(op, item=self)

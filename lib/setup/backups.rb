@@ -21,28 +21,20 @@ end
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
 class Backup < ItemPackage
-  attr_accessor :backup_packages_path
-
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
 
-  def initialize(ctx)
-    super(ctx)
-    @backup_packages_path = ctx.backup_path BACKUP_PACKAGES_PATH
-    @ctx = ctx
+  def backup_path
+    ctx.backup_path
   end
 
-  def backup_path
-    @ctx.backup_path
+  def backup_packages_path
+    ctx.backup_path BACKUP_PACKAGES_PATH
   end
 
   def sync!
     @items.each { |package| package.sync! }
-  end
-
-  def cleanup
-    map { |package| package.cleanup }.flatten(1)
   end
 
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
@@ -55,8 +47,8 @@ class Backup < ItemPackage
   def update_applications_file
     package_cls_to_add = @items.map { |package| package.class }.select { |package_cls| APPLICATIONS.member? package_cls }
 
-    applications_path = File.join @backup_packages_path, 'applications.rb'
-    @ctx.io.mkdir_p @backup_packages_path
+    applications_path = File.join backup_packages_path, 'applications.rb'
+    @ctx.io.mkdir_p backup_packages_path
     @ctx.io.write applications_path, Setup::Templates::applications(package_cls_to_add)
   end
 
@@ -119,12 +111,11 @@ end
 # TODO(drognanar): Slowly deprecate BackupManager.
 # TODO(drognanar): Having to deal with another global config file makes things more confusing.
 class BackupManager < ItemPackage
-  attr_accessor :backup_paths, :ctx
+  attr_accessor :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
 
   def initialize(ctx = nil, store = nil)
     super(ctx)
-    @ctx = ctx
     @store = store
   end
 
@@ -150,10 +141,6 @@ class BackupManager < ItemPackage
 
   def description
     nil
-  end
-
-  def cleanup
-    map { |backup| backup.cleanup }.flatten(1)
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
