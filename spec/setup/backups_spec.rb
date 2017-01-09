@@ -9,7 +9,7 @@ module Setup
 RSpec.describe Backup do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:store_factory)  { class_double(YAML::Store) }
-  let(:ctx)            { SyncContext.new backup_root: '/backup_dir', io: io }
+  let(:ctx)            { SyncContext.new backup_dir: '/backup_dir', io: io }
   let(:package_a)      { instance_double(Package, name: 'a') }
   let(:package_c)      { instance_double(Package, name: 'c') }
   let(:package_d)      { instance_double(Package, name: 'd') }
@@ -118,7 +118,7 @@ RSpec.describe Backup do
     it 'should allow to specify the directory' do
       assert_resolve_backup 'github.com/username/path',
         '~/backups/github.com/username/path', 'https://github.com/username/path',
-        backup_dir: File.expand_path('~/backups/')
+        backup_root: File.expand_path('~/backups/')
     end
   end
 end

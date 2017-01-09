@@ -5,7 +5,7 @@ require 'setup/io'
 module Setup
 
 RSpec.describe APPLICATIONS do
-  let(:ctx)    { SyncContext.new backup_root: '/backup', restore_dir: '/restore', io: DRY_IO }
+  let(:ctx)    { SyncContext.new backup_dir: '/backup', restore_dir: '/restore', io: DRY_IO }
 
   def validate_applications
     APPLICATIONS

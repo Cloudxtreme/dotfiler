@@ -195,7 +195,7 @@ class Program < CommonCLI
     init_command(:init, options) do |backup_manager|
       LOGGER << "Creating backups:\n"
       backup_strs
-        .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_dir: options[:dir]) }
+        .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_root: options[:dir]) }
         .each { |backup| backup_manager.create_backup!(backup, force: options[:force]) }
 
       # Cannot run sync in dry mode since the backup creation was run in dry mode.

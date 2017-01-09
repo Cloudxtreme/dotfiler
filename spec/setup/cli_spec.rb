@@ -51,7 +51,7 @@ end
 # Integration tests.
 RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
-  let(:ctx)    { SyncContext.new backup_root: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
+  let(:ctx)    { SyncContext.new backup_dir: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
   def setup(args)
     Cli::Program.start args

@@ -43,7 +43,7 @@ class Package < Task
 
   def initialize(parent_ctx)
     ctx = parent_ctx
-      .with_backup_root(File.join(parent_ctx.backup_path, name))
+      .with_backup_dir(File.join(parent_ctx.backup_path, name))
       .with_restore_dir(defined?(restore_dir) ? restore_dir : Package::DEFAULT_RESTORE_DIR)
     super(ctx)
 

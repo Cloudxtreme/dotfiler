@@ -76,7 +76,7 @@ class Backup < ItemPackage
   # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.
   def Backup.resolve_backup(backup_str, options)
     sep = backup_str.index ';'
-    backup_dir = options[:backup_dir] || DEFAULT_BACKUP_ROOT
+    backup_root = options[:backup_root] || DEFAULT_BACKUP_ROOT
 
     if not sep.nil?
       resolved_backup = backup_str[0..sep-1]
@@ -90,7 +90,7 @@ class Backup < ItemPackage
     end
 
     if not is_path(resolved_backup)
-      resolved_backup = File.expand_path(File.join(backup_dir, resolved_backup))
+      resolved_backup = File.expand_path(File.join(backup_root, resolved_backup))
     end
 
     if resolved_source == ''
