@@ -433,19 +433,6 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
 ")
     end
 
-    it 'should remove untracked backups' do
-      create_cleanup_files
-      expect(cmd).to receive(:agree).exactly(3).times.and_return true
-      assert_ran_without_errors setup %w[cleanup --untracked]
-
-      cleanup_files.each { |path| expect(File.exist? path).to be false }
-      expect(@output_lines.join).to eq(
-"Deleting \"#{ctx.backup_path('bash/folder')}\"
-Deleting \"#{ctx.backup_path('bash/setup-backup-1-_bash_local')}\"
-Deleting \"#{ctx.backup_path('vim/setup-backup-1-_vimrc')}\"
-")
-    end
-
     context 'when no options are passed in' do
       it 'should require confirmation' do
         create_cleanup_files

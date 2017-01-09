@@ -108,7 +108,7 @@ class Program < CommonCLI
     end
 
     def get_context(options)
-      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), reporter: Setup::LoggerReporter.new(LOGGER), logger: LOGGER
+      Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), on_delete: method(:ask_delete), reporter: Setup::LoggerReporter.new(LOGGER), logger: LOGGER
     end
 
     def ask_overwrite(backup_path, restore_path)
@@ -123,6 +123,11 @@ class Program < CommonCLI
         menu.choice(:ba) { return :backup }
         menu.choice(:br) { return :restore }
       end
+    end
+
+    def ask_delete(file)
+      LOGGER << "Deleting \"#{file}\"\n"
+      (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
     end
 
     # Prompts to enable new packages.
@@ -225,11 +230,11 @@ class Program < CommonCLI
         LOGGER << "Nothing to clean.\n"
       end
 
-      cleanup_files.each do |file|
-        LOGGER << "Deleting \"#{file}\"\n"
-        confirmed = (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
-        @ctx.io.rm_rf file if confirmed
-      end
+      # cleanup_files.each do |file|
+      #   LOGGER << "Deleting \"#{file}\"\n"
+      #   confirmed = (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
+      #   @ctx.io.rm_rf file if confirmed
+      # end
     end
   end
 

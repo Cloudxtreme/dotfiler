@@ -10,7 +10,8 @@ module Setup
 RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
-  let(:ctx)       { SyncContext.new backup_root: '/backup/root', restore_to: '/restore/root', io: io, sync_time: 'sync_time' }
+  let(:delete)    { instance_double(Proc) }
+  let(:ctx)       { SyncContext.new backup_root: '/backup/root', restore_to: '/restore/root', io: io, sync_time: 'sync_time', on_delete: delete }
   let(:linctx)    { ctx.with_restore_to('/files').with_backup_root('/backup/root/Package') }
   let(:winctx)    { ctx.with_restore_to('/windows/files').with_backup_root('/backup/root/Package') }
   let(:package)   { package_class.new(ctx) }
@@ -127,21 +128,16 @@ RSpec.describe Package do
 
   it 'should find cleanup files' do
     under_windows do
-      expect(io).to receive(:glob).twice.with(winctx.backup_path('**/*')).and_return [
+      package.items << package.file('a')
+      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-file').and_return false
+      expect(io).to receive(:glob).with(winctx.backup_path('**/*')).and_return [
         File.expand_path(winctx.backup_path('a')),
         File.expand_path(winctx.backup_path('a/file')),
         File.expand_path(winctx.backup_path('b')),
         File.expand_path(winctx.backup_path('b/subfile')),
         File.expand_path(winctx.backup_path('setup-backup-file'))]
 
-      package.items << package.file('a')
-      expect(package.cleanup).to eq([File.expand_path(winctx.backup_path('setup-backup-file'))])
-
-      package_untracked = package_class.new ctx.with_options untracked: true
-      package_untracked.items << package_untracked.file('a')
-      expect(package_untracked.cleanup).to eq([
-        File.expand_path(winctx.backup_path('b')),
-        File.expand_path(winctx.backup_path('setup-backup-file'))])
+      package.cleanup
     end
   end
 

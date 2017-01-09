@@ -11,7 +11,7 @@ module Tasks
 
 # Adds a new file sync task.
 def file(filepath, options = {})
-  FileSyncTask.create(filepath, options, ctx)
+  FileSyncTask.new(filepath, options, ctx)
 end
 
 def app(app_name)

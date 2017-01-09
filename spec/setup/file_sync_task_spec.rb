@@ -9,7 +9,7 @@ RSpec.describe FileSyncTask do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:ctx)       { SyncContext.new io: io, sync_time: 12 }
   let(:file_sync) { instance_double(FileSync) }
-  let(:options)   { { backup_path: '/backup/path', restore_to: '/restore/to' } }
+  let(:options)   { { backup_path: '/backup/path', restore_path: '/restore/to', name: 'path' } }
   let(:task)      { FileSyncTask.new 'task', options, ctx }
 
   describe 'escape_dotfile_path' do

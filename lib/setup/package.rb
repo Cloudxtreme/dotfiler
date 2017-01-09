@@ -62,6 +62,7 @@ class Package < Task
   end
 
   # TODO(drognanar): Deprecate? Given the platform specific nature of packages.
+  # TODO(drognanar): Use the file_sync_task to remove stray files.
   # Returns the list of files that should be cleaned up in for this task.
   # This algorithm ensures to list only the top level folder to be cleaned up.
   # A file is not included if its parent is being backed up.
@@ -82,10 +83,12 @@ class Package < Task
       backed_up_list = backed_up_list.drop_while { |backed_up_file| backed_up_file < file and not file.start_with? backed_up_file }
       already_cleaned_up = (not files_to_cleanup.empty? and file.start_with? files_to_cleanup[-1])
       already_backed_up = (not backed_up_list.empty? and file.start_with? backed_up_list[0])
-      should_clean_up = (File.basename(file).start_with?('setup-backup-') or @ctx[:untracked])
+      should_clean_up = File.basename(file).start_with?('setup-backup-')
 
       if not already_cleaned_up and not already_backed_up and should_clean_up
         files_to_cleanup << file
+        confirm_delete = @ctx[:on_delete].call(file)
+        @ctx.io.rm_rf file if confirm_delete
       end
     end
 

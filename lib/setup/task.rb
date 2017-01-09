@@ -32,11 +32,11 @@ class Task
     []
   end
 
-  def execute(op)
-    ctx.reporter.start self, op
-    yield
+  def execute(op, item=self)
+    ctx.reporter.start item, op
+    return yield
   ensure
-    ctx.reporter.end self, op
+    ctx.reporter.end item, op
   end
 end
 
