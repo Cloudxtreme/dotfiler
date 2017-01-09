@@ -308,7 +308,7 @@ Options:
       assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
-"I: Syncing:
+"Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
@@ -346,7 +346,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
-"I: Syncing:
+"Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"

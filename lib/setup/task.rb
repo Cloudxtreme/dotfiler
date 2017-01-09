@@ -25,7 +25,7 @@ class Task
   end
 
   def should_execute
-    return @skip_reason.nil?
+    @skip_reason.nil? and ((not children?) or entries.empty? or any? { |item| item.should_execute })
   end
 
   def cleanup!
@@ -33,7 +33,7 @@ class Task
 
   def execute(op, item=self)
     ctx.reporter.start item, op
-    return yield
+    yield if should_execute
   ensure
     ctx.reporter.end item, op
   end

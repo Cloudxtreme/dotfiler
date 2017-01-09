@@ -83,7 +83,7 @@ RSpec.describe Package do
       expect(package.name).to eq('Package')
       expect(package.restore_dir).to eq('/files')
       expect(package.should_execute).to be false
-      
+
       sync_items = package.to_a
       expect(sync_items).to match_array [an_instance_of(FileSyncTask)]
       expect(sync_items[0].name).to eq '.unknown'
@@ -147,6 +147,7 @@ RSpec.describe Package do
     under_windows do
       expect(FileSyncTask).to receive(:new).and_return task
       expect(task).to receive(:sync!).once
+      expect(task).to receive(:should_execute).and_return true
 
       package.items << package.file('a')
       package.sync! {}

@@ -72,9 +72,9 @@ class Package < CommonCLI
   def list
     init_command(:list, options) do |backup_manager|
       backup_manager.each do |backup|
-        LOGGER << "backup #{backup.backup_path}:\n\n" if backup_manager.to_a.length > 1
+        LOGGER << "backup #{backup.ctx.backup_path}:\n\n" if backup_manager.entries.length > 1
         LOGGER << "Enabled packages:\n"
-        LOGGER << backup.map { |package| package.name }.to_a.join(', ') + "\n\n"
+        LOGGER << backup.map { |package| package.name }.entries.join(', ') + "\n\n"
         LOGGER << "New packages:\n"
         LOGGER << backup.discover_packages.map { |package| package.name }.join(', ') + "\n"
       end
@@ -85,7 +85,7 @@ class Package < CommonCLI
   option 'global'
   def edit(name)
     init_command(:edit, options) do |backup_manager|
-      packages_dir = backup_manager.to_a[0].backup_packages_path
+      packages_dir = backup_manager.entries[0].backup_packages_path
       package_path = File.join packages_dir, "#{name}.rb"
 
       if not File.exist? package_path
@@ -140,7 +140,7 @@ class Program < CommonCLI
       if options[:enable_new] == 'prompt'
         LOGGER << "Found new packages to sync:\n\n"
         backups_with_new_packages.each do |backup|
-          LOGGER << backup.backup_path + "\n"
+          LOGGER << backup.ctx.backup_path + "\n"
           LOGGER << backup.discover_packages.map { |package| package.name }.join(' ') + "\n"
         end
       end
@@ -202,6 +202,7 @@ class Program < CommonCLI
       if not options[:dry] and options[:sync]
         backup_manager.tap(&:load_backups!).tap do |bm|
           prompt_to_enable_new_packages bm, options
+          @ctx.logger << "Syncing:\n"
           bm.sync!
           @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
         end
@@ -213,6 +214,7 @@ class Program < CommonCLI
   Program.sync_options
   def sync
     init_command :sync, options do |bm|
+      @ctx.logger << "Syncing:\n"
       bm.sync!
       @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
     end
@@ -226,7 +228,7 @@ class Program < CommonCLI
     init_command(:cleanup, options) do |backup_manager|
       backup_manager.cleanup!
       if @ctx.reporter.events(:delete).empty?
-        LOGGER << "Nothing to clean.\n"
+        @ctx.logger << "Nothing to clean.\n"
       end
     end
   end
@@ -234,11 +236,11 @@ class Program < CommonCLI
   desc 'status', 'Returns the sync status'
   def status
     init_command(:status, options) do |backup_manager|
-      LOGGER << "Current status:\n\n"
+      @ctx.logger << "Current status:\n\n"
       packages = backup_manager.map { |backup| backup.items.select { |package| package.should_execute }}.flatten(1)
       if packages.empty?
-        LOGGER.warn "No packages enabled."
-        LOGGER.warn "Use ./setup package add to enable packages."
+        @ctx.logger.warn "No packages enabled."
+        @ctx.logger.warn "Use ./setup package add to enable packages."
       else
         packages.each(&method(:summarize_package_info))
       end

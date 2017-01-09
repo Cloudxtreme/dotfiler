@@ -24,17 +24,10 @@ class Backup < ItemPackage
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
-
-  def backup_path
-    ctx.backup_path
-  end
+  package_name ''
 
   def backup_packages_path
     ctx.backup_path BACKUP_PACKAGES_PATH
-  end
-
-  def sync!
-    @items.each { |package| package.sync! }
   end
 
   # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
@@ -113,6 +106,7 @@ end
 class BackupManager < ItemPackage
   attr_accessor :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
+  package_name ''
 
   def initialize(ctx = nil, store = nil)
     super(ctx)
@@ -137,10 +131,6 @@ class BackupManager < ItemPackage
 
   def save_config!
     @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
-  end
-
-  def description
-    nil
   end
 
   # Creates a new backup and registers it in the global yaml configuration.

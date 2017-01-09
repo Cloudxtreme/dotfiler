@@ -25,7 +25,7 @@ class Package < Task
   package_name ''
 
   def description
-    "package #{name}"
+    "package #{name}" unless name.empty?
   end
 
   def each
@@ -55,13 +55,11 @@ class Package < Task
   end
 
   def sync!
-    return unless should_execute
-    execute(:sync) { each { |sync_item| sync_item.sync! } }
+    execute(:sync) { each(&:sync!) }
   end
 
   def cleanup!
-    return unless should_execute
-    each { |item| item.cleanup! }
+    execute(:clean) { each(&:cleanup!) }
   end
 end
 

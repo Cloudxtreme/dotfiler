@@ -50,12 +50,14 @@ class FileSyncTask < Task
   end
 
   def cleanup!
-    backup_prefix = @file_sync_options[:backup_prefix] || DEFAULT_FILESYNC_OPTIONS[:backup_prefix]
-    backup_file_name = File.basename backup_path
-    backup_files_glob = ctx.backup_path "#{backup_prefix}-*-#{backup_file_name}"
-    ctx.io.glob(backup_files_glob).each do |file|
-      if ctx[:on_delete].call(file)
-        execute(:delete) { ctx.io.rm_rf file }
+    execute(:clean) do
+      backup_prefix = @file_sync_options[:backup_prefix] || DEFAULT_FILESYNC_OPTIONS[:backup_prefix]
+      backup_file_name = File.basename backup_path
+      backup_files_glob = ctx.backup_path "#{backup_prefix}-*-#{backup_file_name}"
+      ctx.io.glob(backup_files_glob).each do |file|
+        if ctx[:on_delete].call(file)
+          execute(:delete) { ctx.io.rm_rf file }
+        end
       end
     end
   end
