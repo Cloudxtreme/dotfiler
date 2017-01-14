@@ -19,9 +19,7 @@ RSpec.describe Backup do
   let(:packages)       { [package_a, package_b2, package_c, package_d] }
 
   def get_backup(packages)
-    backup = Backup.new(ctx)
-    backup.items = packages
-    backup
+    Backup.new(ctx).tap { |backup| backup.items = packages }
   end
 
   describe '#initialize' do

@@ -1,6 +1,4 @@
 require 'setup/backups'
-require 'setup/io'
-require 'setup/logging'
 require 'setup/package_template'
 require 'setup/reporter'
 require 'setup/sync_context'
@@ -18,20 +16,20 @@ class CommonCLI < Thor
   class_option 'help', type: :boolean, desc: 'Print help for a specific command'
   class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
 
-  no_commands do
-    def initialize(*args)
-      super(*args)
-      LOGGER.level = options[:verbose] ? :verbose : :info
-      @cli = HighLine.new
-      @ctx = get_context(options)
-      @backup_manager = Setup::BackupManager.from_config(@ctx)
-    end
+  attr_reader :backup_manager
 
-    def init_command(command, options)
-      return help command if options[:help]
+  def initialize(*args)
+    super
+    LOGGER.level = options[:verbose] ? :verbose : :info
+    @cli = HighLine.new
+    @ctx = get_context(options)
+    @backup_manager = Setup::BackupManager.from_config(@ctx)
+  end
+
+  no_commands do
+    def init_backup_manager
       @backup_manager.load_config!
       @backup_manager.load_backups!
-      yield @backup_manager
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\""
@@ -50,52 +48,52 @@ class Package < CommonCLI
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
     # TODO(drognanar): If no names given perform discovery
-    init_command(:add, options) do |backup_manager|
-      backup_manager.map do |backup|
-        backup.enable_packages! names
-        backup.update_applications_file
-      end
+    return help :add if options[:help]
+    return false if not init_backup_manager
+    @backup_manager.map do |backup|
+      backup.enable_packages! names
+      backup.update_applications_file
     end
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
-    init_command(:remove, options) do |backup_manager|
-      backup_manager.map do |backup|
-        backup.disable_packages! names
-        backup.update_applications_file
-      end
+    return help :remove if options[:help]
+    return false if not init_backup_manager
+    @backup_manager.map do |backup|
+      backup.disable_packages! names
+      backup.update_applications_file
     end
   end
 
   desc 'list', 'Lists packages for which settings can be backed up.'
   def list
-    init_command(:list, options) do |backup_manager|
-      backup_manager.each do |backup|
-        LOGGER << "backup #{backup.ctx.backup_path}:\n\n" if backup_manager.entries.length > 1
-        LOGGER << "Enabled packages:\n"
-        LOGGER << backup.map { |package| package.name }.entries.join(', ') + "\n\n"
-        LOGGER << "New packages:\n"
-        LOGGER << backup.discover_packages.map { |package| package.name }.join(', ') + "\n"
-      end
+    return help :list if options[:help]
+    return false if not init_backup_manager
+    @backup_manager.each do |backup|
+      LOGGER << "backup #{backup.ctx.backup_path}:\n\n" if @backup_manager.entries.length > 1
+      LOGGER << "Enabled packages:\n"
+      LOGGER << backup.map { |package| package.name }.entries.join(', ') + "\n\n"
+      LOGGER << "New packages:\n"
+      LOGGER << backup.discover_packages.map { |package| package.name }.join(', ') + "\n"
     end
   end
 
   desc 'edit NAME', 'Edit an existing package.'
   option 'global'
   def edit(name)
-    init_command(:edit, options) do |backup_manager|
-      packages_dir = backup_manager.entries[0].backup_packages_path
-      package_path = File.join packages_dir, "#{name}.rb"
+    return help :edit if options[:help]
+    return false if not init_backup_manager
+    packages_dir = @backup_manager.entries[0].backup_packages_path
+    package_path = File.join packages_dir, "#{name}.rb"
 
-      if not File.exist? package_path
-        default_package_content = Setup::Templates::package(name, [])
-        File.write package_path, default_package_content if not File.exist? package_path
-      end
-
-      editor = ENV['editor'] || 'vim'
-      @ctx.io.system("#{editor} #{package_path}")
+    if not File.exist? package_path
+      default_package_content = Setup::Templates::package(name, [])
+      File.write package_path, default_package_content if not File.exist? package_path
     end
+
+    editor = ENV['editor'] || 'vim'
+    @ctx.io.system("#{editor} #{package_path}")
   end
 end
 
@@ -192,20 +190,20 @@ class Program < CommonCLI
   def init(*backup_strs)
     backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
 
-    init_command(:init, options) do |backup_manager|
-      LOGGER << "Creating backups:\n"
-      backup_strs
-        .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_root: options[:dir]) }
-        .each { |backup| backup_manager.create_backup!(backup, force: options[:force]) }
+    return help :init if options[:help]
+    return false if not init_backup_manager
+    LOGGER << "Creating backups:\n"
+    backup_strs
+      .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_root: options[:dir]) }
+      .each { |backup| @backup_manager.create_backup!(backup, force: options[:force]) }
 
-      # Cannot run sync in dry mode since the backup creation was run in dry mode.
-      if not options[:dry] and options[:sync]
-        backup_manager.tap(&:load_backups!).tap do |bm|
-          prompt_to_enable_new_packages bm, options
-          @ctx.logger << "Syncing:\n"
-          bm.sync!
-          @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
-        end
+    # Cannot run sync in dry mode since the backup creation was run in dry mode.
+    if not options[:dry] and options[:sync]
+      @backup_manager.tap(&:load_backups!).tap do |bm|
+        prompt_to_enable_new_packages bm, options
+        @ctx.logger << "Syncing:\n"
+        bm.sync!
+        @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
       end
     end
   end
@@ -213,11 +211,11 @@ class Program < CommonCLI
   desc 'sync', 'Synchronize your settings'
   Program.sync_options
   def sync
-    init_command :sync, options do |bm|
-      @ctx.logger << "Syncing:\n"
-      bm.sync!
-      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
-    end
+    return help :sync if options[:help]
+    return false if not init_backup_manager
+    @ctx.logger << "Syncing:\n"
+    @backup_manager.sync!
+    @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
   end
 
   desc 'cleanup', 'Cleans up previous backups'
@@ -225,25 +223,25 @@ class Program < CommonCLI
   option 'dry', type: :boolean, default: false
   option 'untracked', type: :boolean
   def cleanup
-    init_command(:cleanup, options) do |backup_manager|
-      backup_manager.cleanup!
-      if @ctx.reporter.events(:delete).empty?
-        @ctx.logger << "Nothing to clean.\n"
-      end
+    return help :cleanup if options[:help]
+    return false if not init_backup_manager
+    @backup_manager.cleanup!
+    if @ctx.reporter.events(:delete).empty?
+      @ctx.logger << "Nothing to clean.\n"
     end
   end
 
   desc 'status', 'Returns the sync status'
   def status
-    init_command(:status, options) do |backup_manager|
-      @ctx.logger << "Current status:\n\n"
-      packages = backup_manager.map { |backup| backup.items.select { |package| package.should_execute }}.flatten(1)
-      if packages.empty?
-        @ctx.logger.warn "No packages enabled."
-        @ctx.logger.warn "Use ./setup package add to enable packages."
-      else
-        packages.each(&method(:summarize_package_info))
-      end
+    return help :status if options[:help]
+    return false if not init_backup_manager
+    @ctx.logger << "Current status:\n\n"
+    packages = @backup_manager.map { |backup| backup.items.select { |package| package.should_execute }}.flatten(1)
+    if packages.empty?
+      @ctx.logger.warn "No packages enabled."
+      @ctx.logger.warn "Use ./setup package add to enable packages."
+    else
+      packages.each(&method(:summarize_package_info))
     end
   end
 

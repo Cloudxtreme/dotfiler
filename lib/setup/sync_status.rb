@@ -1,14 +1,6 @@
 module Setup
 
 # Ensure that this works for tasks and packages
-
-class SyncStatus
-  attr_reader :kind
-  attr_reader :status_msg
-  def initialize(kind, status_msg = nil)
-    @kind = kind
-    @status_msg = status_msg
-  end
-end
+SyncStatus = Struct.new('SyncStatus', :kind, :status_msg)
 
 end

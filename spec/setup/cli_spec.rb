@@ -22,12 +22,11 @@ RSpec.shared_examples 'CLIHelper' do |cli_cls|
   def get_backup_manager(options = {})
     expect(backup_manager).to receive(:load_config!)
     expect(backup_manager).to receive(:load_backups!)
-    actual_manager = nil
-    cli.init_command(:command, options) { |backup_manager| actual_manager = backup_manager }
-    actual_manager
+    cli.init_backup_manager
+    cli.backup_manager
   end
 
-  describe '#init_command' do
+  describe '#init_backup_manager' do
     it 'creates backup manager with default parameters when no options given' do
       expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
       expect(get_backup_manager).to eq(backup_manager)
@@ -115,14 +114,14 @@ RSpec.describe './setup' do
   def assert_ran_without_errors(result)
     @output_lines = @log_output.readlines
 
-    expect(result).to be true
+    expect(result).to_not be false
     expect(@output_lines).to_not include(start_with 'E:')
   end
 
   def assert_ran_with_errors(result)
     @output_lines = @log_output.readlines
 
-    expect(result).to be true
+    expect(result).to_not be false
     expect(@output_lines).to include(start_with 'E:')
   end
 
@@ -392,7 +391,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        expect(setup %w[sync --enable_new=none --copy]).to be true
+        assert_ran_with_errors setup %w[sync --enable_new=none --copy]
 
         assert_copies ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
         assert_copies ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'

@@ -1,4 +1,3 @@
-# A reporter collects and optionally provides output for executed operations.
 module Setup
 
 Event = Struct.new('Event', :op, :item)
@@ -26,7 +25,7 @@ class Reporter
   end
 end
 
-# A reporter that logs all messages.
+# A reporter that logs messages for some of the collected events.
 class LoggerReporter < Reporter
   def initialize(logger)
     super()
@@ -45,6 +44,7 @@ class LoggerReporter < Reporter
   end
 
   def end(item, op)
+    super
   end
 end
 

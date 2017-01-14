@@ -24,7 +24,6 @@ class Backup < ItemPackage
   DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
   DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
-  package_name ''
 
   def backup_packages_path
     ctx.backup_path BACKUP_PACKAGES_PATH
@@ -106,7 +105,6 @@ end
 class BackupManager < ItemPackage
   attr_accessor :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
-  package_name ''
 
   def initialize(ctx = nil, store = nil)
     super(ctx)
