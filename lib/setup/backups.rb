@@ -11,10 +11,11 @@ require 'yaml/store'
 module Setup
 
 class InvalidConfigFileError < Exception
-  attr_reader :path
+  attr_reader :path, :inner_exception
 
-  def initialize(path)
+  def initialize(path, inner_exception)
     @path = path
+    @inner_exception = inner_exception
   end
 end
 
@@ -119,11 +120,12 @@ class BackupManager < ItemPackage
 
   def load_config!
     @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
-  rescue PStore::Error
-    raise InvalidConfigFileError.new @store.path
+  rescue PStore::Error => e
+    raise InvalidConfigFileError.new @store.path, e
   end
 
   def load_backups!
+    ctx.logger.verbose "Loading backups: #{@backup_paths}"
     @items = @backup_paths.map(&method(:backup))
   end
 

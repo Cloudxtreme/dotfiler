@@ -32,7 +32,7 @@ class CommonCLI < Thor
       @backup_manager.load_backups!
       return true
     rescue Setup::InvalidConfigFileError => e
-      LOGGER.error "Could not load \"#{e.path}\""
+      LOGGER.error "Could not load \"#{e.path}\": #{e.inner_exception}"
       return false
     end
   end

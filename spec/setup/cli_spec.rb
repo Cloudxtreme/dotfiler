@@ -307,7 +307,8 @@ Options:
       assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
-"Syncing:
+"V: Loading backups: [\"#{ctx.backup_path}\"]
+Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
@@ -345,7 +346,8 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
 
       expect(@output_lines.join).to eq(
-"Syncing:
+"V: Loading backups: [\"#{ctx.backup_path}\"]
+Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
@@ -488,7 +490,8 @@ needs sync: vim:.test_vimrc
       assert_ran_without_errors setup %w[status --verbose]
 
       expect(@output_lines.join).to eq(
-"Current status:
+"V: Loading backups: [\"#{ctx.backup_path}\"]
+Current status:
 
 needs sync: bash:.test_bashrc
 error:      bash:.test_bash_local Cannot sync. Missing both backup and restore.
@@ -562,7 +565,7 @@ end
     commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list', 'package edit foo']
     commands.each do |command|
       assert_ran_unsuccessfully setup command.split(' ')
-      expect(@output_lines).to eq(["E: Could not load \"#{corrupt_file_path}\"\n"])
+      expect(@output_lines).to match_array([start_with("E: Could not load \"#{corrupt_file_path}\": ")])
     end
   end
 
