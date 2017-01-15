@@ -43,8 +43,8 @@ def find_package_cls(package_path, io)
 
   begin
     mod.class_eval package_script
-  rescue Exception
-    raise InvalidConfigFileError.new package_path
+  rescue Exception => e
+    raise InvalidConfigFileError.new package_path, e
   end
 
   # Iterate over all constants/classes defined by the script.
