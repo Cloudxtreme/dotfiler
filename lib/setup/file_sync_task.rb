@@ -21,8 +21,8 @@ class FileSyncTask < Task
     options[:name] ||= @name
     options[:restore_path] = ctx.restore_path (options[:restore_path] || ctx.restore_path(@name))
     options[:backup_path] = ctx.backup_path (options[:backup_path] || FileSyncTask.escape_dotfile_path(@name))
-    options[:copy] ||= ctx[:copy] if ctx[:copy]
-    options[:on_overwrite] ||= ctx[:on_overwrite] if ctx[:on_overwrite]
+    options[:copy] ||= ctx.options[:copy] if ctx.options[:copy]
+    options[:on_overwrite] ||= ctx.options[:on_overwrite] if ctx.options[:on_overwrite]
     options
   end
 
@@ -44,7 +44,7 @@ class FileSyncTask < Task
   end
 
   def sync!
-    execute(:sync) { FileSync.new(@ctx[:sync_time], @ctx.io).sync! file_sync_options }
+    execute(:sync) { FileSync.new(ctx.options[:sync_time], ctx.io).sync! file_sync_options }
   rescue FileSyncError => e
     ctx.logger.error e.message
   end
@@ -55,7 +55,7 @@ class FileSyncTask < Task
       backup_file_name = File.basename backup_path
       backup_files_glob = ctx.backup_path "#{backup_prefix}-*-#{backup_file_name}"
       ctx.io.glob(backup_files_glob).each do |file|
-        if ctx[:on_delete].call(file)
+        if ctx.options[:on_delete].call(file)
           execute(:delete) { ctx.io.rm_rf file }
         end
       end
@@ -63,7 +63,7 @@ class FileSyncTask < Task
   end
 
   def info
-    FileSync.new(@ctx[:sync_time], @ctx.io).info file_sync_options
+    FileSync.new(ctx.options[:sync_time], ctx.io).info file_sync_options
   end
 end
 

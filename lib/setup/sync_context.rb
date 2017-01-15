@@ -18,10 +18,6 @@ class SyncContext
     @options = options
   end
 
-  def [](key)
-    @options[key]
-  end
-
   def backup_path(relative_path = './')
     File.expand_path relative_path, @options[:backup_dir]
   end

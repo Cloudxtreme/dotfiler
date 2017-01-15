@@ -10,16 +10,15 @@ module Setup
 RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
-  let(:delete)    { instance_double(Proc) }
-  let(:ctx)       { SyncContext.new backup_dir: '/backup/root', restore_dir: '/restore/root', io: io, sync_time: 'sync_time', on_delete: delete }
+  let(:on_delete) { instance_double(Proc) }
+  let(:ctx)       { SyncContext.new backup_dir: '/backup/root', restore_dir: '/restore/root', io: io, sync_time: 'sync_time', on_on_delete: on_delete }
   let(:linctx)    { ctx.with_restore_dir('/files').with_backup_dir('/backup/root/Package') }
   let(:winctx)    { ctx.with_restore_dir('/windows/files').with_backup_dir('/backup/root/Package') }
   let(:package)   { package_class.new(ctx) }
 
   # Lazily instantiated package example.
   let(:package_class) do
-    Class.new(Package) do
-      attr_accessor :items
+    Class.new(ItemPackage) do
       package_name 'Package'
       platforms [:WINDOWS]
       under_windows { restore_dir '/windows/files' }
@@ -27,13 +26,8 @@ RSpec.describe Package do
       under_macos   { restore_dir '/macos/files' }
 
       def initialize(ctx)
-        super ctx
-        @items = []
-      end
-
-      def steps
-        under_linux { yield file '.unknown' }
-        @items.each { |item| yield item }
+        super
+        under_linux { @items << file('.unknown') }
       end
     end
   end
@@ -130,11 +124,11 @@ RSpec.describe Package do
     under_windows do
       package.items << package.file('a')
       package.items << package.file('b')
-      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-a').and_return false
+      expect(on_delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-a').and_return false
       expect(io).to receive(:glob).with(winctx.backup_path('setup-backup-*-a')).and_return [
         File.expand_path(winctx.backup_path('setup-backup-x-a'))]
 
-      expect(delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-b').and_return true
+      expect(on_delete).to receive(:call).with(winctx.backup_path 'setup-backup-x-b').and_return true
       expect(io).to receive(:glob).with(winctx.backup_path('setup-backup-*-b')).and_return [
         File.expand_path(winctx.backup_path('setup-backup-x-b'))]
       expect(io).to receive(:rm_rf).with(winctx.backup_path 'setup-backup-x-b')
