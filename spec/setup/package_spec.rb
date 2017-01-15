@@ -11,7 +11,7 @@ RSpec.describe Package do
   let(:io)        { instance_double(InputOutput::File_IO, dry: false) }
   let(:task)      { instance_double(FileSyncTask) }
   let(:on_delete) { instance_double(Proc) }
-  let(:ctx)       { SyncContext.new backup_dir: '/backup/root', restore_dir: '/restore/root', io: io, sync_time: 'sync_time', on_on_delete: on_delete }
+  let(:ctx)       { SyncContext.new backup_dir: '/backup/root', restore_dir: '/restore/root', io: io, sync_time: 'sync_time', on_delete: on_delete }
   let(:linctx)    { ctx.with_restore_dir('/files').with_backup_dir('/backup/root/Package') }
   let(:winctx)    { ctx.with_restore_dir('/windows/files').with_backup_dir('/backup/root/Package') }
   let(:package)   { package_class.new(ctx) }
