@@ -3,6 +3,7 @@
 # these helpers into the following classes: SyncContext/Package/Backup/
 # BackupManager.
 require 'setup/backups'
+require 'setup/file_sync_task'
 require 'setup/package'
 require 'setup/sync_context'
 
