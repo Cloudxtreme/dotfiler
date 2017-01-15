@@ -35,10 +35,6 @@ class Package < Task
   def steps
   end
 
-  def children?
-    true
-  end
-
   def initialize(parent_ctx)
     ctx = parent_ctx
       .with_backup_dir(File.join(parent_ctx.backup_path, name))

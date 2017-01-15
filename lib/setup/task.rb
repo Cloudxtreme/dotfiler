@@ -22,7 +22,7 @@ class Task
   # Returns true if this task has subtasks that should be executed.
   # Returns false if this task is a leaf task.
   def children?
-    false
+    defined? each
   end
 
   # Name to show for the task when reporting execution progress.
