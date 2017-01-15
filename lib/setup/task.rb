@@ -44,6 +44,8 @@ class Task
     raise NotImplementedError 'Should be implemented by a subclass'
   end
 
+  private
+
   # Reports a particular operation and executes a provided code block
   # if a task should execute.
   def execute(op, item=self)
