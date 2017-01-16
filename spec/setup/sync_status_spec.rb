@@ -56,30 +56,46 @@ RSpec.describe GroupStatus do
       expect(group.status_str).to eq('group:')
     end
 
-    it 'should print itself and subitems' do
-      pending 'Not implemented yet'
+    it 'should not print subitems' do
       status1 = SyncStatus.new 'name1', :up_to_date
       status2 = SyncStatus.new 'name2', :error, 'error message'
       group = GroupStatus.new 'group', [status1, status2]
-      expect(group.status_str).to eq(
+      expect(group.status_str).to eq('group:')
+    end
+  end
+end
+
+RSpec.describe Status do
+  describe '#get_status_str' do
+    it 'should get status for SyncStatus' do
+      status = SyncStatus.new 'name', :error, 'error message'
+      expect(Status::get_status_str status).to eq("name: error: error message\n")
+    end
+
+    it 'should print itself and subitems' do
+      status1 = SyncStatus.new 'name1', :up_to_date
+      status2 = SyncStatus.new 'name2', :error, 'error message'
+      group = GroupStatus.new 'group', [status1, status2]
+      expect(Status::get_status_str group).to eq(
 'group:
     name1: up to date
-    name2: error: error message')
+    name2: error: error message
+')
     end
 
     it 'should handle subgroups' do
-      pending 'Not implemented yet'
       status1 = SyncStatus.new 'name1', :up_to_date
       status2 = SyncStatus.new 'name2', :error, 'error message'
-      status3 = SyncStatus.new 'name3', :sync
+      status3 = SyncStatus.new 'name3', :backup
       group1 = GroupStatus.new 'group1', [status1, status2]
       group = GroupStatus.new 'group', [group1, status3]
-      expect(group.status_str).to eq(
+      expect(Status::get_status_str group).to eq(
 'group:
     group1:
         name1: up to date
         name2: error: error message
-    name3: sync')
+    name3: needs sync
+')
     end
   end
 end

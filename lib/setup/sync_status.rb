@@ -10,59 +10,54 @@ STATUS_KINDS = {
   overwrite_data: 'differs'
 }
 
-# TODO: Use a string builder to build the status_str
-
 module Status
 
-# Returns a stirng representation of a status including subitems.
-def status_str
-  status_str_with_level 0
+def self.get_status_str(status)
+  string_io = StringIO.new
+  output_status(status, string_io, 0)
+  string_io.string
 end
 
 private
 
-# Returns a string representation of a status excluding subitems.
-def status_str_single
-  return "#{name}:" if kind.nil?
-  kind_str = STATUS_KINDS[kind]
-
-  status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
+def self.output_status(status, string_io, level)
+  subitems = defined? status.items
+  if status.name.nil? and subitems
+    status.items.each { |subitem| self.output_status subitem, string_io, level }
+  else
+    string_io << ' ' * 4 * level
+    string_io << status.status_str << "\n"
+    if subitems
+      status.items.each { |subitem| self.output_status subitem, string_io, level + 1 }
+    end
+  end
 end
 
 end
 
 # Current synchronization status of a Task.
 class SyncStatus < Struct.new(:name, :kind, :status_msg)
-  include Status
-
   def self.error(status_msg = nil)
     SyncStatus.new :error, status_msg
   end
 
-  private
-
-  def status_str_with_level(level)
-    status_str_single
+  def status_str
+    kind_str = STATUS_KINDS[kind]
+    status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
   end
 end
 
 # Current synchronization status of a Package.
 class GroupStatus < Struct.new(:name, :items, :status_msg)
-  include Status
-
   def kind
     items.map(&:kind).uniq.length == 1 ? items[0].kind : nil
   end
 
-  private
+  def status_str
+    return "#{name}:" if kind.nil?
+    kind_str = STATUS_KINDS[kind]
 
-  def status_str_with_level(level)
-    if name.nil?
-      items.map { |subitem| subitem.status_str_with_level level }.join '\n'
-    else
-      subitem_status_str = items.map { |subitem| subitem.status_str_with_level(level + 1) }.join '\n'
-      status_str_single
-    end
+    status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
   end
 end
 
