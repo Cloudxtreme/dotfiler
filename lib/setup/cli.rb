@@ -28,7 +28,6 @@ class CommonCLI < Thor
 
   no_commands do
     def init_backup_manager
-      @backup_manager.load_config!
       @backup_manager.load_backups!
       return true
     rescue Setup::InvalidConfigFileError => e

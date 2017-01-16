@@ -20,7 +20,6 @@ RSpec.shared_examples 'CLIHelper' do |cli_cls|
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
   def get_backup_manager(options = {})
-    expect(backup_manager).to receive(:load_config!)
     expect(backup_manager).to receive(:load_backups!)
     cli.init_backup_manager
     cli.backup_manager
