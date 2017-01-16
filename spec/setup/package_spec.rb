@@ -83,7 +83,6 @@ RSpec.describe Package do
       expect(sync_items[0].name).to eq '.unknown'
       expect(sync_items[0].backup_path).to eq(linctx.backup_path('_unknown'))
       expect(sync_items[0].file_sync_options).to eq({
-        name: '.unknown',
         backup_path: linctx.backup_path('_unknown'),
         restore_path: linctx.restore_path('.unknown') })
     end
@@ -107,14 +106,12 @@ RSpec.describe Package do
       expect(sync_items[0].name).to eq('.another')
       expect(sync_items[0].backup_path).to eq(winctx.backup_path('_another'))
       expect(sync_items[0].file_sync_options).to eq({
-        name: '.another',
         backup_path: winctx.backup_path('_another'),
         restore_path: winctx.restore_path('.another') })
 
       expect(sync_items[1].name).to eq('.another2')
       expect(sync_items[1].backup_path).to eq(winctx.backup_path('_anotherTwo'))
       expect(sync_items[1].file_sync_options).to eq({
-        name: '.another2',
         backup_path: winctx.backup_path('_anotherTwo'),
         restore_path: winctx.restore_path('.another2') })
     end

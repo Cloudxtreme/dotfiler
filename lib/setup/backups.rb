@@ -41,8 +41,8 @@ class Backup < ItemPackage
     package_cls_to_add = @items.map { |package| package.class }.select { |package_cls| APPLICATIONS.member? package_cls }
 
     applications_path = File.join backup_packages_path, 'applications.rb'
-    @ctx.io.mkdir_p backup_packages_path
-    @ctx.io.write applications_path, Setup::Templates::applications(package_cls_to_add)
+    io.mkdir_p backup_packages_path
+    io.write applications_path, Setup::Templates::applications(package_cls_to_add)
   end
 
   # TODO(drognanar): Can this be moved out to BackupManager?
@@ -93,7 +93,7 @@ class Backup < ItemPackage
 
   def apps
     # TODO(drognanar): Perhaps just have an APPLICATION_NAME => APPLICATION_CLASS map?
-    APPLICATIONS.map { |package_cls| package_cls.new @ctx }
+    APPLICATIONS.map { |package_cls| package_cls.new ctx }
   end
 
   def Backup.is_path(path)
@@ -118,19 +118,16 @@ class BackupManager < ItemPackage
     BackupManager.new(ctx, store)
   end
 
-  def load_config!
+  def load_backups!
     @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
+    logger.verbose "Loading backups: #{@backup_paths}"
+    @items = @backup_paths.map(&method(:backup))
   rescue PStore::Error => e
     raise InvalidConfigFileError.new @store.path, e
   end
 
-  def load_backups!
-    ctx.logger.verbose "Loading backups: #{@backup_paths}"
-    @items = @backup_paths.map(&method(:backup))
-  end
-
   def save_config!
-    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless @ctx.io.dry
+    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless io.dry
   end
 
   # Creates a new backup and registers it in the global yaml configuration.
@@ -138,27 +135,27 @@ class BackupManager < ItemPackage
     backup_dir, source_url = resolved_backup
 
     if @backup_paths.include? backup_dir
-      ctx.logger.warn "Backup \"#{backup_dir}\" already exists"
+      logger.warn "Backup \"#{backup_dir}\" already exists"
       return
     end
 
-    ctx.logger << "Creating a backup at \"#{backup_dir}\"\n"
+    logger << "Creating a backup at \"#{backup_dir}\"\n"
 
     # TODO(drognanar): Revise this model.
     # TODO(drognanar): Will not clone the repository if folder exists but will sync.
-    backup_exists = @ctx.io.exist?(backup_dir)
-    if not backup_exists or @ctx.io.entries(backup_dir).empty?
-      @ctx.io.mkdir_p backup_dir if not backup_exists
+    backup_exists = io.exist?(backup_dir)
+    if not backup_exists or io.entries(backup_dir).empty?
+      io.mkdir_p backup_dir if not backup_exists
       if source_url
-        ctx.logger.info "Cloning repository \"#{source_url}\""
-        @ctx.io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
+        logger.info "Cloning repository \"#{source_url}\""
+        io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
       end
     elsif not force
-      ctx.logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
+      logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end
 
-    ctx.logger.verbose "Updating \"#{@store.path}\""
+    logger.verbose "Updating \"#{@store.path}\""
     @backup_paths = @backup_paths << backup_dir
     save_config!
   end

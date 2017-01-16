@@ -5,6 +5,7 @@ module Setup
 
 class FileSyncTask < Task
   attr_reader :name
+  alias_method :description, :name
 
   def initialize(name, file_sync_options, ctx)
     super(ctx)
@@ -12,13 +13,8 @@ class FileSyncTask < Task
     @file_sync_options = file_sync_options
   end
 
-  def description
-    name
-  end
-
   def file_sync_options
     options = @file_sync_options.dup
-    options[:name] ||= @name
     options[:restore_path] = ctx.restore_path (options[:restore_path] || ctx.restore_path(@name))
     options[:backup_path] = ctx.backup_path (options[:backup_path] || FileSyncTask.escape_dotfile_path(@name))
     options[:copy] ||= ctx.options[:copy] if ctx.options[:copy]
@@ -44,9 +40,9 @@ class FileSyncTask < Task
   end
 
   def sync!
-    execute(:sync) { FileSync.new(ctx.options[:sync_time], ctx.io).sync! file_sync_options }
+    execute(:sync) { FileSync.new(ctx.options[:sync_time], io).sync! file_sync_options }
   rescue FileSyncError => e
-    ctx.logger.error e.message
+    logger.error e.message
   end
 
   def cleanup!
@@ -54,16 +50,16 @@ class FileSyncTask < Task
       backup_prefix = @file_sync_options[:backup_prefix] || DEFAULT_FILESYNC_OPTIONS[:backup_prefix]
       backup_file_name = File.basename backup_path
       backup_files_glob = ctx.backup_path "#{backup_prefix}-*-#{backup_file_name}"
-      ctx.io.glob(backup_files_glob).each do |file|
+      io.glob(backup_files_glob).each do |file|
         if ctx.options[:on_delete].call(file)
-          execute(:delete) { ctx.io.rm_rf file }
+          execute(:delete) { io.rm_rf file }
         end
       end
     end
   end
 
   def info
-    FileSync.new(ctx.options[:sync_time], ctx.io).info file_sync_options
+    FileSync.new(ctx.options[:sync_time], io).info file_sync_options
   end
 end
 
