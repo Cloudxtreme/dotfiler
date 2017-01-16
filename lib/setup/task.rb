@@ -3,9 +3,11 @@ module Setup
 # Base class for all tasks and packages.
 class Task
   extend Platform
+  extend Forwardable
   include Platform
 
   attr_reader :skip_reason, :ctx
+  def_delegators :@ctx, :io, :logger, :reporter
 
   def initialize(ctx)
     @skip_reason = nil
@@ -49,10 +51,10 @@ class Task
   # Reports a particular operation and executes a provided code block
   # if a task should execute.
   def execute(op, item=self)
-    ctx.reporter.start item, op
+    reporter.start item, op
     yield if should_execute
   ensure
-    ctx.reporter.end item, op
+    reporter.end item, op
   end
 end
 
