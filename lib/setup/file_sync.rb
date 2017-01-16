@@ -88,12 +88,13 @@ class FileSyncInfo
   attr_reader :restore_directory, :backup_directory, :symlinked, :status, :backup_path, :restore_path
 
   def initialize(options, io = CONCRETE_IO)
+    name = File.basename options[:restore_path]
     @backup_path = options[:backup_path]
     @restore_path = options[:restore_path]
     @has_restore = io.exist? @restore_path
     @has_backup = io.exist? @backup_path
     if not @has_restore and not @has_backup
-      @status = SyncStatus.new :error, "Cannot sync. Missing both backup and restore."
+      @status = SyncStatus.new name, :error, "Cannot sync. Missing both backup and restore."
       return
     end
 
@@ -101,11 +102,11 @@ class FileSyncInfo
     @backup_directory = (@has_backup and io.directory?(@backup_path))
     @symlinked = io.identical? @backup_path, @restore_path
 
-    if not @has_restore then @status = SyncStatus.new :restore
-    elsif not @has_backup then @status = SyncStatus.new :backup
-    elsif files_differ? io then @status = SyncStatus.new :overwrite_data
-    elsif options[:copy] != @symlinked then @status = SyncStatus.new :up_to_date
-    else @status = SyncStatus.new :resync
+    if not @has_restore then @status = SyncStatus.new name, :restore
+    elsif not @has_backup then @status = SyncStatus.new name, :backup
+    elsif files_differ? io then @status = SyncStatus.new name, :overwrite_data
+    elsif options[:copy] != @symlinked then @status = SyncStatus.new name, :up_to_date
+    else @status = SyncStatus.new name, :resync
     end
   end
 

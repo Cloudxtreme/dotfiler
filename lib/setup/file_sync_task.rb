@@ -10,13 +10,13 @@ class FileSyncTask < Task
   def initialize(name, file_sync_options, ctx)
     super(ctx)
     @name = name
-    @file_sync_options = file_sync_options
+    @file_sync_options = { restore_path: name }.merge file_sync_options
   end
 
   def file_sync_options
     options = @file_sync_options.dup
-    options[:restore_path] = ctx.restore_path (options[:restore_path] || ctx.restore_path(@name))
-    options[:backup_path] = ctx.backup_path (options[:backup_path] || FileSyncTask.escape_dotfile_path(@name))
+    options[:restore_path] = ctx.restore_path options[:restore_path]
+    options[:backup_path] = ctx.backup_path (options[:backup_path] || FileSyncTask.escape_dotfile_path(File.basename(options[:restore_path])))
     options[:copy] ||= ctx.options[:copy] if ctx.options[:copy]
     options[:on_overwrite] ||= ctx.options[:on_overwrite] if ctx.options[:on_overwrite]
     options

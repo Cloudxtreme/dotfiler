@@ -21,14 +21,14 @@ RSpec.describe FileSync do
   let(:time)                 { instance_double(Time, strftime: '20160404111213' ) }
   let(:symlink_sync_options) { { backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
   let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
-  let(:info_with_errors)     { get_sync_info status: SyncStatus.new(:error, 'err') }
-  let(:info_up_to_date)      { get_sync_info status: SyncStatus.new(:up_to_date) }
-  let(:info_restore_files)   { get_sync_info status: SyncStatus.new(:restore), backup_directory: false, restore_directory: false }
-  let(:info_backup_files)    { get_sync_info status: SyncStatus.new(:backup), backup_directory: false, restore_directory: false }
-  let(:info_restore_dirs)    { get_sync_info status: SyncStatus.new(:restore), backup_directory: true, restore_directory: true }
-  let(:info_backup_dirs)     { get_sync_info status: SyncStatus.new(:backup), backup_directory: true, restore_directory: true }
-  let(:info_overwrite)       { get_sync_info status: SyncStatus.new(:overwrite_data), backup_directory: false, restore_directory: false }
-  let(:info_resync)          { get_sync_info status: SyncStatus.new(:resync), backup_directory: false, restore_directory: false }
+  let(:info_with_errors)     { get_sync_info status: SyncStatus.new('name', :error, 'err') }
+  let(:info_up_to_date)      { get_sync_info status: SyncStatus.new('name', :up_to_date) }
+  let(:info_restore_files)   { get_sync_info status: SyncStatus.new('name', :restore), backup_directory: false, restore_directory: false }
+  let(:info_backup_files)    { get_sync_info status: SyncStatus.new('name', :backup), backup_directory: false, restore_directory: false }
+  let(:info_restore_dirs)    { get_sync_info status: SyncStatus.new('name', :restore), backup_directory: true, restore_directory: true }
+  let(:info_backup_dirs)     { get_sync_info status: SyncStatus.new('name', :backup), backup_directory: true, restore_directory: true }
+  let(:info_overwrite)       { get_sync_info status: SyncStatus.new('name', :overwrite_data), backup_directory: false, restore_directory: false }
+  let(:info_resync)          { get_sync_info status: SyncStatus.new('name', :resync), backup_directory: false, restore_directory: false }
 
   def file_sync(file_sync_info = nil)
     expect(FileSyncInfo).to receive(:new).once.and_return file_sync_info unless file_sync_info.nil?
