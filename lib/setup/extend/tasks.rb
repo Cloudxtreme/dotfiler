@@ -27,8 +27,13 @@ def backup(backup_dir)
   # TODO: Allow to provide a backup.rb file.
   backup_ctx = ctx.with_backup_dir(backup_dir).add_default_applications
   Backup.new(backup_ctx).tap do |backup|
-    backup.items = get_packages backup.backup_packages_path, backup_ctx
+    packages_glob = File.join(backup.backup_packages_path, '*.rb')
+    backup.items = get_packages packages_glob, backup_ctx
   end
+end
+
+def package_from_files(packages_glob, ctx)
+  ItemPackage.new(ctx).tap { |package| package.items = get_packages(packages_glob, ctx) }
 end
 
 private
@@ -55,11 +60,10 @@ def find_package_cls(package_path, io)
 end
 
 # Finds package definitions inside of a particular folder.
-# @param string packages_dir Directory where packages should be found.
-#                            Packages will be searched in every script file.
+# @param string packages_glob Glob for the script files that should contain packages.
 # @param SyncContext ctx Context that should be passed into packages.
-def get_packages(packages_dir, ctx)
-  (ctx.io.glob File.join(packages_dir, '*.rb'))
+def get_packages(packages_glob, ctx)
+  (ctx.io.glob packages_glob)
     .map { |package_path| find_package_cls(package_path, ctx.io) }
     .flatten
     .map { |package_cls| package_cls.new ctx }

@@ -18,17 +18,26 @@ class CommonCLI < Thor
 
   attr_reader :backup_manager
 
-  def initialize(*args)
+  def initialize(args = [], opts = {}, config = {})
     super
     LOGGER.level = options[:verbose] ? :verbose : :info
     @cli = HighLine.new
     @ctx = get_context(options).add_default_applications
-    @backup_manager = Setup::BackupManager.from_config(@ctx)
+    @backup_manager = get_backup_manager config
   end
 
   no_commands do
+    def get_backup_manager(config)
+      package_constructor = config[:package]
+
+      if package_constructor.is_a? Class then package_constructor.new @ctx
+      elsif package_constructor.is_a? Proc then package_constructor.call @ctx
+      else Setup::BackupManager.from_config(@ctx)
+      end
+    end
+
     def init_backup_manager
-      @backup_manager.load_backups!
+      @backup_manager.load_backups! if @backup_manager.respond_to? :load_backups!
       return true
     rescue Setup::InvalidConfigFileError => e
       LOGGER.error "Could not load \"#{e.path}\": #{e.inner_exception}"

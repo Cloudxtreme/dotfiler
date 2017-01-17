@@ -47,12 +47,12 @@ RSpec.describe Cli::Program do
 end
 
 # Integration tests.
-RSpec.describe './setup' do
+RSpec.describe './setup', focus: true do
   let(:cmd)    { instance_double(HighLine) }
   let(:ctx)    { SyncContext.new backup_dir: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
-  def setup(args)
-    Cli::Program.start args
+  def setup(args, config={})
+    Cli::Program.start args, config
   end
 
   # Asserts that a file exists with the specified content.
@@ -295,11 +295,10 @@ Options:
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
+      assert_ran_with_errors setup %w[sync --enable_new=none --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(@output_lines.join).to eq(
-"V: Loading backups: [\"#{ctx.backup_path}\"]
-Syncing:
+"Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
@@ -334,11 +333,10 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=none --verbose]
+      assert_ran_with_errors setup %w[sync --enable_new=none --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(@output_lines.join).to eq(
-"V: Loading backups: [\"#{ctx.backup_path}\"]
-Syncing:
+"Syncing:
 I: Syncing package bash:
 I: Syncing .test_bashrc
 V: Symlinking \"#{ctx.backup_path('bash/_test_bashrc')}\" with \"#{ctx.restore_path('.test_bashrc')}\"
@@ -370,7 +368,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
     it 'should not sync if the task is disabled' do
       save_applications_content @applications_path, []
-      assert_ran_without_errors setup %w[sync --enable_new=none]
+      assert_ran_without_errors setup %w[sync --enable_new=none], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(File.exist? ctx.backup_path('vim/_test_vimrc')).to be false
       assert_file_content ctx.backup_path('code/_test_vscode'), 'some content'
@@ -384,7 +382,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        assert_ran_with_errors setup %w[sync --enable_new=none --copy]
+        assert_ran_with_errors setup %w[sync --enable_new=none --copy], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
         assert_copies ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
         assert_copies ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'
@@ -406,7 +404,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     end
 
     it 'should report when there is nothing to clean' do
-      assert_ran_without_errors setup %w[cleanup]
+      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(@output_lines.join).to eq(
 "Nothing to clean.
@@ -416,7 +414,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     it 'should cleanup old backups' do
       create_cleanup_files
       expect(cmd).to receive(:agree).twice.and_return true
-      assert_ran_without_errors setup %w[cleanup]
+      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       cleanup_files.each { |path| expect(File.exist? path).to be false }
       expect(@output_lines.join).to eq(
@@ -429,7 +427,7 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
       it 'should require confirmation' do
         create_cleanup_files
         expect(cmd).to receive(:agree).twice.and_return false
-        assert_ran_without_errors setup %w[cleanup]
+        assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
         cleanup_files.each { |path| expect(File.exist? path).to be true }
       end
@@ -438,7 +436,7 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
     context 'when --confirm=false' do
       it 'should cleanup old backups' do
         create_cleanup_files
-        assert_ran_without_errors setup %w[cleanup --confirm=false]
+        assert_ran_without_errors setup %w[cleanup --confirm=false], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
         cleanup_files.each { |path| expect(File.exist? path).to be false }
       end
@@ -447,8 +445,7 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
 
   describe 'status' do
     it 'should print an empty message if no packages exist' do
-      save_yaml_content @default_config_root, 'backups' => []
-      assert_ran_without_errors setup %w[status]
+      assert_ran_without_errors setup %w[status], package: lambda { |ctx| Package.new ctx }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -459,9 +456,8 @@ W: Use ./setup package add to enable packages.
     end
 
     it 'should print status' do
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status]
+      assert_ran_without_errors setup %w[status], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -481,13 +477,11 @@ vim:
     end
 
     it 'should print verbose status' do
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status --verbose]
+      assert_ran_without_errors setup %w[status --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
 
       expect(@output_lines.join).to eq(
-"V: Loading backups: [\"#{ctx.backup_path}\"]
-Current status:
+"Current status:
 
 bash:
     .test_bashrc: needs sync
