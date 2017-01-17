@@ -32,10 +32,6 @@ end
 
 # Current synchronization status of a Task.
 class SyncStatus < Struct.new(:name, :kind, :status_msg)
-  def self.error(status_msg = nil)
-    SyncStatus.new :error, status_msg
-  end
-
   def status_str
     kind_str = STATUS_KINDS[kind]
     status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
