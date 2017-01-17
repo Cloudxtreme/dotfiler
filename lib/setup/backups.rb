@@ -129,17 +129,9 @@ class BackupManager < ItemPackage
   def create_backup!(resolved_backup, force: false)
     backup_dir, _ = resolved_backup
 
-    if @backup_paths.include? backup_dir
-      logger.warn "Backup \"#{backup_dir}\" already exists"
-      return
-    end
-
     logger << "Creating a backup at \"#{backup_dir}\"\n"
 
-    # TODO(drognanar): Revise this model.
-    backup_exists = io.exist?(backup_dir)
-    if not backup_exists or io.entries(backup_dir).empty?
-    elsif not force
+    if io.exist?(backup_dir) and not io.entries(backup_dir).empty? and not force
       logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return
     end

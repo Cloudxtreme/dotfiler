@@ -131,14 +131,6 @@ RSpec.describe BackupManager do
   end
 
   describe '#create_backup!' do
-    it 'should not create backup if already added to the manager' do
-      backup_manager.backup_paths = ['/existing/backup/']
-
-      expected_output = 'W: Backup "/existing/backup/" already exists' + "\n"
-      backup_manager.create_backup! ['/existing/backup/', nil]
-      expect(@log_output.readline).to eq(expected_output)
-    end
-
     it 'should not create backup if backup directory is not empty' do
       backup_manager.backup_paths = ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
