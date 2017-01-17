@@ -27,6 +27,11 @@ class Task
     defined? each
   end
 
+  def has_data
+    children? ? (should_execute and any? { |sync_item| sync_item.status.kind != :error })
+              : (should_execute and status.kind != :error)
+  end
+
   # Name to show for the task when reporting execution progress.
   def description
     nil
@@ -35,7 +40,8 @@ class Task
   # Returns true if a task should be executed.
   # Returns false if a task should be skipped.
   def should_execute
-    @skip_reason.nil? and ((not children?) or entries.empty? or any? { |item| item.should_execute })
+    children? ? (@skip_reason.nil? and (entries.empty? or any? { |item| item.should_execute }))
+              : @skip_reason.nil?
   end
 
   def sync!

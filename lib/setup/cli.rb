@@ -171,12 +171,11 @@ class Program < CommonCLI
 
     # Cannot run sync in dry mode since the backup creation was run in dry mode.
     if not options[:dry] and options[:sync]
-      @backup_manager.tap(&:load_backups!).tap do |bm|
-        prompt_to_enable_new_packages bm, options
-        @ctx.logger << "Syncing:\n"
-        bm.sync!
-        @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
-      end
+      @backup_manager.load_backups!
+      prompt_to_enable_new_packages @backup_manager, options
+      @ctx.logger << "Syncing:\n"
+      @backup_manager.sync!
+      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
     end
   end
 

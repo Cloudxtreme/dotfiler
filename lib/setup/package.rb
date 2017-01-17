@@ -46,10 +46,6 @@ class Package < Task
     end
   end
 
-  def has_data
-    any? { |sync_item| sync_item.status.kind != :error }
-  end
-
   def status
     status_items = select(&:should_execute).map(&:status)
     GroupStatus.new name, status_items
