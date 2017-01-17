@@ -15,9 +15,9 @@ def file(path, file_sync_options = {})
   FileSyncTask.new(path, file_sync_options, ctx)
 end
 
-# Returns one of APPLICATIONS that has app_name.
-def app(app_name)
-  # TODO: Get a relevant app from APPLICATIONS.
+# Returns a package with a given name within the context.
+def package(app_name)
+  ctx.packages[app_name]
 end
 
 def backup(backup_dir)
@@ -25,7 +25,7 @@ def backup(backup_dir)
 
   # TODO: Deal with the case where the backup_dir is still missing.
   # TODO: Allow to provide a backup.rb file.
-  backup_ctx = ctx.with_backup_dir(backup_dir)
+  backup_ctx = ctx.with_backup_dir(backup_dir).add_default_applications
   Backup.new(backup_ctx).tap do |backup|
     backup.items = get_packages backup.backup_packages_path, backup_ctx
   end
@@ -71,6 +71,10 @@ end
 
 class SyncContext
   include Tasks
+
+  def add_default_applications
+    add_packages_from_cls APPLICATIONS
+  end
 end
 
 class Package

@@ -18,13 +18,13 @@ RSpec.describe Backup do
   let(:package_b2_cls) { class_double(Package) }
   let(:packages)       { [package_a, package_b2, package_c, package_d] }
 
-  def get_backup(packages)
+  def get_backup(packages, ctx)
     Backup.new(ctx).tap { |backup| backup.items = packages }
   end
 
   describe '#initialize' do
     it 'should initialize from config files' do
-      backup = get_backup([package_a])
+      backup = get_backup([package_a], ctx)
       expect(backup.to_a).to eq([package_a])
     end
   end
@@ -39,7 +39,7 @@ RSpec.describe Backup do
   end
 
   def assert_enable_packages(initial_package_names)
-    backup = get_backup packages
+    backup = get_backup packages, ctx
     verify_backup_save(backup, enabled_package_names, expected_package_names)
 
     backup.enable_packages! enabled_package_names
@@ -48,7 +48,7 @@ RSpec.describe Backup do
   end
 
   def assert_disable_packages(initial_package_names)
-    backup = get_backup packages
+    backup = get_backup packages, ctx
     verify_backup_save(backup, disabled_package_names, expected_package_names)
 
     backup.disable_packages! disabled_package_names
@@ -58,33 +58,30 @@ RSpec.describe Backup do
 
   describe '#discover_packages' do
     it 'should include packages not added to the enabled and disabled packages that have data' do
-      stub_const 'Setup::APPLICATIONS', [package_c_cls, package_b2_cls]
-
-      backup = get_backup [package_a, package_d]
       expect(package_c_cls).to receive(:new).and_return package_c
+      expect(package_b2_cls).to receive(:new).and_return package_b2
+
+      backup = get_backup [package_a, package_d], ctx.add_packages_from_cls([package_c_cls, package_b2_cls])
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return true
-      expect(package_b2_cls).to receive(:new).and_return package_b2
       expect(package_b2).to receive(:should_execute).and_return true
       expect(package_b2).to receive(:has_data).and_return true
       expect(backup.discover_packages).to eq([package_c, package_b2])
     end
 
     it 'should not include packages with no data' do
-      stub_const 'Setup::APPLICATIONS', [package_c_cls]
-
-      backup = get_backup packages
       expect(package_c_cls).to receive(:new).and_return package_c
+
+      backup = get_backup packages, ctx.add_packages_from_cls([package_c_cls])
       expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return false
       expect(backup.discover_packages).to eq([])
     end
 
     it 'should not include packages with not matching platform' do
-      stub_const 'Setup::APPLICATIONS', [package_c_cls]
-
-      backup = get_backup packages
       expect(package_c_cls).to receive(:new).and_return package_c
+
+      backup = get_backup packages, ctx.add_packages_from_cls([package_c_cls])
       expect(package_c).to receive(:should_execute).and_return false
       expect(backup.discover_packages).to eq([])
     end

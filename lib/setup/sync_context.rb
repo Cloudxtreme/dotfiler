@@ -15,7 +15,7 @@ class SyncContext
     options[:restore_dir] ||= ''
     options[:reporter] ||= Reporter.new
     options[:logger] ||= Logging.logger['Setup']
-    options[:packages] ||= []
+    options[:packages] = SyncContext.packages_to_hash (options[:packages] || Hash.new)
     @options = options
   end
 
@@ -31,8 +31,16 @@ class SyncContext
     dup.tap { |sc| sc.options.merge!(new_options) }
   end
 
+  def add_packages_from_cls(new_packages)
+    add_packages SyncContext.packages_to_hash(new_packages.map { |package_cls| package_cls.new self})
+  end
+
+  def add_packages(new_packages)
+    with_packages packages.merge new_packages
+  end
+
   def with_packages(new_packages)
-    with_options packages: new_packages
+    with_options packages: SyncContext.packages_to_hash(new_packages)
   end
 
   def with_backup_dir(new_backup_dir)
@@ -61,6 +69,11 @@ class SyncContext
 
   def logger
     @options[:logger]
+  end
+
+  def self.packages_to_hash(packages)
+    return packages if packages.is_a? Hash
+    packages.map { |package| [package.name, package] }.to_h
   end
 end
 

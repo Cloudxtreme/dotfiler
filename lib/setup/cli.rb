@@ -22,7 +22,7 @@ class CommonCLI < Thor
     super
     LOGGER.level = options[:verbose] ? :verbose : :info
     @cli = HighLine.new
-    @ctx = get_context(options)
+    @ctx = get_context(options).add_default_applications
     @backup_manager = Setup::BackupManager.from_config(@ctx)
   end
 

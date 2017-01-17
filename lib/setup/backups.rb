@@ -93,7 +93,8 @@ class Backup < ItemPackage
 
   def apps
     # TODO(drognanar): Perhaps just have an APPLICATION_NAME => APPLICATION_CLASS map?
-    APPLICATIONS.map { |package_cls| package_cls.new ctx }
+    ctx.packages.values
+    # APPLICATIONS.map { |package_cls| package_cls.new ctx }
   end
 
   def Backup.is_path(path)
