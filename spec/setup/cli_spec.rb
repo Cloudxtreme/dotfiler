@@ -218,14 +218,6 @@ Options:
     # The default test setup includes a default_config_root. Remove it to init from a bare repository.
     before(:each) { File.delete @default_config_root }
 
-    it 'should clone repositories' do
-      source_path = 'https://github.com/username/repository'
-      backup_path = "#{@default_backup_root}/github.com/username/repository"
-      clone_command = "git clone \"#{source_path}\" -o \"#{backup_path}\""
-      expect(CONCRETE_IO).to receive(:shell).with(clone_command).and_return true
-      assert_ran_without_errors setup %w[init github.com/username/repository --enable_new=all]
-    end
-
     context 'when no options are passed in' do
       it 'should prompt by default' do
         expect(cmd).to receive(:agree).once.and_return true

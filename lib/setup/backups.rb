@@ -127,7 +127,7 @@ class BackupManager < ItemPackage
 
   # Creates a new backup and registers it in the global yaml configuration.
   def create_backup!(resolved_backup, force: false)
-    backup_dir, source_url = resolved_backup
+    backup_dir, _ = resolved_backup
 
     if @backup_paths.include? backup_dir
       logger.warn "Backup \"#{backup_dir}\" already exists"
@@ -137,14 +137,8 @@ class BackupManager < ItemPackage
     logger << "Creating a backup at \"#{backup_dir}\"\n"
 
     # TODO(drognanar): Revise this model.
-    # TODO(drognanar): Will not clone the repository if folder exists but will sync.
     backup_exists = io.exist?(backup_dir)
     if not backup_exists or io.entries(backup_dir).empty?
-      io.mkdir_p backup_dir if not backup_exists
-      if source_url
-        logger.info "Cloning repository \"#{source_url}\""
-        io.shell "git clone \"#{source_url}\" -o \"#{backup_dir}\""
-      end
     elsif not force
       logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
       return

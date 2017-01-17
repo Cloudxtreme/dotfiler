@@ -159,25 +159,6 @@ W: Cannot create backup. The folder /backup/dir already exists and is not empty.
 
       backup_manager.create_backup! ['/backup/dir', nil]
     end
-
-    it 'should clone the repository if source present' do
-      backup_manager.backup_paths = ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
-      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return []
-      expect(io).to receive(:shell).with('git clone "example.com/username/dotfiles" -o "/backup/dir"').ordered
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
-
-      backup_manager.create_backup! ['/backup/dir', 'example.com/username/dotfiles']
-    end
-
-    it 'should create the folder if missing' do
-      backup_manager.backup_paths = ['/existing/backup/']
-      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return false
-      expect(io).to receive(:mkdir_p).with('/backup/dir').ordered
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
-
-      backup_manager.create_backup! ['/backup/dir', nil]
-    end
   end
 end
 
