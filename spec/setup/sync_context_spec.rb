@@ -1,3 +1,4 @@
+require 'setup/package'
 require 'setup/sync_context'
 
 module Setup
@@ -7,13 +8,15 @@ RSpec.describe SyncContext do
   let(:reporter)    { Reporter.new }
   let(:backup_dir)  { File.expand_path '/backup/dir' }
   let(:restore_dir) { File.expand_path '/restore/dir' }
+  let(:package)     { ItemPackage.new SyncContext.new }
   let(:options)     { {
     io: DRY_IO,
     sync_time: time,
     backup_dir: '/backup/dir',
     restore_dir: '/restore/dir',
     reporter: reporter,
-    logger: Logging.logger['Test']
+    logger: Logging.logger['Test'],
+    packages: [package]
   } }
   let(:ctx)         { SyncContext.new options.dup }
 
@@ -29,6 +32,7 @@ RSpec.describe SyncContext do
       expect(ctx.options[:restore_dir]).to eq('')
       expect(ctx.reporter).to eq(reporter)
       expect(ctx.logger).to eq(Logging.logger['Setup'])
+      expect(ctx.packages).to eq([])
     end
 
     it 'should use DRY_IO in dry mode' do
@@ -43,6 +47,7 @@ RSpec.describe SyncContext do
       expect(ctx.options[:restore_dir]).to eq('/restore/dir')
       expect(ctx.reporter).to eq(reporter)
       expect(ctx.logger).to eq(Logging.logger['Test'])
+      expect(ctx.packages).to eq([package])
     end
   end
 
@@ -90,6 +95,14 @@ RSpec.describe SyncContext do
     it 'should create a new SyncContext with a relative restore dir' do
       ctx2 = ctx.with_restore_dir './subdir'
       expect(ctx2.options[:restore_dir]).to eq(File.expand_path '/restore/dir/subdir')
+    end
+  end
+
+  describe '#with_packages' do
+    it 'should create a new SyncContext with new packages' do
+      package = ItemPackage.new ctx
+      ctx2 = ctx.with_packages [package]
+      expect(ctx2.packages).to eq([package])
     end
   end
 

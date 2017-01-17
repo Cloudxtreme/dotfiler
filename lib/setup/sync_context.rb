@@ -15,6 +15,7 @@ class SyncContext
     options[:restore_dir] ||= ''
     options[:reporter] ||= Reporter.new
     options[:logger] ||= Logging.logger['Setup']
+    options[:packages] ||= []
     @options = options
   end
 
@@ -28,6 +29,10 @@ class SyncContext
 
   def with_options(new_options)
     dup.tap { |sc| sc.options.merge!(new_options) }
+  end
+
+  def with_packages(new_packages)
+    with_options packages: new_packages
   end
 
   def with_backup_dir(new_backup_dir)
@@ -44,6 +49,10 @@ class SyncContext
 
   def io
     @options[:io]
+  end
+
+  def packages
+    @options[:packages]
   end
 
   def reporter
