@@ -34,7 +34,7 @@ class Backup < ItemPackage
   # TODO(drognanar): Can we get rid of discovery?
   def discover_packages
     existing_package_names = Set.new @items.map { |package| package.name }
-    apps.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
+    packages.values.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
   end
 
   def update_applications_file
@@ -48,7 +48,7 @@ class Backup < ItemPackage
   # TODO(drognanar): Can this be moved out to BackupManager?
   def enable_packages!(package_names)
     disable_packages! package_names
-    @items += apps.select { |application| package_names.member? application.name }
+    @items += package_names.map { |package_name| packages[package_name] }
   end
 
   def disable_packages!(package_names)
@@ -90,12 +90,6 @@ class Backup < ItemPackage
   end
 
   private
-
-  def apps
-    # TODO(drognanar): Perhaps just have an APPLICATION_NAME => APPLICATION_CLASS map?
-    ctx.packages.values
-    # APPLICATIONS.map { |package_cls| package_cls.new ctx }
-  end
 
   def Backup.is_path(path)
     path.start_with?('..') || path.start_with?('.') || path.start_with?('~') || Pathname.new(path).absolute?

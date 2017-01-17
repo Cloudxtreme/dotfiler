@@ -7,7 +7,7 @@ class Task
   include Platform
 
   attr_reader :skip_reason, :ctx
-  def_delegators :@ctx, :io, :logger, :reporter
+  def_delegators :@ctx, :io, :logger, :reporter, :packages
 
   def initialize(ctx)
     @skip_reason = nil
