@@ -1,8 +1,8 @@
 require 'setup/backups'
+require 'setup/extend/tasks'
 require 'setup/package_template'
 require 'setup/reporter'
 require 'setup/sync_context'
-require 'setup/tasks'
 
 require 'highline'
 require 'thor'
