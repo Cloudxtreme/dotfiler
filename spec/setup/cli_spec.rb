@@ -474,12 +474,17 @@ W: Use ./setup package add to enable packages.
       expect(@output_lines.join).to eq(
 "Current status:
 
-needs sync: bash:.test_bashrc
-error:      bash:.test_bash_local Cannot sync. Missing both backup and restore.
-differs:    code:.test_vscode
-needs sync: python:.test_pythonrc
-up-to-date: rubocop
-needs sync: vim:.test_vimrc
+bash:
+    .test_bashrc: needs sync
+    .test_bash_local: error: Cannot sync. Missing both backup and restore.
+code:
+    .test_vscode: differs
+python:
+    .test_pythonrc: needs sync
+rubocop:
+    .test_rubocop: up to date
+vim:
+    .test_vimrc: needs sync
 ")
     end
 
@@ -492,12 +497,17 @@ needs sync: vim:.test_vimrc
 "V: Loading backups: [\"#{ctx.backup_path}\"]
 Current status:
 
-needs sync: bash:.test_bashrc
-error:      bash:.test_bash_local Cannot sync. Missing both backup and restore.
-differs:    code:.test_vscode
-needs sync: python:.test_pythonrc
-up-to-date: rubocop:.test_rubocop
-needs sync: vim:.test_vimrc
+bash:
+    .test_bashrc: needs sync
+    .test_bash_local: error: Cannot sync. Missing both backup and restore.
+code:
+    .test_vscode: differs
+python:
+    .test_pythonrc: needs sync
+rubocop:
+    .test_rubocop: up to date
+vim:
+    .test_vimrc: needs sync
 ")
     end
   end

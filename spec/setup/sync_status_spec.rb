@@ -97,6 +97,29 @@ RSpec.describe Status do
     name3: needs sync
 ')
     end
+
+    it 'should collapse empty names' do
+      status1 = SyncStatus.new 'name1', :up_to_date
+      status2 = SyncStatus.new 'name2', :error, 'error message'
+      status3 = SyncStatus.new 'name3', :backup
+      status4 = SyncStatus.new 'name4', :restore
+      status5 = SyncStatus.new 'name5', :resync
+      status6 = SyncStatus.new 'name6', :overwrite_data
+      group1 = GroupStatus.new '', [status1, status2]
+      group2 = GroupStatus.new 'group2', [status3]
+      group3 = GroupStatus.new 'group3', [status4, status5, group2]
+      group = GroupStatus.new nil, [group1, group3, status6]
+      expect(Status::get_status_str group).to eq(
+'name1: up to date
+name2: error: error message
+group3:
+    name4: needs sync
+    name5: needs sync
+    group2:
+        name3: needs sync
+name6: differs
+')
+    end
   end
 end
 

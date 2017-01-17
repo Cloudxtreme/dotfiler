@@ -50,6 +50,11 @@ class Package < Task
     any? { |sync_item| sync_item.info.status.kind != :error }
   end
 
+  def status
+    status_items = select(&:should_execute).map(&:status)
+    GroupStatus.new name, status_items
+  end
+
   def sync!
     execute(:sync) { each(&:sync!) }
   end

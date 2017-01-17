@@ -13,23 +13,18 @@ STATUS_KINDS = {
 module Status
 
 def self.get_status_str(status)
-  string_io = StringIO.new
-  output_status(status, string_io, 0)
-  string_io.string
+  StringIO.new.tap { |io| output_status(status, io, 0) }.string
 end
 
 private
 
 def self.output_status(status, string_io, level)
-  subitems = defined? status.items
-  if status.name.nil? and subitems
+  if status.name.nil? or status.name.empty?
     status.items.each { |subitem| self.output_status subitem, string_io, level }
   else
     string_io << ' ' * 4 * level
     string_io << status.status_str << "\n"
-    if subitems
-      status.items.each { |subitem| self.output_status subitem, string_io, level + 1 }
-    end
+    status.items.each { |subitem| self.output_status subitem, string_io, level + 1 }
   end
 end
 
@@ -45,6 +40,10 @@ class SyncStatus < Struct.new(:name, :kind, :status_msg)
     kind_str = STATUS_KINDS[kind]
     status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
   end
+
+  def items
+    []
+  end
 end
 
 # Current synchronization status of a Package.
@@ -54,10 +53,7 @@ class GroupStatus < Struct.new(:name, :items, :status_msg)
   end
 
   def status_str
-    return "#{name}:" if kind.nil?
-    kind_str = STATUS_KINDS[kind]
-
-    status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
+    return "#{name}:"
   end
 end
 

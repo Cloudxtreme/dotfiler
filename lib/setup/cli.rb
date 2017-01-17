@@ -152,33 +152,6 @@ class Program < CommonCLI
         end
       end
     end
-
-    def summarize_package_info(package)
-      sync_items_info = package.map do |sync_item|
-        [sync_item.info, sync_item]
-      end
-      sync_items_groups = sync_items_info.group_by { |sync_item_info, _| sync_item_info.status.kind }
-
-      if not options[:verbose] and sync_items_groups.keys.length == 1 and sync_items_groups.key? :up_to_date
-        LOGGER << "up-to-date: #{package.name}\n"
-      else
-        sync_items_groups.values.flatten(1).each do |sync_item_info, sync_item|
-          summary, detail = summarize_sync_item_info sync_item_info
-          padded_summary = '%-11s' % "#{summary}:"
-          name = "#{package.name}:#{sync_item.name}"
-          LOGGER << [padded_summary, name, detail].compact.join(' ') + "\n"
-        end
-      end
-    end
-
-    def summarize_sync_item_info(sync_item_info)
-      case sync_item_info.status.kind
-      when :error then ['error', sync_item_info.status.status_msg]
-      when :up_to_date then ['up-to-date', nil]
-      when :backup, :restore, :resync then ['needs sync', nil]
-      when :overwrite_data then ['differs', nil]
-      end
-    end
   end
 
   desc 'init [<backups>...]', 'Initializes backups'
@@ -235,12 +208,12 @@ class Program < CommonCLI
     return help :status if options[:help]
     return false if not init_backup_manager
     @ctx.logger << "Current status:\n\n"
-    packages = @backup_manager.map { |backup| backup.items.select { |package| package.should_execute }}.flatten(1)
-    if packages.empty?
+    status = @backup_manager.status
+    if status.name.empty? and status.items.empty?
       @ctx.logger.warn "No packages enabled."
       @ctx.logger.warn "Use ./setup package add to enable packages."
     else
-      packages.each(&method(:summarize_package_info))
+      @ctx.logger << Setup::Status::get_status_str(status)
     end
   end
 
