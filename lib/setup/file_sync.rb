@@ -16,9 +16,9 @@ class FileSync
     @io = io
   end
 
-  def info(options = {})
+  def status(options = {})
     options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-    FileSyncInfo.new(options, @io)
+    FileSyncInfo.new(options, @io).status
   end
 
   def sync!(options = {})

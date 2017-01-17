@@ -41,8 +41,7 @@ RSpec.describe FileSync do
 
   describe '#info' do
     it 'should return the sync info' do
-      sync_info = get_sync_info({})
-      expect((file_sync sync_info).info).to eq(sync_info)
+      expect((file_sync info_up_to_date).status).to eq(info_up_to_date.status)
     end
   end
 

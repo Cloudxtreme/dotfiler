@@ -58,12 +58,8 @@ class FileSyncTask < Task
     end
   end
 
-  def info
-    FileSync.new(ctx.options[:sync_time], io).info file_sync_options
-  end
-
   def status
-    FileSync.new(ctx.options[:sync_time], io).info(file_sync_options).status
+    FileSync.new(ctx.options[:sync_time], io).status file_sync_options
   end
 end
 

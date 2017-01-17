@@ -47,7 +47,7 @@ class Package < Task
   end
 
   def has_data
-    any? { |sync_item| sync_item.info.status.kind != :error }
+    any? { |sync_item| sync_item.status.kind != :error }
   end
 
   def status

@@ -32,8 +32,8 @@ RSpec.describe FileSyncTask do
     end
   end
 
-  describe '#info' do
-    it 'should execute the info for a new FileSync' do
+  describe '#sync!' do
+    it 'should execute the sync for a new FileSync' do
       expect(FileSync).to receive(:new).with(12, io).and_return file_sync
       expect(file_sync).to receive(:sync!).with(options)
 
@@ -41,12 +41,12 @@ RSpec.describe FileSyncTask do
     end
   end
 
-  describe '#sync!' do
-    it 'should execute the sync for a new FileSync' do
+  describe '#status' do
+    it 'should execute the info for a new FileSync' do
       expect(FileSync).to receive(:new).with(12, io).and_return file_sync
-      expect(file_sync).to receive(:info).with(options)
+      expect(file_sync).to receive(:status).with(options)
 
-      task.info
+      task.status
     end
   end
 end
