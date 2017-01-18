@@ -55,40 +55,6 @@ class Backup < ItemPackage
     @items = @items.select { |package| not package_names.member? package.name }
   end
 
-  # TODO(drognanar): Can we move resolve_backup to BackupManager?
-  # This method resolves a commandline backup name into a backup path/source path pair.
-  # For instance resolve_backup `~/dotfiles` should resolve to backup `~/dotfiles` but no source.
-  # resolve_backup `github.com/repo` should resolve to backup in `~/dotfiles/github.com/repo` with source at `github.com/repo`.
-  def Backup.resolve_backup(backup_str, options)
-    sep = backup_str.index ';'
-    backup_root = options[:backup_root] || DEFAULT_BACKUP_ROOT
-
-    if not sep.nil?
-      resolved_backup = backup_str[0..sep-1]
-      resolved_source = backup_str[sep+1..-1]
-    elsif is_path backup_str
-      resolved_backup = backup_str
-      resolved_source = nil
-    else
-      resolved_backup = backup_str
-      resolved_source = backup_str
-    end
-
-    if not is_path(resolved_backup)
-      resolved_backup = File.expand_path(File.join(backup_root, resolved_backup))
-    end
-
-    if resolved_source == ''
-      resolved_source = nil
-    end
-
-    if not resolved_source.nil? and not is_path(resolved_source)
-      resolved_source = "https://#{resolved_source}"
-    end
-
-    [File.expand_path(resolved_backup), resolved_source]
-  end
-
   private
 
   def Backup.is_path(path)
@@ -124,22 +90,23 @@ class BackupManager < ItemPackage
   def save_config!
     @store.transaction(false) { |store| store['backups'] = @backup_paths } unless io.dry
   end
+end
 
-  # Creates a new backup and registers it in the global yaml configuration.
-  def create_backup!(resolved_backup, force: false)
-    backup_dir, _ = resolved_backup
+module Backups
 
-    logger << "Creating a backup at \"#{backup_dir}\"\n"
+def self.create_backup(path, logger, io, force: false)
+  logger << "Creating a backup at \"#{path}\"\n"
 
-    if io.exist?(backup_dir) and not io.entries(backup_dir).empty? and not force
-      logger.warn "Cannot create backup. The folder #{backup_dir} already exists and is not empty."
-      return
-    end
-
-    logger.verbose "Updating \"#{@store.path}\""
-    @backup_paths = @backup_paths << backup_dir
-    save_config!
+  if io.exist?(path) and not io.entries(path).empty? and not force
+    logger.warn "Cannot create backup. The folder #{path} already exists and is not empty."
+    return
   end
+
+  io.mkdir_p path
+  io.write(File.join(path, 'backups.rb'), Setup::Templates::backups)
+  io.write(File.join(path, 'sync.rb'), Setup::Templates::sync)
+end
+
 end
 
 end # module Setup

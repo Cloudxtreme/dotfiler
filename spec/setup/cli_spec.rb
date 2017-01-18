@@ -218,27 +218,50 @@ Options:
   describe 'init' do
     # The default test setup includes a default_config_root. Remove it to init from a bare repository.
     before(:each) { File.delete @default_config_root }
+    let(:custom_path) { File.join(@tmpdir, 'custom') }
+    let(:custom_ctx)  { ctx.with_backup_dir custom_path }
 
-    context 'when --dir=./custom/path' do
-      let(:custom_path) { File.join(@tmpdir, 'custom') }
+    it 'should initialize a backup in current working directory' do
+      expect(Dir).to receive(:pwd).and_return custom_path
 
-      it 'should not affect default path' do
-        assert_ran_without_errors setup ['init', "--dir=#{custom_path}", '--enable_new=all']
+      assert_ran_without_errors setup %w[init]
+      assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates::backups
+      assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates::sync
+    end
 
-        assert_yaml_content @default_config_root, 'backups' => [@default_backup_dir]
+    it 'should create a backup relative to the new dir' do
+      expect(Dir).to receive(:pwd).and_return custom_path
+
+      assert_ran_without_errors setup %w[init ./package]
+      assert_file_content custom_ctx.backup_path('package/backups.rb'), Setup::Templates::backups
+      assert_file_content custom_ctx.backup_path('package/sync.rb'), Setup::Templates::sync
+    end
+
+    it 'should not create a backup if files already present' do
+      expect(Dir).to receive(:pwd).and_return @dotfiles_dir
+
+      assert_ran_without_errors setup %w[init]
+      expect(File.exist? ctx.backup_path('backups.rb')).to be false
+      expect(File.exist? ctx.backup_path('sync.rb')).to be false
+    end
+
+    context 'when force specified' do
+      it 'should create a backup even if files already present' do
+        expect(Dir).to receive(:pwd).and_return @dotfiles_dir
+
+        assert_ran_without_errors setup %w[init --force]
+        assert_file_content ctx.backup_path('backups.rb'), Setup::Templates::backups
+        assert_file_content ctx.backup_path('sync.rb'), Setup::Templates::sync
       end
+    end
 
-      it 'should not affect absolute path' do
-        absolute_path = File.join(@tmpdir, 'absolute')
-        assert_ran_without_errors setup ['init', "--dir=#{custom_path}", '--enable_new=all', absolute_path]
+    context 'when dir option specified' do
+      it 'should initialize a backup at the location specified' do
+        allow(Dir).to receive(:pwd).and_return @dotfiles_dir
 
-        assert_yaml_content @default_config_root, 'backups' => [absolute_path]
-      end
-
-      it 'should create a backup relative to the new dir' do
-        assert_ran_without_errors setup ['init', '--enable_new=all', "--dir=#{custom_path}", "repo;"]
-
-        assert_yaml_content @default_config_root, 'backups' => [File.join(custom_path, 'repo')]
+        assert_ran_without_errors setup %w[init], dir: custom_path
+        assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates::backups
+        assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates::sync
       end
     end
   end

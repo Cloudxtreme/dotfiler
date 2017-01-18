@@ -80,65 +80,51 @@ RSpec.describe Backup do
     expected_backup = [File.expand_path(expected_backup_path), expected_source_path]
     expect(Setup::Backup.resolve_backup(backup_str, options)).to eq(expected_backup)
   end
-
-  describe '#resolve_backup' do
-    it 'should handle local file paths' do
-      assert_resolve_backup './path', './path', nil
-      assert_resolve_backup '../path', '../path', nil
-      assert_resolve_backup File.expand_path('~/username/dotfiles'), File.expand_path('~/username/dotfiles'), nil
-      assert_resolve_backup '~/', '~/', nil
-    end
-
-    it 'should handle urls' do
-      assert_resolve_backup 'github.com/username/path', '~/dotfiles/github.com/username/path', 'https://github.com/username/path'
-    end
-
-    it 'should allow to specify both local and global path' do
-      assert_resolve_backup '~/dotfiles;github.com/username/path', '~/dotfiles', 'https://github.com/username/path'
-      assert_resolve_backup '~/dotfiles;github.com:80/username/path', '~/dotfiles', 'https://github.com:80/username/path'
-      assert_resolve_backup '~/dotfiles;~/otherfiles', '~/dotfiles', '~/otherfiles'
-    end
-
-    it 'should allow to specify the directory' do
-      assert_resolve_backup 'github.com/username/path',
-        '~/backups/github.com/username/path', 'https://github.com/username/path',
-        backup_root: File.expand_path('~/backups/')
-    end
-  end
 end
 
-RSpec.describe BackupManager do
+RSpec.describe Backups do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:ctx)            { SyncContext.new io: io }
-  let(:manager_store)  { instance_double(YAML::Store, path: '') }
-  let(:backup1)        { instance_double(Backup) }
-  let(:backup2)        { instance_double(Backup) }
-
-  let(:backup_manager) do
-    allow(manager_store).to receive(:transaction).and_yield(manager_store)
-    BackupManager.new(ctx, manager_store)
-  end
 
   describe '#create_backup!' do
+    it 'should create backup if directory does not exist' do
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return false
+      expect(io).to receive(:mkdir_p).with('/backup/dir')
+      expect(io).to receive(:write).with('/backup/dir/backups.rb', Templates::backups)
+      expect(io).to receive(:write).with('/backup/dir/sync.rb', Templates::sync)
+
+      Backups::create_backup '/backup/dir', ctx.logger, io
+    end
+
+    it 'should create backup if force passed' do
+      expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
+      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return []
+      expect(io).to receive(:mkdir_p).with('/backup/dir')
+      expect(io).to receive(:write).with('/backup/dir/backups.rb', Templates::backups)
+      expect(io).to receive(:write).with('/backup/dir/sync.rb', Templates::sync)
+
+      Backups::create_backup '/backup/dir', ctx.logger, io
+    end
+
     it 'should not create backup if backup directory is not empty' do
-      backup_manager.backup_paths = ['/existing/backup/']
       expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
       expect(io).to receive(:entries).with('/backup/dir').ordered.and_return ['a']
 
-      backup_manager.create_backup! ['/backup/dir', nil]
+      Backups::create_backup '/backup/dir', ctx.logger, io
       expect(@log_output.readlines.join).to eq(
 "Creating a backup at \"/backup/dir\"
 W: Cannot create backup. The folder /backup/dir already exists and is not empty.
 ")
     end
 
-    it 'should update configuration file if directory already present' do
-      backup_manager.backup_paths = ['/existing/backup/']
+    it 'should create backup if force passed' do
       expect(io).to receive(:exist?).with('/backup/dir').ordered.and_return true
-      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return []
-      expect(manager_store).to receive(:[]=).with('backups', ['/existing/backup/', '/backup/dir']).ordered.and_return ['/backup/dir']
+      expect(io).to receive(:entries).with('/backup/dir').ordered.and_return ['a']
+      expect(io).to receive(:mkdir_p).with('/backup/dir')
+      expect(io).to receive(:write).with('/backup/dir/backups.rb', Templates::backups)
+      expect(io).to receive(:write).with('/backup/dir/sync.rb', Templates::sync)
 
-      backup_manager.create_backup! ['/backup/dir', nil]
+      Backups::create_backup '/backup/dir', ctx.logger, io, force: true
     end
   end
 end

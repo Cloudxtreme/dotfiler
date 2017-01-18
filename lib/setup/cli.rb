@@ -18,7 +18,7 @@ class CommonCLI < Thor
 
   def initialize(args = [], opts = {}, config = {})
     super
-    backup_dir = config[:dir] || ''
+    backup_dir = config[:dir] || Dir.pwd
     LOGGER.level = options[:verbose] ? :verbose : :info
     @cli = HighLine.new
     @ctx = get_context(options).with_backup_dir(backup_dir).add_default_applications
@@ -171,15 +171,10 @@ class Program < CommonCLI
   option 'dir', type: :string
   option 'force', type: :boolean
   Program.sync_options
-  def init(*backup_strs)
-    backup_strs = [Setup::Backup::DEFAULT_BACKUP_DIR] if backup_strs.empty?
-
+  def init(path = '')
     return help :init if options[:help]
     return false if not init_backup_manager
-    LOGGER << "Creating backups:\n"
-    backup_strs
-      .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_root: options[:dir]) }
-      .each { |backup| @backup_manager.create_backup!(backup, force: options[:force]) }
+    Setup::Backups::create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
   end
 
   desc 'discover', 'Discovers applications'
