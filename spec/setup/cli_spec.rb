@@ -180,8 +180,6 @@ RSpec.describe './setup' do
     ]
     stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
     stub_const 'Setup::Package::DEFAULT_RESTORE_DIR', @default_restore_dir
-    stub_const 'Setup::Backup::DEFAULT_BACKUP_ROOT', @default_backup_root
-    stub_const 'Setup::Backup::DEFAULT_BACKUP_DIR', @default_backup_dir
 
     # Take over the interactions with console in order to stub out user interaction.
     allow(HighLine).to receive(:new).and_return cmd

@@ -22,8 +22,6 @@ end
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
 class Backup < ItemPackage
-  DEFAULT_BACKUP_ROOT = File.expand_path '~/dotfiles'
-  DEFAULT_BACKUP_DIR = File.join DEFAULT_BACKUP_ROOT, 'local'
   BACKUP_PACKAGES_PATH = '_packages'
 
   def backup_packages_path
@@ -53,12 +51,6 @@ class Backup < ItemPackage
 
   def disable_packages!(package_names)
     @items = @items.select { |package| not package_names.member? package.name }
-  end
-
-  private
-
-  def Backup.is_path(path)
-    path.start_with?('..') || path.start_with?('.') || path.start_with?('~') || Pathname.new(path).absolute?
   end
 end
 
