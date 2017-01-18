@@ -13,18 +13,21 @@ STATUS_KINDS = {
 module Status
 
 def self.get_status_str(status)
-  StringIO.new.tap { |io| output_status(status, io, 0) }.string
+  self.print_nested(status) { |item| [item.status_str, item.items] }
 end
 
-private
+def self.print_nested(item, &block)
+  StringIO.new.tap { |io| print_nested_with_level(item, io, 0, &block) }.string
+end
 
-def self.output_status(status, string_io, level)
-  if status.name.nil? or status.name.empty?
-    status.items.each { |subitem| self.output_status subitem, string_io, level }
+def self.print_nested_with_level(item, string_io, level, &block)
+  str, subitems = block.call item
+  if str.nil? or str.empty?
+    subitems.each { |subitem| self.print_nested_with_level(subitem, string_io, level, &block) }
   else
     string_io << ' ' * 4 * level
-    string_io << status.status_str << "\n"
-    status.items.each { |subitem| self.output_status subitem, string_io, level + 1 }
+    string_io << str << "\n"
+    subitems.each { |subitem| self.print_nested_with_level(subitem, string_io, level + 1, &block) }
   end
 end
 
@@ -49,7 +52,7 @@ class GroupStatus < Struct.new(:name, :items, :status_msg)
   end
 
   def status_str
-    return "#{name}:"
+    return "#{name}:" if not name.nil? and not name.empty?
   end
 end
 
