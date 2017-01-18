@@ -47,7 +47,7 @@ def find_package_cls(package_path, io)
   package_script = io.read package_path
 
   begin
-    mod.class_eval package_script
+    mod.class_eval package_script, package_path, 1
   rescue Exception => e
     raise InvalidConfigFileError.new package_path, e
   end
