@@ -8,8 +8,6 @@ require 'highline'
 require 'thor'
 require 'yaml'
 
-# TODO: Assume some global variable for backup manager.
-
 module Setup::Cli
 
 class CommonCLI < Thor
@@ -138,16 +136,21 @@ class Program < CommonCLI
 
     # Prompts to enable new packages.
     def prompt_to_enable_new_packages(backup_manager, options)
-      backups_with_new_packages = backup_manager.select { |backup| not backup.discover_packages.empty? }
+      backups_with_new_packages = {}
+      backup_manager.each do |backup|
+        discovered_packages = backup.discover_packages
+        backups_with_new_packages[backup] = discovered_packages unless discovered_packages.empty?
+      end
+
       if backups_with_new_packages.empty?
         return
       end
 
       if options[:enable_new] == 'prompt'
         LOGGER << "Found new packages to sync:\n\n"
-        backups_with_new_packages.each do |backup|
+        backups_with_new_packages.each do |backup, discovered_packages|
           LOGGER << backup.ctx.backup_path + "\n"
-          LOGGER << backup.discover_packages.map { |package| package.name }.join(' ') + "\n"
+          LOGGER << discovered_packages.map { |package| package.name }.join(' ') + "\n"
         end
       end
 
@@ -155,8 +158,8 @@ class Program < CommonCLI
       # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
       prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
       if options[:enable_new] == 'all' or prompt_accept
-        backups_with_new_packages.each do |backup|
-          backup.items += backup.discover_packages
+        backups_with_new_packages.each do |backup, discovered_packages|
+          backup.items += discovered_packages
           backup.update_applications_file
         end
       end
@@ -165,7 +168,6 @@ class Program < CommonCLI
 
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', type: :string
-  option 'sync', type: :boolean, default: true
   option 'force', type: :boolean
   Program.sync_options
   def init(*backup_strs)
@@ -177,15 +179,16 @@ class Program < CommonCLI
     backup_strs
       .map { |backup_str| Setup::Backup::resolve_backup(backup_str, backup_root: options[:dir]) }
       .each { |backup| @backup_manager.create_backup!(backup, force: options[:force]) }
+  end
 
-    # Cannot run sync in dry mode since the backup creation was run in dry mode.
-    if not options[:dry] and options[:sync]
-      @backup_manager.load_backups!
-      prompt_to_enable_new_packages @backup_manager, options
-      @ctx.logger << "Syncing:\n"
-      @backup_manager.sync!
-      @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
-    end
+  desc 'discover', 'Discovers applications'
+  option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
+  def discover
+    return help :discover if options[:help]
+    return false if not init_backup_manager
+
+    @backup_manager.load_backups!
+    prompt_to_enable_new_packages @backup_manager, options
   end
 
   desc 'sync', 'Synchronize your settings'

@@ -34,7 +34,7 @@ class Backup < ItemPackage
   # TODO(drognanar): Can we get rid of discovery?
   def discover_packages
     existing_package_names = Set.new @items.map { |package| package.name }
-    packages.values.select { |application| application.should_execute and application.has_data and not existing_package_names.member?(application.name) }
+    packages.values.select { |application| application.has_data and not existing_package_names.member?(application.name) }
   end
 
   def update_applications_file

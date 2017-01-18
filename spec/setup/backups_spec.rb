@@ -62,9 +62,7 @@ RSpec.describe Backup do
       expect(package_b2_cls).to receive(:new).and_return package_b2
 
       backup = get_backup [package_a, package_d], ctx.add_packages_from_cls([package_c_cls, package_b2_cls])
-      expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return true
-      expect(package_b2).to receive(:should_execute).and_return true
       expect(package_b2).to receive(:has_data).and_return true
       expect(backup.discover_packages).to eq([package_c, package_b2])
     end
@@ -73,16 +71,7 @@ RSpec.describe Backup do
       expect(package_c_cls).to receive(:new).and_return package_c
 
       backup = get_backup packages, ctx.add_packages_from_cls([package_c_cls])
-      expect(package_c).to receive(:should_execute).and_return true
       expect(package_c).to receive(:has_data).and_return false
-      expect(backup.discover_packages).to eq([])
-    end
-
-    it 'should not include packages with not matching platform' do
-      expect(package_c_cls).to receive(:new).and_return package_c
-
-      backup = get_backup packages, ctx.add_packages_from_cls([package_c_cls])
-      expect(package_c).to receive(:should_execute).and_return false
       expect(backup.discover_packages).to eq([])
     end
   end

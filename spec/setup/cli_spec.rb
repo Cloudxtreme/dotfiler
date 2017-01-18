@@ -47,7 +47,7 @@ RSpec.describe Cli::Program do
 end
 
 # Integration tests.
-RSpec.describe './setup', focus: true do
+RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
   let(:ctx)    { SyncContext.new backup_dir: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
@@ -200,6 +200,7 @@ RSpec.describe './setup', focus: true do
       expect { setup %w[--help] }.to output(
 "Commands:
   setup cleanup                       # Cleans up previous backups
+  setup discover                      # Discovers applications
   setup help [COMMAND]                # Describe available commands or one specific command
   setup init [<backups>...]           # Initializes backups
   setup package <subcommand> ...ARGS  # Add/remove packages to be backed up
@@ -217,54 +218,6 @@ Options:
   describe 'init' do
     # The default test setup includes a default_config_root. Remove it to init from a bare repository.
     before(:each) { File.delete @default_config_root }
-
-    context 'when no options are passed in' do
-      it 'should prompt by default' do
-        expect(cmd).to receive(:agree).once.and_return true
-        assert_ran_without_errors setup %w[init]
-
-        assert_yaml_content @default_config_root, 'backups' => [@default_backup_dir]
-        assert_applications_content @default_applications_dir, [Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-    end
-
-    context 'when --enable_new=prompt' do
-      it 'should create a local backup and enable tasks if user replies y to prompt' do
-        expect(cmd).to receive(:agree).once.and_return true
-        assert_ran_without_errors setup %w[init --enable_new=prompt]
-
-        assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        assert_applications_content @default_applications_dir, [Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-
-      it 'should create a local backup and disable tasks if user replies n to prompt' do
-        expect(cmd).to receive(:agree).once.and_return false
-        assert_ran_without_errors setup %w[init --enable_new=prompt]
-
-        assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        expect(File.exist? @default_applications_dir).to be false
-      end
-    end
-
-    context 'when --enable_new=all' do
-      it 'should create a local backup and enable found tasks' do
-        expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-        assert_ran_with_errors setup %w[init --enable_new=all]
-
-        assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir, @default_backup_dir]
-        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-    end
-
-    context 'when --enable_new=none' do
-      it 'should create a local backup and disable found tasks' do
-        assert_ran_without_errors setup %w[init --enable_new=none]
-
-        assert_yaml_content @default_config_root,'backups' => [@default_backup_dir]
-        expect(File.exist? @default_applications_dir).to be false
-      end
-    end
 
     context 'when --dir=./custom/path' do
       let(:custom_path) { File.join(@tmpdir, 'custom') }
@@ -288,6 +241,56 @@ Options:
         assert_yaml_content @default_config_root, 'backups' => [File.join(custom_path, 'repo')]
       end
     end
+  end
+
+  describe 'discover' do
+    context 'when no options are passed in' do
+      it 'should prompt by default' do
+        expect(cmd).to receive(:agree).once.and_return true
+        assert_ran_without_errors setup %w[discover]
+
+        assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
+        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+      end
+    end
+
+    context 'when --enable_new=all' do
+      it 'should create a local backup and enable found tasks' do
+        assert_ran_without_errors setup %w[discover --enable_new=all]
+
+        assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
+        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+      end
+    end
+
+    context 'when --enable_new=prompt' do
+      it 'should create a local backup and enable tasks if user replies y to prompt' do
+        expect(cmd).to receive(:agree).once.and_return true
+        assert_ran_without_errors setup %w[discover --enable_new=prompt]
+
+        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
+        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+      end
+
+      it 'should create a local backup and disable tasks if user replies n to prompt' do
+        expect(cmd).to receive(:agree).once.and_return false
+        assert_ran_without_errors setup %w[discover --enable_new=prompt]
+
+        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
+        expect(File.exist? @applications_path).to be false
+      end
+    end
+
+    context 'when --enable_new=none' do
+      it 'should create a local backup and disable found tasks' do
+        assert_ran_without_errors setup %w[discover --enable_new=none]
+
+        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
+        expect(File.exist? @default_applications_dir).to be false
+      end
+    end
+
+    # TODO(drognanar): Move discovery tests here.
   end
 
   describe 'sync' do
