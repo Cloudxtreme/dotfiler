@@ -1,11 +1,10 @@
 # Setup::Tasks provides method helpers to generate tasks by classes that have
 # a ctx method. The ctx method should return a valid sync context. It also adds
-# these helpers into the following classes: SyncContext/Package/Backup/
-# BackupManager.
+# these helpers into the following classes: SyncContext/Task.
 require 'setup/backups'
 require 'setup/file_sync_task'
-require 'setup/package'
 require 'setup/sync_context'
+require 'setup/task'
 
 module Setup
 module Tasks
@@ -79,17 +78,13 @@ class SyncContext
   def add_default_applications
     add_packages_from_cls APPLICATIONS
   end
+
+  def ctx
+    self
+  end
 end
 
-class Package
-  include Tasks
-end
-
-class Backup
-  include Tasks
-end
-
-class BackupManager
+class Task
   include Tasks
 end
 
