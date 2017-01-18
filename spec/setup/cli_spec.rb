@@ -71,6 +71,10 @@ RSpec.describe './setup' do
     assert_file_content path, Setup::Templates::applications(applications)
   end
 
+  def assert_package_content(path, name, files)
+    assert_file_content path, Setup::Templates::package(name, files)
+  end
+
   # Saves a file with the specified content.
   def save_file_content(path, content)
     FileUtils.mkdir_p File.dirname path
@@ -84,6 +88,10 @@ RSpec.describe './setup' do
 
   def save_applications_content(path, applications)
     save_file_content path, Setup::Templates::applications(applications)
+  end
+
+  def save_package_content(path, name, files)
+    save_file_content path, Setup::Templates::package(name, files)
   end
 
   # Creates a symlink between files.
@@ -193,6 +201,8 @@ RSpec.describe './setup' do
     save_file_content ctx.restore_path('.test_pythonrc'), 'pythonrc'
     save_file_content ctx.backup_path('rubocop/_test_rubocop'), 'rubocop'
     link_files ctx.backup_path('rubocop/_test_rubocop'), ctx.restore_path('.test_rubocop')
+
+    allow(Dir).to receive(:pwd).and_return @dotfiles_dir
   end
 
   describe '--help' do
@@ -523,6 +533,31 @@ vim:
   end
 
   describe 'package' do
+    describe 'new' do
+      it 'should create a new package' do
+        assert_ran_without_errors setup %w[package new test]
+        assert_package_content ctx.backup_path('_packages/test.rb'), 'test', []
+      end
+
+      it 'should not touch an existing package' do
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
+        assert_ran_without_errors setup %w[package new test]
+        assert_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
+
+        expect(@output_lines.join).to eq(
+"Creating a package
+W: Package already exists
+")
+      end
+
+      context 'when full path passed' do
+        it 'should create a new package at that path' do
+          assert_ran_without_errors setup %w[package new ./_pack/test.rb]
+          assert_package_content ctx.backup_path('_pack/test.rb'), 'test', []
+        end
+      end
+    end
+
     describe 'add' do
       it 'should add packages' do
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]

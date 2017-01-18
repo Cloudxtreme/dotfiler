@@ -52,6 +52,31 @@ class Package < CommonCLI
     end
   end
 
+  desc 'new <name>', 'Create a package with a given name'
+  option 'force', type: :boolean
+  def new(name_str)
+    return help :new if options[:help]
+    return false if not init_backup_manager
+
+    dir = File.dirname name_str
+    if dir == '.'
+      package_path = @ctx.backup_path(File.join "_packages", "#{name_str}.rb")
+      name = name_str
+    else
+      package_path = @ctx.backup_path(name_str)
+      name = File.basename name_str, '.*'
+    end
+
+    LOGGER << "Creating a package\n"
+
+    if File.exist?(package_path) and not options[:force]
+      LOGGER.warn "Package already exists"
+    else
+      @ctx.io.mkdir_p File.dirname package_path
+      @ctx.io.write package_path, Setup::Templates::package(name, [])
+    end
+  end
+
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
     # TODO(drognanar): If no names given perform discovery
