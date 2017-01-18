@@ -27,6 +27,10 @@ class Task
     defined? each
   end
 
+  def entries
+    []
+  end
+
   def has_data
     children? ? (should_execute and any? { |sync_item| sync_item.status.kind != :error })
               : (should_execute and status.kind != :error)

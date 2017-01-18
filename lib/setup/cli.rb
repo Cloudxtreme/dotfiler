@@ -102,13 +102,8 @@ class Package < CommonCLI
   def list
     return help :list if options[:help]
     return false if not init_backup_manager
-    @backup_manager.each do |backup|
-      LOGGER << "backup #{backup.ctx.backup_path}:\n\n" if @backup_manager.entries.length > 1
-      LOGGER << "Enabled packages:\n"
-      LOGGER << backup.map { |package| package.name }.entries.join(', ') + "\n\n"
-      LOGGER << "New packages:\n"
-      LOGGER << backup.discover_packages.map { |package| package.name }.join(', ') + "\n"
-    end
+    @ctx.logger << "Packages:\n"
+    @ctx.logger << Setup::Status::print_nested(@backup_manager) { |item| [item.name, item.entries.select(&:children?)] }
   end
 
   desc 'edit NAME', 'Edit an existing package.'

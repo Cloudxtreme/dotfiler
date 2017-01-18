@@ -578,11 +578,9 @@ W: Package already exists
         assert_ran_without_errors setup %w[package list]
 
         expect(@output_lines.join).to eq(
-"Enabled packages:
-bash, code
-
-New packages:
-python, rubocop, vim
+"Packages:
+bash
+code
 ")
       end
     end
