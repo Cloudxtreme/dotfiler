@@ -1,0 +1,9 @@
+class <%= package_name.capitalize %>Package < Setup::Package
+  package_name '<%= package_name.capitalize %>'
+
+  def steps
+<% for file in files %>
+    file '<%= file %>'
+<% end %>
+  end
+end

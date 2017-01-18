@@ -3,22 +3,8 @@ require 'erb'
 module Setup
 module Templates
 
-PACKAGE_TEMPLATE = "class <%= package_name.capitalize %>Package < Setup::Package
-  package_name '<%= package_name.capitalize %>'
-
-  def steps
-<% for file in files %>
-    file '<%= file %>'
-<% end %>
-  end
-end
-"
-
-APPLICATIONS_TEMPLATE = "<% for application in applications %>
-<%= application.name.split('::').last %> = <%= application.name %>
-
-<% end %>
-"
+PACKAGE_TEMPLATE = File.read(File.join(__dir__, 'templates/package.erb')).untaint
+APPLICATIONS_TEMPLATE = File.read(File.join(__dir__, 'templates/applications.erb')).untaint
 
 module_function
 
