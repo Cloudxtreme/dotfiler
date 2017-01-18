@@ -216,8 +216,6 @@ Options:
   end
 
   describe 'init' do
-    # The default test setup includes a default_config_root. Remove it to init from a bare repository.
-    before(:each) { File.delete @default_config_root }
     let(:custom_path) { File.join(@tmpdir, 'custom') }
     let(:custom_ctx)  { ctx.with_backup_dir custom_path }
 
