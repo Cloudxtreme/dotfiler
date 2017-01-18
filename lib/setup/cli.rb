@@ -75,6 +75,8 @@ class Package < CommonCLI
       @ctx.io.mkdir_p File.dirname package_path
       @ctx.io.write package_path, Setup::Templates::package(name, [])
     end
+
+    # TODO(drognanar): Wire back to the backups.rb file
   end
 
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
@@ -107,20 +109,16 @@ class Package < CommonCLI
   end
 
   desc 'edit NAME', 'Edit an existing package.'
-  option 'global'
   def edit(name)
     return help :edit if options[:help]
     return false if not init_backup_manager
-    packages_dir = @backup_manager.entries[0].backup_packages_path
-    package_path = File.join packages_dir, "#{name}.rb"
 
-    if not File.exist? package_path
-      default_package_content = Setup::Templates::package(name, [])
-      File.write package_path, default_package_content if not File.exist? package_path
+    package = Setup::Backups::find_package @backup_manager, name
+    if package.nil? or Setup::Backups::get_source(package).nil?
+      @ctx.logger.warn "Could not find a package to edit. It might not have been added"
+    else
+      Setup::Backups::edit_package package, @ctx.io
     end
-
-    editor = ENV['editor'] || 'vim'
-    @ctx.io.system("#{editor} #{package_path}")
   end
 end
 
@@ -175,6 +173,7 @@ class Program < CommonCLI
         end
       end
 
+      # TODO(drognanar): Do not actually update the backup here
       # TODO(drognanar): Allow to specify the list of applications?
       # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
       prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
@@ -197,6 +196,7 @@ class Program < CommonCLI
     Setup::Backups::create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
   end
 
+  # TODO(drognanar): Move discovery to package CLI
   desc 'discover', 'Discovers applications'
   option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
   def discover

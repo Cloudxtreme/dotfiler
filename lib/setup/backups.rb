@@ -99,6 +99,31 @@ def self.create_backup(path, logger, io, force: false)
   io.write(File.join(path, 'sync.rb'), Setup::Templates::sync)
 end
 
+def self.edit_package(item, io)
+  return if item.nil?
+  source_path = get_source item
+
+  if File.exist? source_path
+    editor = ENV['editor'] || 'vim'
+    io.system("#{editor} #{source_path}")
+  end
+end
+
+def self.get_source(item)
+  return nil if item.nil?
+  item.method(:steps).source_location[0]
+end
+
+def self.find_package(item, name)
+  return item if item.name == name and item.children?
+  item.entries.each do |subitem|
+    package = find_package subitem, name
+    return package if not package.nil?
+  end
+
+  return nil
+end
+
 end
 
 end # module Setup

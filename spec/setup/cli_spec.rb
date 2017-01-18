@@ -587,23 +587,27 @@ code
 
     describe 'edit' do
       it 'should allow to edit a package' do
-        expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'vim.rb')}")
-        assert_ran_without_errors setup %w[package edit vim --global]
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]        
+        expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'test.rb')}")
+        assert_ran_without_errors setup %w[package edit Test], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
-      it 'should create a new package from template' do
-        package_path = File.join(@apps_dir, 'unknown.rb')
-        expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}").ordered
-        assert_ran_without_errors setup %w[package edit unknown --global]
+      it 'should edit global packages' do
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]        
+        package_path = Test::BashPackage.instance_method(:steps).source_location[0]
+        expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}")
 
-        assert_file_content package_path,
-"class UnknownPackage < Setup::Package
-  package_name 'Unknown'
+        assert_ran_without_errors setup %w[package edit bash], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+      end
 
-  def steps
-  end
-end
-"
+      it 'should print a warning if package missing' do
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+        assert_ran_without_errors setup %w[package edit unknown], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+
+        expect(@output_lines.join).to eq("W: Could not find a package to edit. It might not have been added\n")
       end
     end
   end
