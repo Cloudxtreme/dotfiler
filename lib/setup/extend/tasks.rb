@@ -31,7 +31,8 @@ def backup(backup_dir)
   end
 end
 
-def package_from_files(packages_glob, ctx)
+def package_from_files(packages_glob_rel)
+  packages_glob = ctx.backup_path packages_glob_rel
   ItemPackage.new(ctx).tap { |package| package.items = get_packages(packages_glob, ctx) }
 end
 

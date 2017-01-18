@@ -18,9 +18,10 @@ class CommonCLI < Thor
 
   def initialize(args = [], opts = {}, config = {})
     super
+    backup_dir = config[:dir] || ''
     LOGGER.level = options[:verbose] ? :verbose : :info
     @cli = HighLine.new
-    @ctx = get_context(options).add_default_applications
+    @ctx = get_context(options).with_backup_dir(backup_dir).add_default_applications
     @backup_manager = get_backup_manager config
   end
 

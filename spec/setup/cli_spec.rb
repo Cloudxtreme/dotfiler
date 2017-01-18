@@ -460,7 +460,7 @@ W: Use ./setup package add to enable packages.
 
     it 'should print status' do
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_without_errors setup %w[status], dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -481,7 +481,7 @@ vim:
 
     it 'should print verbose status' do
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_without_errors setup %w[status --verbose], dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
 "Current status:
