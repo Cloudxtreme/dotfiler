@@ -35,6 +35,10 @@ class CommonCLI < Thor
       end
     end
 
+    def backups_file_path
+      @ctx.backup_path 'backups.rb'
+    end
+
     def init_backup_manager
       @backup_manager.load_backups! if @backup_manager.respond_to? :load_backups!
       return true
@@ -56,14 +60,16 @@ class Package < CommonCLI
   option 'force', type: :boolean
   def new(name_str)
     return help :new if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager and @ctx.io.exist? backups_file_path
 
     dir = File.dirname name_str
     if dir == '.'
-      package_path = @ctx.backup_path(File.join "_packages", "#{name_str}.rb")
+      packages_dir = @ctx.backup_path "_packages"
+      package_path = File.join(packages_dir, "#{name_str}.rb")
       name = name_str
     else
       package_path = @ctx.backup_path(name_str)
+      packages_dir = File.dirname package_path
       name = File.basename name_str, '.*'
     end
 
@@ -76,34 +82,46 @@ class Package < CommonCLI
       @ctx.io.write package_path, Setup::Templates::package(name, [])
     end
 
-    # TODO(drognanar): Wire back to the backups.rb file
+    backups_file = @ctx.io.read backups_file_path
+    step = "yield package_from_files #{File.join(packages_dir, '*.rb')}"
+    backups_file = Setup::Edits::AddStep.new('MyBackup', step).rewrite_str backups_file
+    @ctx.io.write backups_file_path, backups_file
   end
 
   desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
   def add(*names)
-    # TODO(drognanar): If no names given perform discovery
     return help :add if options[:help]
-    return false if not init_backup_manager
-    @backup_manager.map do |backup|
-      backup.enable_packages! names
-      backup.update_applications_file
+    return false unless init_backup_manager and @ctx.io.exist? backups_file_path
+    backups_file = @ctx.io.read backups_file_path
+    names.each do |name|
+      if @backup_manager.package(name).nil?
+        LOGGER.error "Package #{name} not found"
+      else
+        backups_file = Setup::Edits::AddStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
+      end
     end
+    @ctx.io.write backups_file_path, backups_file
   end
 
   desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
   def remove(*names)
     return help :remove if options[:help]
-    return false if not init_backup_manager
-    @backup_manager.map do |backup|
-      backup.disable_packages! names
-      backup.update_applications_file
+    return false unless init_backup_manager and @ctx.io.exist? backups_file_path
+    backups_file = @ctx.io.read backups_file_path
+    names.each do |name|
+      if Setup::Backups::find_package(@backup_manager, name).nil?
+        LOGGER.error "Package #{name} not found"
+      else
+        backups_file = Setup::Edits::RemoveStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
+      end
     end
+    @ctx.io.write backups_file_path, backups_file
   end
 
   desc 'list', 'Lists packages for which settings can be backed up.'
   def list
     return help :list if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
     @ctx.logger << "Packages:\n"
     @ctx.logger << Setup::Status::print_nested(@backup_manager) { |item| [item.name, item.entries.select(&:children?)] }
   end
@@ -111,7 +129,7 @@ class Package < CommonCLI
   desc 'edit NAME', 'Edit an existing package.'
   def edit(name)
     return help :edit if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
 
     package = Setup::Backups::find_package @backup_manager, name
     if package.nil? or Setup::Backups::get_source(package).nil?
@@ -192,7 +210,7 @@ class Program < CommonCLI
   Program.sync_options
   def init(path = '')
     return help :init if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
     Setup::Backups::create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
   end
 
@@ -201,7 +219,7 @@ class Program < CommonCLI
   option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
   def discover
     return help :discover if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
 
     @backup_manager.load_backups!
     prompt_to_enable_new_packages @backup_manager, options
@@ -211,7 +229,7 @@ class Program < CommonCLI
   Program.sync_options
   def sync
     return help :sync if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
     @ctx.logger << "Syncing:\n"
     @backup_manager.sync!
     @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
@@ -223,7 +241,7 @@ class Program < CommonCLI
   option 'untracked', type: :boolean
   def cleanup
     return help :cleanup if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
     @backup_manager.cleanup!
     if @ctx.reporter.events(:delete).empty?
       @ctx.logger << "Nothing to clean.\n"
@@ -233,7 +251,7 @@ class Program < CommonCLI
   desc 'status', 'Returns the sync status'
   def status
     return help :status if options[:help]
-    return false if not init_backup_manager
+    return false unless init_backup_manager
     @ctx.logger << "Current status:\n\n"
     status = @backup_manager.status
     if status.name.empty? and status.items.empty?

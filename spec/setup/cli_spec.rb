@@ -16,13 +16,12 @@ $0 = "setup"
 ARGV.clear
 
 RSpec.shared_examples 'CLIHelper' do |cli_cls|
-  let(:cli) { cli_cls.new }
+  let(:cli_cls) { cli_cls }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
   def get_backup_manager(options = {})
     expect(backup_manager).to receive(:load_backups!)
-    cli.init_backup_manager
-    cli.backup_manager
+    cli_cls.new([], options).tap(&:init_backup_manager).backup_manager
   end
 
   describe '#init_backup_manager' do
@@ -33,7 +32,7 @@ RSpec.shared_examples 'CLIHelper' do |cli_cls|
 
     it 'creates backup manager with passed in options' do
       expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
-      expect(get_backup_manager({ dry: true })).to eq(backup_manager)
+      expect(get_backup_manager(dry: true)).to eq(backup_manager)
     end
   end
 end
@@ -84,6 +83,10 @@ RSpec.describe './setup' do
   # Saves a yaml dictionary under path.
   def save_yaml_content(path, yaml_hash)
     save_file_content path, YAML::dump(yaml_hash)
+  end
+
+  def save_backups_content(path)
+    save_file_content path, Setup::Templates::backups
   end
 
   def save_applications_content(path, applications)
@@ -162,6 +165,7 @@ RSpec.describe './setup' do
     @dotfiles_dir = File.join(@default_backup_root, 'dotfiles1')
     @apps_dir      = File.join(@dotfiles_dir, '_packages')
     @applications_path = File.join(@apps_dir, 'applications.rb')
+    @backups_path      = File.join(@dotfiles_dir, 'backups.rb')
 
     # Remove data that can be modified by previous test run.
     FileUtils.rm_rf @apps_dir
@@ -200,6 +204,7 @@ RSpec.describe './setup' do
     save_file_content ctx.backup_path('rubocop/_test_rubocop'), 'rubocop'
     link_files ctx.backup_path('rubocop/_test_rubocop'), ctx.restore_path('.test_rubocop')
 
+    # Overwrite the pwd so that tests do not write to the source code folder by mistake.
     allow(Dir).to receive(:pwd).and_return @dotfiles_dir
   end
 
@@ -533,11 +538,24 @@ vim:
   describe 'package' do
     describe 'new' do
       it 'should create a new package' do
+        save_backups_content @backups_path
         assert_ran_without_errors setup %w[package new test]
         assert_package_content ctx.backup_path('_packages/test.rb'), 'test', []
+        assert_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package_from_files #{File.join(@apps_dir, '*.rb')}
+  end
+end
+"
       end
 
       it 'should not touch an existing package' do
+        save_backups_content @backups_path
         save_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
         assert_ran_without_errors setup %w[package new test]
         assert_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
@@ -550,25 +568,110 @@ W: Package already exists
 
       context 'when full path passed' do
         it 'should create a new package at that path' do
+          save_backups_content @backups_path
           assert_ran_without_errors setup %w[package new ./_pack/test.rb]
           assert_package_content ctx.backup_path('_pack/test.rb'), 'test', []
+          assert_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package_from_files #{File.join(@dotfiles_dir, '_pack/*.rb')}
+  end
+end
+"
         end
       end
     end
 
     describe 'add' do
       it 'should add packages' do
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
+        save_backups_content @backups_path
         assert_ran_without_errors setup %w[package add code vim]
-        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage]
+        assert_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package 'code'
+    yield package 'vim'
+  end
+end
+"
+      end
+
+      it 'should not add invalid packages' do
+        save_file_content @backups_path, Setup::Templates::backups
+        assert_ran_with_errors setup %w[package add invalid]
+        assert_file_content @backups_path, Setup::Templates::backups
+
+        expect(@output_lines.join).to eq(
+'E: Package invalid not found
+')
+      end
+
+      context 'when backups file missing' do
+        it 'should not add any packages and print an error' do
+          assert_ran_unsuccessfully setup %w[package add code vim]
+          expect(File.exist? @backups_path).to be false
+        end
       end
     end
 
     describe 'remove' do
       it 'should remove packages' do
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
-        assert_ran_without_errors setup %w[package remove code vim]
-        assert_applications_content @applications_path, [Test::BashPackage]
+        save_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package 'code'
+    yield package 'vim'
+  end
+end
+"
+
+        assert_ran_without_errors setup %w[package remove code vim], package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+  end
+end
+"
+      end
+
+      it 'should print an error when removing an invalid package' do
+        save_file_content @backups_path,
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package 'code'
+    yield package 'vim'
+  end
+end
+"
+
+        assert_ran_with_errors setup %w[package remove invalid]
+      end
+
+      context 'when backups file missing' do
+        it 'should not remove any packages and print an error' do
+          assert_ran_unsuccessfully setup %w[package remove code vim]
+          expect(File.exist? @backups_path).to be false
+        end
       end
     end
 

@@ -33,7 +33,8 @@ end
 
 def package_from_files(packages_glob_rel)
   packages_glob = ctx.backup_path packages_glob_rel
-  ItemPackage.new(ctx).tap { |package| package.items = get_packages(packages_glob, ctx) }
+  packages = get_packages(packages_glob, ctx)
+  packages.length == 1 ? packages[0] : ItemPackage.new(ctx).tap { |package| package.items = packages }
 end
 
 private
