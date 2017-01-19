@@ -11,15 +11,15 @@ class Package < Task
   DEFAULT_RESTORE_DIR = File.expand_path '~/'
 
   def self.restore_dir(value)
-    self.class_eval "def restore_dir; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
+    class_eval "def restore_dir; #{JSON.dump(File.expand_path(value, '~/')) if value}; end"
   end
 
   def self.package_name(value)
-    self.class_eval "def name; #{JSON.dump(value) if value}; end"
+    class_eval "def name; #{JSON.dump(value) if value}; end"
   end
 
   def self.platforms(platforms)
-    self.class_eval "def platforms; #{platforms if platforms}; end"
+    class_eval "def platforms; #{platforms if platforms}; end"
   end
 
   package_name ''
@@ -32,16 +32,14 @@ class Package < Task
     steps { |step| yield step }
   end
 
-  def steps
-  end
+  def steps; end
 
   def initialize(parent_ctx)
-    ctx = parent_ctx
-      .with_backup_dir(File.join(parent_ctx.backup_path, name))
-      .with_restore_dir(defined?(restore_dir) ? restore_dir : Package::DEFAULT_RESTORE_DIR)
+    ctx = parent_ctx.with_backup_dir(File.join(parent_ctx.backup_path, name))
+                    .with_restore_dir(defined?(restore_dir) ? restore_dir : Package::DEFAULT_RESTORE_DIR)
     super(ctx)
 
-    if defined?(platforms) and (not platforms.empty?) and (not platforms.include? Platform.get_platform)
+    if defined?(platforms) && !platforms.empty? && (!platforms.include? Platform.get_platform)
       skip 'Unsupported platform'
     end
   end

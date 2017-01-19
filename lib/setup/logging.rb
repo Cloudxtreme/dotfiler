@@ -4,11 +4,11 @@ Logging.init :verbose, :info, :warn, :error
 
 Logging.color_scheme(
   'default',
-  :levels => {
-    :info  => :green,
-    :warn  => :yellow,
-    :error => :red,
-    :verbose => :blue })
+  levels: {
+    info: :green,
+    warn: :yellow,
+    error: :red,
+    verbose: :blue })
 
 Logging.appenders.stdout(
   'stdout',
