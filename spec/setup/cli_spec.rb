@@ -89,11 +89,6 @@ RSpec.describe './setup' do
     File.write path, content
   end
 
-  # Saves a yaml dictionary under path.
-  def save_yaml_content(path, yaml_hash)
-    save_file_content path, YAML::dump(yaml_hash)
-  end
-
   def save_backups_content(path)
     save_file_content path, Setup::Templates::backups
   end
@@ -166,7 +161,6 @@ RSpec.describe './setup' do
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
     @exit_reason = nil
-    @default_config_root   = File.join(@tmpdir, 'setup.yml')
     @default_restore_dir  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
     @default_backup_dir    = File.join(@default_backup_root, 'local')
@@ -192,7 +186,6 @@ RSpec.describe './setup' do
       Test::RubocopPackage,
       Test::VimPackage
     ]
-    stub_const 'Setup::BackupManager::DEFAULT_CONFIG_PATH', @default_config_root
     stub_const 'Setup::Package::DEFAULT_RESTORE_DIR', @default_restore_dir
 
     # Take over the interactions with console in order to stub out user interaction.
@@ -202,8 +195,6 @@ RSpec.describe './setup' do
     # Create a basic layout of files on the disk.
     FileUtils.mkdir_p File.join(@apps_dir)
     FileUtils.mkdir_p File.join(@tmpdir, 'machine')
-
-    save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
 
     save_file_content ctx.restore_path('.test_vimrc'), '; Vim configuration.'
     save_file_content ctx.backup_path('code/_test_vscode'), 'some content'

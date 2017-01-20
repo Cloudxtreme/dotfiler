@@ -6,62 +6,6 @@ require 'yaml/store'
 
 module Setup
 
-RSpec.describe Backup do
-  let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
-  let(:store_factory)  { class_double(YAML::Store) }
-  let(:ctx)            { SyncContext.new backup_dir: '/backup_dir', io: io }
-  let(:package_a)      { instance_double(Package, name: 'a') }
-  let(:package_c)      { instance_double(Package, name: 'c') }
-  let(:package_d)      { instance_double(Package, name: 'd') }
-  let(:package_b2)     { instance_double(Package, name: 'b2') }
-  let(:package_c_cls)  { class_double(Package) }
-  let(:package_b2_cls) { class_double(Package) }
-  let(:packages)       { [package_a, package_b2, package_c, package_d] }
-
-  def get_backup(packages, ctx)
-    Backup.new(ctx).tap { |backup| backup.items = packages }
-  end
-
-  describe '#initialize' do
-    it 'should initialize from config files' do
-      backup = get_backup([package_a], ctx)
-      expect(backup.to_a).to eq([package_a])
-    end
-  end
-
-  # TODO(drognanar): Test new discovery/update mechanism
-  def verify_backup_save(backup, update_names, expected_package_names)
-    if not Set.new(update_names).intersection(Set.new(backup.to_a.keys)).empty?
-      expect(backup_store).to receive(:transaction).with(false).and_yield backup_store
-      expect(backup_store).to receive(:[]=).with('enabled_package_names', expected_package_names[:enabled])
-      expect(backup_store).to receive(:[]=).with('disabled_package_names', expected_package_names[:disabled])
-    end
-  end
-
-  def assert_enable_packages(initial_package_names)
-    backup = get_backup packages, ctx
-    verify_backup_save(backup, enabled_package_names, expected_package_names)
-
-    backup.enable_packages! enabled_package_names
-    expect(backup.enabled_package_names).to eq(Set.new expected_package_names[:enabled])
-    expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
-  end
-
-  def assert_disable_packages(initial_package_names)
-    backup = get_backup packages, ctx
-    verify_backup_save(backup, disabled_package_names, expected_package_names)
-
-    backup.disable_packages! disabled_package_names
-    expect(backup.enabled_package_names).to eq(Set.new expected_package_names[:enabled])
-    expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
-  end
-
-  def assert_resolve_backup(backup_str, expected_backup_path, expected_source_path, **options)
-    expected_backup = [File.expand_path(expected_backup_path), expected_source_path]
-    expect(Setup::Backup.resolve_backup(backup_str, options)).to eq(expected_backup)
-  end
-end
-
 RSpec.describe Backups do
   let(:io)             { instance_double(InputOutput::File_IO, dry: false) }
   let(:ctx)            { SyncContext.new io: io }

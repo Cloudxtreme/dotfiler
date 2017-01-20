@@ -2,56 +2,7 @@
 require 'setup/package'
 require 'setup/package_template'
 
-require 'pathname'
-require 'yaml'
-require 'yaml/store'
-
 module Setup
-
-class InvalidConfigFileError < Exception
-  attr_reader :path, :inner_exception
-
-  def initialize(path, inner_exception)
-    @path = path
-    @inner_exception = inner_exception
-  end
-end
-
-# A single backup directory present on a local computer.
-# Discovered packages are packages which are not loaded by backup but have data.
-# TODO(drognanar): Get rid of backup_packages_path and the #backup method.
-class Backup < ItemPackage
-  BACKUP_PACKAGES_PATH = '_packages'
-
-  def backup_packages_path
-    ctx.backup_path BACKUP_PACKAGES_PATH
-  end
-end
-
-# TODO(drognanar): Slowly deprecate BackupManager.
-# TODO(drognanar): Having to deal with another global config file makes things more confusing.
-class BackupManager < ItemPackage
-  DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
-
-  def initialize(ctx = nil, store = nil)
-    super(ctx)
-    @store = store
-  end
-
-  # Loads backup manager configuration and backups it references.
-  def BackupManager.from_config(ctx)
-    store = YAML::Store.new(DEFAULT_CONFIG_PATH)
-    BackupManager.new(ctx, store)
-  end
-
-  def load_backups!
-    @backup_paths = @store.transaction(true) { |store| store.fetch('backups', []) }
-    logger.verbose "Loading backups: #{@backup_paths}"
-    @items = @backup_paths.map(&method(:backup))
-  rescue PStore::Error => e
-    raise InvalidConfigFileError.new @store.path, e
-  end
-end
 
 module Backups
 

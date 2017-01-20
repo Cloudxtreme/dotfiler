@@ -7,6 +7,16 @@ require 'setup/sync_context'
 require 'setup/task'
 
 module Setup
+
+class InvalidConfigFileError < Exception
+  attr_reader :path, :inner_exception
+
+  def initialize(path, inner_exception)
+    @path = path
+    @inner_exception = inner_exception
+  end
+end
+
 module Tasks
 
 # Returns a new FileSyncTask with the expected context.
@@ -17,18 +27,6 @@ end
 # Returns a package with a given name within the context.
 def package(app_name)
   ctx.packages[app_name]
-end
-
-def backup(backup_dir)
-  yield if block_given? and not ctx.io.exist? backup_dir
-
-  # TODO: Deal with the case where the backup_dir is still missing.
-  # TODO: Allow to provide a backup.rb file.
-  backup_ctx = ctx.with_backup_dir(backup_dir).add_default_applications
-  Backup.new(backup_ctx).tap do |backup|
-    packages_glob = File.join(backup.backup_packages_path, '*.rb')
-    backup.items = get_packages packages_glob, backup_ctx
-  end
 end
 
 def package_from_files(packages_glob_rel)
