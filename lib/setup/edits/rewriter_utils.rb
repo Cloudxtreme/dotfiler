@@ -4,6 +4,7 @@ require 'parser'
 
 module Setup
   module Edits
+    # Utilities which help with rewriting ruby code.
     module RewriterUtils
       include ParserUtils
 

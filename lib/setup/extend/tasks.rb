@@ -1,6 +1,3 @@
-# Setup::Tasks provides method helpers to generate tasks by classes that have
-# a ctx method. The ctx method should return a valid sync context. It also adds
-# these helpers into the following classes: SyncContext/Task.
 require 'setup/backups'
 require 'setup/file_sync_task'
 require 'setup/sync_context'
@@ -16,17 +13,23 @@ module Setup
     end
   end
 
+  # Setup::Tasks provides method helpers to generate tasks by classes that have
+  # a +ctx+ method. The +ctx+ method should return a valid sync context. It also adds
+  # these helpers into the following classes: SyncContext/Task.
   module Tasks
-    # Returns a new FileSyncTask with the expected context.
+    # @return [FileSyncTask] a new {FileSyncTask} with +path+ {SyncContext}.
     def file(path, file_sync_options = {})
       FileSyncTask.new(path, file_sync_options, ctx)
     end
 
-    # Returns a package with a given name within the context.
+    # @return [Task] a task defined in {SyncContext#packages} with a corresponding name.
     def package(app_name)
       ctx.packages[app_name]
     end
 
+    # @return [Task] a dynamically created task created by loading scripts under +packages_glob_rel+
+    #   and finding all {Package} instances.
+    # @note if multiple {Package} instances are found puts them into an {ItemPackage}.
     def package_from_files(packages_glob_rel)
       packages_glob = ctx.backup_path packages_glob_rel
       packages = get_packages(packages_glob, ctx)
@@ -57,8 +60,8 @@ module Setup
     end
 
     # Finds package definitions inside of a particular folder.
-    # @param string packages_glob Glob for the script files that should contain packages.
-    # @param SyncContext ctx Context that should be passed into packages.
+    # @param packages_glob [string] Glob for the script files that should contain packages.
+    # @param ctx [SyncContext] {SyncContext} that should be passed into packages.
     def get_packages(packages_glob, ctx)
       (ctx.io.glob packages_glob)
         .map { |package_path| find_package_cls(package_path, ctx.io) }

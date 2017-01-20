@@ -1,9 +1,11 @@
 module Setup
   # Mapping of status kinds to their string represenations.
+  # @return [Hash<Symbol, String>]
   STATUS_KINDS = {
     error: 'error',
     up_to_date: 'up to date',
     backup: 'needs sync',
+    sync: 'needs sync',
     restore: 'needs sync',
     resync: 'needs sync',
     overwrite_data: 'differs'
@@ -30,7 +32,7 @@ module Setup
     end
   end
 
-  # Current synchronization status of a Task.
+  # Current synchronization status of a {Task}.
   class SyncStatus < Struct.new(:name, :kind, :status_msg)
     def status_str
       kind_str = STATUS_KINDS[kind]
@@ -42,7 +44,7 @@ module Setup
     end
   end
 
-  # Current synchronization status of a Package.
+  # Current synchronization status of a {Package}.
   class GroupStatus < Struct.new(:name, :items, :status_msg)
     def kind
       items.map(&:kind).uniq.length == 1 ? items[0].kind : nil

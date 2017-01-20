@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 require 'erb'
 
 module Setup
   module Templates
-    APPLICATIONS_TEMPLATE = File.read(File.join(__dir__, 'templates/applications.erb')).untaint
-    BACKUPS_TEMPLATE = File.read(File.join(__dir__, 'templates/backups.erb')).untaint
-    PACKAGE_TEMPLATE = File.read(File.join(__dir__, 'templates/package.erb')).untaint
-    SYNC_TEMPLATE = File.read(File.join(__dir__, 'templates/sync.erb')).untaint
+    APPLICATIONS_TEMPLATE = File.read(File.join(__dir__, 'templates/applications.erb')).untaint.freeze
+    BACKUPS_TEMPLATE = File.read(File.join(__dir__, 'templates/backups.erb')).untaint.freeze
+    PACKAGE_TEMPLATE = File.read(File.join(__dir__, 'templates/package.erb')).untaint.freeze
+    SYNC_TEMPLATE = File.read(File.join(__dir__, 'templates/sync.erb')).untaint.freeze
 
     module_function
 

@@ -4,6 +4,7 @@ require 'parser'
 
 module Setup
   module Edits
+    # A class that adds a step to a package class inside of a ruby script.
     class AddStep < Parser::Rewriter
       include RewriterUtils
 
@@ -31,6 +32,7 @@ end"
       end
     end
 
+    # A class that removes a step to a package class inside of a ruby script.
     class RemoveStep < Parser::Rewriter
       include RewriterUtils
 

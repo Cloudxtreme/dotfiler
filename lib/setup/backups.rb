@@ -1,8 +1,8 @@
-# Allows to discover backups instances under a given machine.
 require 'setup/package'
 require 'setup/package_template'
 
 module Setup
+  # Helper methods that allow to walk over the Package structures.
   module Backups
     def self.create_backup(path, logger, io, force: false)
       logger << "Creating a backup at \"#{path}\"\n"

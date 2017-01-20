@@ -36,7 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'awesome_print', ['~> 1.6']
   spec.add_development_dependency 'pry', ['~> 0.10']
   spec.add_development_dependency 'rspec', ['~> 3.4']
-  if Setup::Platform::linux? or Setup::Platform::macos?
+  if Setup::Platform.linux? || Setup::Platform.osx?
     spec.add_development_dependency 'simplecov', ['~> 0.11']
   end
 end

@@ -3,6 +3,8 @@ require 'parser'
 module Setup
   module Edits
     module AST
+      # An AST builder that specializes the def and class nodes.
+      # This allows to get class definitions/method instructions in a consistent manner.
       class Builder < Parser::Builders::Default
         def n(type, children, source_map)
           case type
