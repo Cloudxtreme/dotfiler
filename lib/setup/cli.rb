@@ -109,7 +109,7 @@ class Package < CommonCLI
     return false unless init_backup_manager and @ctx.io.exist? backups_file_path
     backups_file = @ctx.io.read backups_file_path
     names.each do |name|
-      if Setup::Backups::find_package(@backup_manager, name).nil?
+      if Setup::Backups::find_package_by_name(@backup_manager, name).nil?
         LOGGER.error "Package #{name} not found"
       else
         backups_file = Setup::Edits::RemoveStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
@@ -126,12 +126,28 @@ class Package < CommonCLI
     @ctx.logger << Setup::Status::print_nested(@backup_manager) { |item| [item.name, item.entries.select(&:children?)] }
   end
 
+  desc 'discover', 'Discovers packages that can be added'
+  def discover
+    return help :discover if options[:discover]
+    return false unless init_backup_manager
+    @ctx.logger << "Discovered packages:\n"
+    discovered_packages = Setup::Backups::discover_packages(@backup_manager).to_a
+    if discovered_packages.empty?
+      @ctx.logger << "No new packages discovered\n"
+    else
+      discovered_packages.each do |package|
+        @ctx.logger << package
+        @ctx.logger << "\n"
+      end
+    end
+  end
+
   desc 'edit NAME', 'Edit an existing package.'
   def edit(name)
     return help :edit if options[:help]
     return false unless init_backup_manager
 
-    package = Setup::Backups::find_package @backup_manager, name
+    package = Setup::Backups::find_package_by_name @backup_manager, name
     if package.nil? or Setup::Backups::get_source(package).nil?
       @ctx.logger.warn "Could not find a package to edit. It might not have been added"
     else
@@ -142,12 +158,6 @@ end
 
 class Program < CommonCLI
   no_commands do
-    def self.sync_options
-      option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
-      option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
-      option 'copy', type: :boolean, default: false, desc: 'Copy files instead of symlinking them.'
-    end
-
     def get_context(options)
       Setup::SyncContext.new copy: options[:copy], untracked: options[:untracked], on_overwrite: method(:ask_overwrite), on_delete: method(:ask_delete), reporter: Setup::LoggerReporter.new(LOGGER), logger: LOGGER
     end
@@ -170,63 +180,21 @@ class Program < CommonCLI
       LOGGER << "Deleting \"#{file}\"\n"
       (not options[:confirm] or @cli.agree('Do you want to remove this file? [y/n]'))
     end
-
-    # Prompts to enable new packages.
-    def prompt_to_enable_new_packages(backup_manager, options)
-      backups_with_new_packages = {}
-      backup_manager.each do |backup|
-        discovered_packages = backup.discover_packages
-        backups_with_new_packages[backup] = discovered_packages unless discovered_packages.empty?
-      end
-
-      if backups_with_new_packages.empty?
-        return
-      end
-
-      if options[:enable_new] == 'prompt'
-        LOGGER << "Found new packages to sync:\n\n"
-        backups_with_new_packages.each do |backup, discovered_packages|
-          LOGGER << backup.ctx.backup_path + "\n"
-          LOGGER << discovered_packages.map { |package| package.name }.join(' ') + "\n"
-        end
-      end
-
-      # TODO(drognanar): Do not actually update the backup here
-      # TODO(drognanar): Allow to specify the list of applications?
-      # TODO(drognanar): How to handle multiple backups? Give the prompt per backup directory?
-      prompt_accept = (options[:enable_new] == 'prompt' and @cli.agree('Backup all of these applications? [y/n]'))
-      if options[:enable_new] == 'all' or prompt_accept
-        backups_with_new_packages.each do |backup, discovered_packages|
-          backup.items += discovered_packages
-          backup.update_applications_file
-        end
-      end
-    end
   end
 
   desc 'init [<backups>...]', 'Initializes backups'
   option 'dir', type: :string
   option 'force', type: :boolean
-  Program.sync_options
+  option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
   def init(path = '')
     return help :init if options[:help]
     return false unless init_backup_manager
     Setup::Backups::create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
   end
 
-  # TODO(drognanar): Move discovery to package CLI
-  desc 'discover', 'Discovers applications'
-  option 'enable_new', type: :string, default: 'prompt', desc: 'Find new packages to enable.'
-  def discover
-    return help :discover if options[:help]
-    return false unless init_backup_manager
-
-    @backup_manager.load_backups!
-    prompt_to_enable_new_packages @backup_manager, options
-  end
-
   desc 'sync', 'Synchronize your settings'
-  Program.sync_options
+  option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
+  option 'copy', type: :boolean, default: false, desc: 'Copy files instead of symlinking them.'
   def sync
     return help :sync if options[:help]
     return false unless init_backup_manager

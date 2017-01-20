@@ -1,6 +1,4 @@
 # Allows to discover backups instances under a given machine.
-require 'setup/applications'
-require 'setup/logging'
 require 'setup/package'
 require 'setup/package_template'
 
@@ -21,43 +19,18 @@ end
 
 # A single backup directory present on a local computer.
 # Discovered packages are packages which are not loaded by backup but have data.
+# TODO(drognanar): Get rid of backup_packages_path and the #backup method.
 class Backup < ItemPackage
   BACKUP_PACKAGES_PATH = '_packages'
 
   def backup_packages_path
     ctx.backup_path BACKUP_PACKAGES_PATH
   end
-
-  # TODO(drognanar): Can we move discovery/update/enable_packages!/disable_packages! to BackupManager?
-  # TODO(drognanar): Can we get rid of discovery?
-  def discover_packages
-    existing_package_names = Set.new @items.map { |package| package.name }
-    packages.values.select { |application| application.has_data and not existing_package_names.member?(application.name) }
-  end
-
-  def update_applications_file
-    package_cls_to_add = @items.map { |package| package.class }.select { |package_cls| APPLICATIONS.member? package_cls }
-
-    applications_path = File.join backup_packages_path, 'applications.rb'
-    io.mkdir_p backup_packages_path
-    io.write applications_path, Setup::Templates::applications(package_cls_to_add)
-  end
-
-  # TODO(drognanar): Can this be moved out to BackupManager?
-  def enable_packages!(package_names)
-    disable_packages! package_names
-    @items += package_names.map { |package_name| packages[package_name] }
-  end
-
-  def disable_packages!(package_names)
-    @items = @items.select { |package| not package_names.member? package.name }
-  end
 end
 
 # TODO(drognanar): Slowly deprecate BackupManager.
 # TODO(drognanar): Having to deal with another global config file makes things more confusing.
 class BackupManager < ItemPackage
-  attr_accessor :backup_paths
   DEFAULT_CONFIG_PATH = File.expand_path '~/setup.yml'
 
   def initialize(ctx = nil, store = nil)
@@ -77,10 +50,6 @@ class BackupManager < ItemPackage
     @items = @backup_paths.map(&method(:backup))
   rescue PStore::Error => e
     raise InvalidConfigFileError.new @store.path, e
-  end
-
-  def save_config!
-    @store.transaction(false) { |store| store['backups'] = @backup_paths } unless io.dry
   end
 end
 
@@ -114,14 +83,24 @@ def self.get_source(item)
   item.method(:steps).source_location[0]
 end
 
-def self.find_package(item, name)
-  return item if item.name == name and item.children?
-  item.entries.each do |subitem|
-    package = find_package subitem, name
-    return package if not package.nil?
-  end
+def self.each_child(item, &block)
+  return to_enum(__method__, item) unless block_given?
+  block.call item
+  item.entries.each { |subitem| each_child(subitem, &block) }
+end
 
-  return nil
+def self.find_package_by_name(item, name)
+  each_child(item).find { |subitem| subitem.name == name && subitem.children? }
+end
+
+def self.find_package(item, package)
+  each_child(item).find { |subitem| subitem == package }
+end
+
+def self.discover_packages(item)
+  item.ctx.packages.select do |package_name, package|
+    package.has_data && find_package(item, package).nil?
+  end.keys
 end
 
 end

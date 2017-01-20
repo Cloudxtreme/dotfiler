@@ -15,6 +15,18 @@ $thor_runner = false
 $0 = "setup"
 ARGV.clear
 
+SAMPLE_BACKUP =
+"require 'setup'
+
+class MyBackup < Setup::Package
+  package_name ''
+
+  def steps
+    yield package_from_files '_packages/*.rb'
+  end
+end
+"
+
 RSpec.shared_examples 'CLIHelper' do |cli_cls|
   let(:cli_cls) { cli_cls }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
@@ -59,13 +71,6 @@ RSpec.describe './setup' do
     expect(File.exist? path).to be true
     expect(File.read path).to eq(content)
   end
-
-  # Asserts that a yaml file exists with the specified dictionary.
-  def assert_yaml_content(path, yaml_hash)
-    expect(File.exist? path).to be true
-    expect(YAML::load File.read(path)).to eq(yaml_hash)
-  end
-
   def assert_applications_content(path, applications)
     assert_file_content path, Setup::Templates::applications(applications)
   end
@@ -213,7 +218,6 @@ RSpec.describe './setup' do
       expect { setup %w[--help] }.to output(
 "Commands:
   setup cleanup                       # Cleans up previous backups
-  setup discover                      # Discovers applications
   setup help [COMMAND]                # Describe available commands or one specific command
   setup init [<backups>...]           # Initializes backups
   setup package <subcommand> ...ARGS  # Add/remove packages to be backed up
@@ -277,62 +281,13 @@ Options:
     end
   end
 
-  describe 'discover' do
-    context 'when no options are passed in' do
-      it 'should prompt by default' do
-        expect(cmd).to receive(:agree).once.and_return true
-        assert_ran_without_errors setup %w[discover]
-
-        assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-    end
-
-    context 'when --enable_new=all' do
-      it 'should create a local backup and enable found tasks' do
-        assert_ran_without_errors setup %w[discover --enable_new=all]
-
-        assert_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-    end
-
-    context 'when --enable_new=prompt' do
-      it 'should create a local backup and enable tasks if user replies y to prompt' do
-        expect(cmd).to receive(:agree).once.and_return true
-        assert_ran_without_errors setup %w[discover --enable_new=prompt]
-
-        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
-        assert_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
-      end
-
-      it 'should create a local backup and disable tasks if user replies n to prompt' do
-        expect(cmd).to receive(:agree).once.and_return false
-        assert_ran_without_errors setup %w[discover --enable_new=prompt]
-
-        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
-        expect(File.exist? @applications_path).to be false
-      end
-    end
-
-    context 'when --enable_new=none' do
-      it 'should create a local backup and disable found tasks' do
-        assert_ran_without_errors setup %w[discover --enable_new=none]
-
-        assert_yaml_content @default_config_root,'backups' => [@dotfiles_dir]
-        expect(File.exist? @default_applications_dir).to be false
-      end
-    end
-
-    # TODO(drognanar): Move discovery tests here.
-  end
-
   describe 'sync' do
     it 'should sync with restore overwrite' do
+      save_file_content @backups_path, SAMPLE_BACKUP
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=none --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_with_errors setup %w[sync --verbose], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -367,10 +322,11 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     end
 
     it 'should sync with backup overwrite' do
+      save_file_content @backups_path, SAMPLE_BACKUP
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
-      assert_ran_with_errors setup %w[sync --enable_new=none --verbose], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_with_errors setup %w[sync --verbose], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -404,8 +360,9 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     end
 
     it 'should not sync if the task is disabled' do
+      save_file_content @backups_path, SAMPLE_BACKUP
       save_applications_content @applications_path, []
-      assert_ran_without_errors setup %w[sync --enable_new=none], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_without_errors setup %w[sync], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(File.exist? ctx.backup_path('vim/_test_vimrc')).to be false
       assert_file_content ctx.backup_path('code/_test_vscode'), 'some content'
@@ -416,10 +373,11 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
     context 'when --copy' do
       it 'should generate file copies instead of symlinks' do
+        save_file_content @backups_path, SAMPLE_BACKUP
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        assert_ran_with_errors setup %w[sync --enable_new=none --copy], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+        assert_ran_with_errors setup %w[sync --copy], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
         assert_copies ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
         assert_copies ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'
@@ -441,7 +399,8 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     end
 
     it 'should report when there is nothing to clean' do
-      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      save_file_content @backups_path, SAMPLE_BACKUP
+      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Nothing to clean.
@@ -449,9 +408,10 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     end
 
     it 'should cleanup old backups' do
+      save_file_content @backups_path, SAMPLE_BACKUP
       create_cleanup_files
       expect(cmd).to receive(:agree).twice.and_return true
-      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       cleanup_files.each { |path| expect(File.exist? path).to be false }
       expect(@output_lines.join).to eq(
@@ -462,9 +422,10 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
 
     context 'when no options are passed in' do
       it 'should require confirmation' do
+        save_file_content @backups_path, SAMPLE_BACKUP
         create_cleanup_files
         expect(cmd).to receive(:agree).twice.and_return false
-        assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+        assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
         cleanup_files.each { |path| expect(File.exist? path).to be true }
       end
@@ -472,8 +433,9 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
 
     context 'when --confirm=false' do
       it 'should cleanup old backups' do
+        save_file_content @backups_path, SAMPLE_BACKUP
         create_cleanup_files
-        assert_ran_without_errors setup %w[cleanup --confirm=false], package: lambda { |ctx| ctx.backup @dotfiles_dir }
+        assert_ran_without_errors setup %w[cleanup --confirm=false], package: lambda { |ctx| ctx.package_from_files @backups_path }
 
         cleanup_files.each { |path| expect(File.exist? path).to be false }
       end
@@ -675,8 +637,48 @@ end
       end
     end
 
+    describe 'discover' do
+      it 'should list packages that can be added' do
+        save_file_content @backups_path, SAMPLE_BACKUP
+        assert_ran_without_errors setup %w[package discover], package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
+
+        expect(@output_lines.join).to eq(
+"Discovered packages:
+bash
+code
+python
+rubocop
+vim
+")
+      end
+
+      it 'should not list already added packages' do
+        save_file_content @backups_path, SAMPLE_BACKUP
+        save_file_content @applications_path,
+"require 'setup'
+
+class P < Setup::Package
+  package_name 'p'
+
+  def steps
+    yield package 'bash'
+    yield package 'code'
+    yield package 'python'
+    yield package 'rubocop'
+    yield package 'vim'
+  end
+end"
+
+        assert_ran_without_errors setup %w[package discover], package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
+        expect(@output_lines.join).to eq(
+"Discovered packages:
+No new packages discovered
+")
+      end
+    end
+
     describe 'list' do
-      it 'should list packages ready to be add/remove' do
+      it 'should list existing packages' do
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
         assert_ran_without_errors setup %w[package list]
 
@@ -691,14 +693,14 @@ code
     describe 'edit' do
       it 'should allow to edit a package' do
         save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]        
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
         expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'test.rb')}")
         assert_ran_without_errors setup %w[package edit Test], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
       it 'should edit global packages' do
         save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]        
+        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
         package_path = Test::BashPackage.instance_method(:steps).source_location[0]
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}")
 

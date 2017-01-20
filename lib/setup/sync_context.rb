@@ -15,7 +15,7 @@ class SyncContext
     options[:restore_dir] ||= ''
     options[:reporter] ||= Reporter.new
     options[:logger] ||= Logging.logger['Setup']
-    options[:packages] = SyncContext.packages_to_hash (options[:packages] || Hash.new)
+    options[:packages] = SyncContext.packages_to_hash(options[:packages] || {})
     @options = options
   end
 

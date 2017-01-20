@@ -56,26 +56,6 @@ RSpec.describe Backup do
     expect(backup.disabled_package_names).to eq(Set.new expected_package_names[:disabled])
   end
 
-  describe '#discover_packages' do
-    it 'should include packages not added to the enabled and disabled packages that have data' do
-      expect(package_c_cls).to receive(:new).and_return package_c
-      expect(package_b2_cls).to receive(:new).and_return package_b2
-
-      backup = get_backup [package_a, package_d], ctx.add_packages_from_cls([package_c_cls, package_b2_cls])
-      expect(package_c).to receive(:has_data).and_return true
-      expect(package_b2).to receive(:has_data).and_return true
-      expect(backup.discover_packages).to eq([package_c, package_b2])
-    end
-
-    it 'should not include packages with no data' do
-      expect(package_c_cls).to receive(:new).and_return package_c
-
-      backup = get_backup packages, ctx.add_packages_from_cls([package_c_cls])
-      expect(package_c).to receive(:has_data).and_return false
-      expect(backup.discover_packages).to eq([])
-    end
-  end
-
   def assert_resolve_backup(backup_str, expected_backup_path, expected_source_path, **options)
     expected_backup = [File.expand_path(expected_backup_path), expected_source_path]
     expect(Setup::Backup.resolve_backup(backup_str, options)).to eq(expected_backup)
@@ -125,6 +105,47 @@ W: Cannot create backup. The folder /backup/dir already exists and is not empty.
       expect(io).to receive(:write).with('/backup/dir/sync.rb', Templates::sync)
 
       Backups::create_backup '/backup/dir', ctx.logger, io, force: true
+    end
+  end
+
+  describe '#discover_packages' do
+    it 'should include packages' do
+      package = instance_double(Package, has_data: true)
+      root_package = ItemPackage.new ctx
+      ctx.packages['a'] = package
+
+      expect(Backups::discover_packages root_package).to eq ['a']
+    end
+
+    it 'should not include packages with no data' do
+      package = ItemPackage.new ctx
+      root_package = ItemPackage.new ctx
+
+      ctx.packages['a'] = package
+
+      expect(Backups::discover_packages root_package).to eq []
+    end
+
+    it 'should not include already existing packages' do
+      package = instance_double(Package, has_data: true, name: 'a')
+      root_package = ItemPackage.new ctx
+      root_package.items << package
+
+      ctx.packages['a'] = package
+
+      expect(Backups::discover_packages root_package).to eq []
+    end
+
+    it 'should not include an already existing nested package' do
+      package1 = instance_double(Package, has_data: true, name: 'a')
+      package2 = ItemPackage.new ctx
+      package2.items << package1
+      root_package = ItemPackage.new ctx
+      root_package.items << package2
+
+      ctx.packages['a'] = package1
+
+      expect(Backups::discover_packages root_package).to eq []
     end
   end
 end
