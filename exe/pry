@@ -2,9 +2,11 @@
 # An IRB console to use setup interactively.
 
 require 'bundler/setup'
-require 'setup/cli'
-
 require 'awesome_print'
 require 'pry'
+
+require 'setup'
+
+include Setup
 
 binding.pry
