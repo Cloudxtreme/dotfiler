@@ -15,24 +15,22 @@ require 'setup/applications/vim'
 require 'setup/applications/vscode'
 
 module Setup
-
-# List of packages for different applications.
-# These packages get automatically discovered when creating new backups.
-APPLICATIONS = [
-  Setup::Applications::AtomPackage,
-  Setup::Applications::BashPackage,
-  Setup::Applications::ByobuPackage,
-  Setup::Applications::FishPackage,
-  Setup::Applications::GitPackage,
-  Setup::Applications::IntelliJPackage,
-  Setup::Applications::MySQLPackage,
-  Setup::Applications::NginxPackage,
-  Setup::Applications::PowerShellPackage,
-  Setup::Applications::SlatePackage,
-  Setup::Applications::SublimeTextPackage,
-  Setup::Applications::TmuxinatorPackage,
-  Setup::Applications::VimPackage,
-  Setup::Applications::VsCodePackage
-]
-
-end
+  # List of packages for different applications.
+  # These packages get automatically discovered when creating new backups.
+  APPLICATIONS = [
+    Setup::Applications::AtomPackage,
+    Setup::Applications::BashPackage,
+    Setup::Applications::ByobuPackage,
+    Setup::Applications::FishPackage,
+    Setup::Applications::GitPackage,
+    Setup::Applications::IntelliJPackage,
+    Setup::Applications::MySQLPackage,
+    Setup::Applications::NginxPackage,
+    Setup::Applications::PowerShellPackage,
+    Setup::Applications::SlatePackage,
+    Setup::Applications::SublimeTextPackage,
+    Setup::Applications::TmuxinatorPackage,
+    Setup::Applications::VimPackage,
+    Setup::Applications::VsCodePackage
+  ].freeze
+end # module Setup

@@ -1,0 +1,6 @@
+Metrics/MethodLength:
+  Max: 25
+  CountComments: false
+
+Metrics/LineLength:
+  Enabled: false

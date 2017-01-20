@@ -2,13 +2,16 @@ require 'setup/logging'
 require 'setup/platform'
 
 require 'rspec/logging_helper'
-if Setup::Platform::macos? or Setup::Platform::linux?
+if Setup::Platform.macos? || Setup::Platform.linux?
   require 'simplecov'
   SimpleCov.start
 end
 
 ENV['THOR_COLUMNS'] = '120'
 ENV['editor'] = 'vim'
+
+$thor_runner = false
+$0 = 'setup'
 
 RSpec.configure do |config|
   include RSpec::LoggingHelper
@@ -65,13 +68,11 @@ RSpec.configure do |config|
   config.filter_run :focus
   config.run_all_when_everything_filtered = true
 
-  config.example_status_persistence_file_path = "spec/examples.txt"
+  config.example_status_persistence_file_path = 'spec/examples.txt'
 
   config.disable_monkey_patching!
 
-  if config.files_to_run.one?
-    config.default_formatter = 'doc'
-  end
+  config.default_formatter = 'doc' if config.files_to_run.one?
 
   # Print the 10 slowest examples and example groups at the
   # end of the spec run, to help surface which specs are running

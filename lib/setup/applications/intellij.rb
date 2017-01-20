@@ -1,13 +1,11 @@
 module Setup
-module Applications
+  module Applications
+    class IntelliJPackage < Setup::Package
+      package_name 'IntelliJ IDEA'
 
-class IntelliJPackage < Setup::Package
-  package_name 'IntelliJ IDEA'
-
-  def steps
-    yield file '.IntelliJIdea15/config'
-  end
-end
-
-end
-end
+      def steps
+        yield file '.IntelliJIdea15/config'
+      end
+    end
+  end # module Applications
+end # module Setup

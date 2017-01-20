@@ -1,15 +1,13 @@
 module Setup
-module Applications
+  module Applications
+    class ByobuPackage < Setup::Package
+      package_name 'Byobu'
+      platforms [:MACOS, :LINUX]
+      restore_dir '.byobu'
 
-class ByobuPackage < Setup::Package
-  package_name 'Byobu'
-  platforms [:MACOS, :LINUX]
-  restore_dir '.byobu'
-
-  def steps
-    yield file 'profile.tmux'
-  end
-end
-
-end
-end
+      def steps
+        yield file 'profile.tmux'
+      end
+    end
+  end # module Applications
+end # module Setup

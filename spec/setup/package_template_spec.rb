@@ -2,11 +2,10 @@ require 'setup/applications'
 require 'setup/package_template'
 
 module Setup
-module Templates
-
-RSpec.describe 'package' do
-  it 'should get a package' do
-    expect(Setup::Templates::package 'app', ['file1', 'file2']).to eq(
+  module Templates
+    RSpec.describe 'package' do
+      it 'should get a package' do
+        expect(Setup::Templates.package('app', %w(file1 file2))).to eq(
 'class AppPackage < Setup::Package
   package_name \'App\'
 
@@ -16,17 +15,16 @@ RSpec.describe 'package' do
   end
 end
 ')
-  end
-end
+      end
+    end
 
-RSpec.describe 'applications' do
-  it 'should generate an applications template' do
-    expect(Setup::Templates::applications [Applications::VimPackage, Applications::GitPackage]).to eq(
+    RSpec.describe 'applications' do
+      it 'should generate an applications template' do
+        expect(Setup::Templates.applications([Applications::VimPackage, Applications::GitPackage])).to eq(
 'VimPackage = Setup::Applications::VimPackage
 GitPackage = Setup::Applications::GitPackage
 ')
-  end
-end
-
-end
-end
+      end
+    end
+  end # module Templates
+end # module Setup

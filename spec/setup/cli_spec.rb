@@ -2,18 +2,14 @@
 require 'setup/applications'
 require 'setup/backups'
 require 'setup/cli'
+require 'setup/io'
 require 'setup/package'
 require 'setup/package_template'
 require 'setup/test_applications'
-require 'setup/io'
 
 require 'tmpdir'
 
 module Setup
-
-$thor_runner = false
-$0 = "setup"
-ARGV.clear
 
 SAMPLE_BACKUP =
 "require 'setup'
@@ -25,7 +21,7 @@ class MyBackup < Setup::Package
     yield package_from_files '_packages/*.rb'
   end
 end
-"
+".freeze
 
 RSpec.shared_examples 'CLIHelper' do |cli_cls|
   let(:cli_cls) { cli_cls }
@@ -34,7 +30,7 @@ RSpec.shared_examples 'CLIHelper' do |cli_cls|
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
   def create_backup_manager(options = {})
-    expect(SyncContext).to receive(:new).with(a_hash_including options).and_return ctx
+    expect(SyncContext).to receive(:new).with(a_hash_including(options)).and_return ctx
     expect(ctx).to receive(:with_backup_dir).and_return ctx
     expect(ctx).to receive(:add_default_applications).and_return ctx
     expect(ctx).to receive(:package_from_files).and_return package
@@ -65,22 +61,20 @@ RSpec.describe './setup' do
   let(:cmd)    { instance_double(HighLine) }
   let(:ctx)    { SyncContext.new backup_dir: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
-  def setup(args, config={})
+  def setup(args, config = {})
     config[:on_error] ||= lambda { |e| @exit_reason = e }
     Cli::Program.start args, config
+    @output_lines = @log_output.readlines
   end
 
   # Asserts that a file exists with the specified content.
   def assert_file_content(path, content)
-    expect(File.exist? path).to be true
-    expect(File.read path).to eq(content)
-  end
-  def assert_applications_content(path, applications)
-    assert_file_content path, Setup::Templates::applications(applications)
+    expect(File.exist?(path)).to be true
+    expect(File.read(path)).to eq(content)
   end
 
   def assert_package_content(path, name, files)
-    assert_file_content path, Setup::Templates::package(name, files)
+    assert_file_content path, Setup::Templates.package(name, files)
   end
 
   # Saves a file with the specified content.
@@ -90,15 +84,15 @@ RSpec.describe './setup' do
   end
 
   def save_backups_content(path)
-    save_file_content path, Setup::Templates::backups
+    save_file_content path, Setup::Templates.backups
   end
 
   def save_applications_content(path, applications)
-    save_file_content path, Setup::Templates::applications(applications)
+    save_file_content path, Setup::Templates.applications(applications)
   end
 
   def save_package_content(path, name, files)
-    save_file_content path, Setup::Templates::package(name, files)
+    save_file_content path, Setup::Templates.package(name, files)
   end
 
   # Creates a symlink between files.
@@ -108,46 +102,40 @@ RSpec.describe './setup' do
 
   # Asserts that the two files have the same content.
   def assert_copies(file1, file2, content: nil)
-    expect(File.identical? file1, file2).to be false
-    expect(File.read file1).to eq(File.read file2)
-    expect(File.read file1).to eq(content) unless content.nil?
+    expect(File.identical?(file1, file2)).to be false
+    expect(File.read(file1)).to eq(File.read(file2))
+    expect(File.read(file1)).to eq(content) unless content.nil?
   end
 
   # Asserts that the two files are symlinks.
   def assert_symlinks(file1, file2, content: nil)
-    expect(File.identical? file1, file2).to be true
+    expect(File.identical?(file1, file2)).to be true
     assert_file_content file1, content unless content.nil?
   end
 
   def assert_ran_unsuccessfully(result)
-    @output_lines = @log_output.readlines
-
     expect(@exit_reason).to_not be nil
   end
 
   def assert_ran_without_errors(result)
-    @output_lines = @log_output.readlines
-
     expect(@exit_reason).to be nil
     expect(@output_lines).to_not include(start_with 'E:')
   end
 
   def assert_ran_with_errors(result)
-    @output_lines = @log_output.readlines
-
     expect(@exit_reason).to be nil
     expect(@output_lines).to include(start_with 'E:')
   end
 
   def get_overwrite_choice
-    menu = instance_double('menu')
-    expect(cmd).to receive(:choose).and_yield menu
-    expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
-    allow(menu).to receive(:choice).with(:b)
-    allow(menu).to receive(:choice).with(:r)
-    allow(menu).to receive(:choice).with(:ba)
-    allow(menu).to receive(:choice).with(:ra)
-      menu
+    instance_double('menu').tap do |menu|
+      expect(cmd).to receive(:choose).and_yield menu
+      expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
+      allow(menu).to receive(:choice).with(:b)
+      allow(menu).to receive(:choice).with(:r)
+      allow(menu).to receive(:choice).with(:ba)
+      allow(menu).to receive(:choice).with(:ra)
+    end
   end
 
   # Create a temporary folder where the test should sync data data.
@@ -160,16 +148,13 @@ RSpec.describe './setup' do
 
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
-    @exit_reason = nil
-    @default_restore_dir  = File.join(@tmpdir, 'machine')
-    @default_backup_root   = File.join(@tmpdir, 'dotfiles')
-    @default_backup_dir    = File.join(@default_backup_root, 'local')
-    @default_applications_dir = File.join(@default_backup_dir, '_packages/applications.rb')
-
-    @dotfiles_dir = File.join(@default_backup_root, 'dotfiles1')
-    @apps_dir      = File.join(@dotfiles_dir, '_packages')
-    @applications_path = File.join(@apps_dir, 'applications.rb')
-    @backups_path      = File.join(@dotfiles_dir, 'backups.rb')
+    @exit_reason              = nil
+    @default_restore_dir      = File.join(@tmpdir, 'machine')
+    @default_backup_root      = File.join(@tmpdir, 'dotfiles')
+    @dotfiles_dir             = File.join(@default_backup_root, 'dotfiles1')
+    @apps_dir                 = File.join(@dotfiles_dir, '_packages')
+    @applications_path        = File.join(@apps_dir, 'applications.rb')
+    @backups_path             = File.join(@dotfiles_dir, 'backups.rb')
 
     # Remove data that can be modified by previous test run.
     FileUtils.rm_rf @apps_dir
@@ -211,7 +196,7 @@ RSpec.describe './setup' do
 
   describe '--help' do
     it do
-      expect { setup %w[--help] }.to output(
+      expect { setup %w(--help) }.to output(
 "Commands:
   setup cleanup                       # Cleans up previous backups
   setup help [COMMAND]                # Describe available commands or one specific command
@@ -235,34 +220,34 @@ Options:
     it 'should initialize a backup in current working directory' do
       expect(Dir).to receive(:pwd).and_return custom_path
 
-      assert_ran_without_errors setup %w[init]
-      assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates::backups
-      assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates::sync
+      assert_ran_without_errors setup %w(init)
+      assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates.backups
+      assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates.sync
     end
 
     it 'should create a backup relative to the new dir' do
       expect(Dir).to receive(:pwd).and_return custom_path
 
-      assert_ran_without_errors setup %w[init ./package]
-      assert_file_content custom_ctx.backup_path('package/backups.rb'), Setup::Templates::backups
-      assert_file_content custom_ctx.backup_path('package/sync.rb'), Setup::Templates::sync
+      assert_ran_without_errors setup %w(init ./package)
+      assert_file_content custom_ctx.backup_path('package/backups.rb'), Setup::Templates.backups
+      assert_file_content custom_ctx.backup_path('package/sync.rb'), Setup::Templates.sync
     end
 
     it 'should not create a backup if files already present' do
       expect(Dir).to receive(:pwd).and_return @dotfiles_dir
 
-      assert_ran_without_errors setup %w[init]
-      expect(File.exist? ctx.backup_path('backups.rb')).to be false
-      expect(File.exist? ctx.backup_path('sync.rb')).to be false
+      assert_ran_without_errors setup %w(init)
+      expect(File.exist?(ctx.backup_path('backups.rb'))).to be false
+      expect(File.exist?(ctx.backup_path('sync.rb'))).to be false
     end
 
     context 'when force specified' do
       it 'should create a backup even if files already present' do
         expect(Dir).to receive(:pwd).and_return @dotfiles_dir
 
-        assert_ran_without_errors setup %w[init --force]
-        assert_file_content ctx.backup_path('backups.rb'), Setup::Templates::backups
-        assert_file_content ctx.backup_path('sync.rb'), Setup::Templates::sync
+        assert_ran_without_errors setup %w(init --force)
+        assert_file_content ctx.backup_path('backups.rb'), Setup::Templates.backups
+        assert_file_content ctx.backup_path('sync.rb'), Setup::Templates.sync
       end
     end
 
@@ -270,9 +255,9 @@ Options:
       it 'should initialize a backup at the location specified' do
         allow(Dir).to receive(:pwd).and_return @dotfiles_dir
 
-        assert_ran_without_errors setup %w[init], dir: custom_path
-        assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates::backups
-        assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates::sync
+        assert_ran_without_errors setup %w(init), dir: custom_path
+        assert_file_content custom_ctx.backup_path('backups.rb'), Setup::Templates.backups
+        assert_file_content custom_ctx.backup_path('sync.rb'), Setup::Templates.sync
       end
     end
   end
@@ -283,7 +268,7 @@ Options:
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-      assert_ran_with_errors setup %w[sync --verbose], package: lambda { |ctx| ctx.package_from_files @backups_path }
+      assert_ran_with_errors setup %w(sync --verbose), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -322,7 +307,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
-      assert_ran_with_errors setup %w[sync --verbose], package: lambda { |ctx| ctx.package_from_files @backups_path }
+      assert_ran_with_errors setup %w(sync --verbose), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Syncing:
@@ -358,13 +343,13 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     it 'should not sync if the task is disabled' do
       save_file_content @backups_path, SAMPLE_BACKUP
       save_applications_content @applications_path, []
-      assert_ran_without_errors setup %w[sync], package: lambda { |ctx| ctx.package_from_files @backups_path }
+      assert_ran_without_errors setup %w(sync), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
-      expect(File.exist? ctx.backup_path('vim/_test_vimrc')).to be false
+      expect(File.exist?(ctx.backup_path('vim/_test_vimrc'))).to be false
       assert_file_content ctx.backup_path('code/_test_vscode'), 'some content'
       assert_file_content ctx.restore_path('.test_vscode'), 'different content'
-      expect(File.exist? ctx.restore_path('.test_bashrc')).to be false
-      expect(File.identical? ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc')).to be false
+      expect(File.exist?(ctx.restore_path('.test_bashrc'))).to be false
+      expect(File.identical?(ctx.restore_path('.test_pythonrc'), ctx.backup_path('python/_test_pythonrc'))).to be false
     end
 
     context 'when --copy' do
@@ -373,7 +358,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
 
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
-        assert_ran_with_errors setup %w[sync --copy], package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_ran_with_errors setup %w(sync --copy), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
         assert_copies ctx.restore_path('.test_vimrc'), ctx.backup_path('vim/_test_vimrc')
         assert_copies ctx.restore_path('.test_vscode'), ctx.backup_path('code/_test_vscode'), content: 'different content'
@@ -396,7 +381,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
     it 'should report when there is nothing to clean' do
       save_file_content @backups_path, SAMPLE_BACKUP
-      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
+      assert_ran_without_errors setup %w(cleanup), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
 "Nothing to clean.
@@ -407,9 +392,9 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       save_file_content @backups_path, SAMPLE_BACKUP
       create_cleanup_files
       expect(cmd).to receive(:agree).twice.and_return true
-      assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
+      assert_ran_without_errors setup %w(cleanup), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
-      cleanup_files.each { |path| expect(File.exist? path).to be false }
+      cleanup_files.each { |path| expect(File.exist?(path)).to be false }
       expect(@output_lines.join).to eq(
 "Deleting \"#{ctx.backup_path('bash/setup-backup-1-_test_bash_local')}\"
 Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
@@ -421,9 +406,9 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
         save_file_content @backups_path, SAMPLE_BACKUP
         create_cleanup_files
         expect(cmd).to receive(:agree).twice.and_return false
-        assert_ran_without_errors setup %w[cleanup], package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_ran_without_errors setup %w(cleanup), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
-        cleanup_files.each { |path| expect(File.exist? path).to be true }
+        cleanup_files.each { |path| expect(File.exist?(path)).to be true }
       end
     end
 
@@ -431,16 +416,16 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
       it 'should cleanup old backups' do
         save_file_content @backups_path, SAMPLE_BACKUP
         create_cleanup_files
-        assert_ran_without_errors setup %w[cleanup --confirm=false], package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_ran_without_errors setup %w(cleanup --confirm=false), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
-        cleanup_files.each { |path| expect(File.exist? path).to be false }
+        cleanup_files.each { |path| expect(File.exist?(path)).to be false }
       end
     end
   end
 
   describe 'status' do
     it 'should print an empty message if no packages exist' do
-      assert_ran_without_errors setup %w[status], package: lambda { |ctx| Package.new ctx }
+      assert_ran_without_errors setup %w(status), package: lambda { |ctx| Package.new ctx }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -452,7 +437,7 @@ W: Use ./setup package add to enable packages.
 
     it 'should print status' do
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status], dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+      assert_ran_without_errors setup %w(status), dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -473,7 +458,7 @@ vim:
 
     it 'should print verbose status' do
       save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-      assert_ran_without_errors setup %w[status --verbose], dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+      assert_ran_without_errors setup %w(status --verbose), dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -497,7 +482,7 @@ vim:
     describe 'new' do
       it 'should create a new package' do
         save_backups_content @backups_path
-        assert_ran_without_errors setup %w[package new test]
+        assert_ran_without_errors setup %w(package new test)
         assert_package_content ctx.backup_path('_packages/test.rb'), 'test', []
         assert_file_content @backups_path,
 "require 'setup'
@@ -515,7 +500,7 @@ end
       it 'should not touch an existing package' do
         save_backups_content @backups_path
         save_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
-        assert_ran_without_errors setup %w[package new test]
+        assert_ran_without_errors setup %w(package new test)
         assert_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
 
         expect(@output_lines.join).to eq(
@@ -527,7 +512,7 @@ W: Package already exists
       context 'when full path passed' do
         it 'should create a new package at that path' do
           save_backups_content @backups_path
-          assert_ran_without_errors setup %w[package new ./_pack/test.rb]
+          assert_ran_without_errors setup %w(package new ./_pack/test.rb)
           assert_package_content ctx.backup_path('_pack/test.rb'), 'test', []
           assert_file_content @backups_path,
 "require 'setup'
@@ -547,7 +532,7 @@ end
     describe 'add' do
       it 'should add packages' do
         save_backups_content @backups_path
-        assert_ran_without_errors setup %w[package add code vim]
+        assert_ran_without_errors setup %w(package add code vim)
         assert_file_content @backups_path,
 "require 'setup'
 
@@ -563,9 +548,9 @@ end
       end
 
       it 'should not add invalid packages' do
-        save_file_content @backups_path, Setup::Templates::backups
-        assert_ran_with_errors setup %w[package add invalid]
-        assert_file_content @backups_path, Setup::Templates::backups
+        save_file_content @backups_path, Setup::Templates.backups
+        assert_ran_with_errors setup %w(package add invalid)
+        assert_file_content @backups_path, Setup::Templates.backups
 
         expect(@output_lines.join).to eq(
 'E: Package invalid not found
@@ -574,8 +559,8 @@ end
 
       context 'when backups file missing' do
         it 'should not add any packages and print an error' do
-          assert_ran_unsuccessfully setup %w[package add code vim]
-          expect(File.exist? @backups_path).to be false
+          assert_ran_unsuccessfully setup %w(package add code vim)
+          expect(File.exist?(@backups_path)).to be false
         end
       end
     end
@@ -595,7 +580,7 @@ class MyBackup < Setup::Package
 end
 "
 
-        assert_ran_without_errors setup %w[package remove code vim], package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_ran_without_errors setup %w(package remove code vim), package: lambda { |ctx| ctx.package_from_files @backups_path }
         assert_file_content @backups_path,
 "require 'setup'
 
@@ -622,12 +607,12 @@ class MyBackup < Setup::Package
 end
 "
 
-        assert_ran_with_errors setup %w[package remove invalid]
+        assert_ran_with_errors setup %w(package remove invalid)
       end
 
       context 'when backups file missing' do
         it 'should not remove any packages and print an error' do
-          assert_ran_unsuccessfully setup %w[package remove code vim]
+          assert_ran_unsuccessfully setup %w(package remove code vim)
           expect(File.exist? @backups_path).to be false
         end
       end
@@ -636,7 +621,7 @@ end
     describe 'discover' do
       it 'should list packages that can be added' do
         save_file_content @backups_path, SAMPLE_BACKUP
-        assert_ran_without_errors setup %w[package discover], package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
+        assert_ran_without_errors setup %w(package discover), package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
 
         expect(@output_lines.join).to eq(
 "Discovered packages:
@@ -665,7 +650,7 @@ class P < Setup::Package
   end
 end"
 
-        assert_ran_without_errors setup %w[package discover], package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
+        assert_ran_without_errors setup %w(package discover), package: lambda { |ctx| ctx.package_from_files 'backups.rb' }
         expect(@output_lines.join).to eq(
 "Discovered packages:
 No new packages discovered
@@ -677,7 +662,7 @@ No new packages discovered
       it 'should list existing packages' do
         save_file_content @backups_path, SAMPLE_BACKUP
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
-        assert_ran_without_errors setup %w[package list]
+        assert_ran_without_errors setup %w(package list)
 
         expect(@output_lines.join).to eq(
 "Packages:
@@ -692,7 +677,7 @@ code
         save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
         expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'test.rb')}")
-        assert_ran_without_errors setup %w[package edit Test], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+        assert_ran_without_errors setup %w(package edit Test), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
       it 'should edit global packages' do
@@ -701,13 +686,13 @@ code
         package_path = Test::BashPackage.instance_method(:steps).source_location[0]
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}")
 
-        assert_ran_without_errors setup %w[package edit bash], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+        assert_ran_without_errors setup %w(package edit bash), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
       it 'should print a warning if package missing' do
         save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
-        assert_ran_without_errors setup %w[package edit unknown], package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+        assert_ran_without_errors setup %w(package edit unknown), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
         expect(@output_lines.join).to eq("W: Could not find a package to edit. It might not have been added\n")
       end
@@ -734,10 +719,9 @@ code
   context 'when a package is invalid' do
     it 'should fail commands' do
       save_file_content @backups_path, SAMPLE_BACKUP
-      commands = ['sync', 'cleanup', 'status']
+      commands = %w(sync cleanup status)
       assert_commands_fail_if_corrupt File.join(@apps_dir, 'vim.rb'), commands
     end
   end
 end
-
 end # module Setup

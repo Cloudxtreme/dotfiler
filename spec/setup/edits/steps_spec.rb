@@ -1,98 +1,94 @@
 require 'setup/edits/steps'
 
 module Setup
+  module Edits
+    SAMPLE_1 = <<-CODE
+    require 'foo'
 
-module Edits
+    module Mod
+      class CD < Import
 
-SAMPLE_1 = <<-CODE
-require 'foo'
-
-module Mod
-  class CD < Import
-
-    def steps
-      yield file 'backups'
+        def steps
+          yield file 'backups'
+        end
+      end
     end
-  end
-end
-CODE
+    CODE
 
-SAMPLE_2 = <<-CODE
-require 'foo'
+    SAMPLE_2 = <<-CODE
+    require 'foo'
 
-module Mod
-  class CD < Import
-  end
-end
-CODE
-
-SAMPLE_3 = <<-CODE
-require 'foo'
-
-module Mod
-  class Test < Import
-    def steps
-      yield file 'backups'
+    module Mod
+      class CD < Import
+      end
     end
-  end
-end
-CODE
+    CODE
 
-RSpec.describe AddStep do
-  it 'should add a step' do
-    expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str SAMPLE_1).to eq <<-CODE
-require 'foo'
+    SAMPLE_3 = <<-CODE
+    require 'foo'
 
-module Mod
-  class CD < Import
-
-    def steps
-      yield file 'backups'
-      yield file 'to_add'
+    module Mod
+      class Test < Import
+        def steps
+          yield file 'backups'
+        end
+      end
     end
-  end
-end
-CODE
-  end
+    CODE
 
-  it 'should not add an existing step' do
-    expect(AddStep.new('CD', 'yield file \'backups\'').rewrite_str SAMPLE_1).to eq SAMPLE_1
-  end
+    RSpec.describe AddStep do
+      it 'should add a step' do
+        expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_1)).to eq <<-CODE
+    require 'foo'
 
-  it 'should create a step method if missing' do
-    expect(AddStep.new('CD', 'yield file \'backups\'').rewrite_str SAMPLE_2).to eq SAMPLE_1
-  end
+    module Mod
+      class CD < Import
 
-  it 'should not touch a different class' do
-    expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str SAMPLE_3).to eq SAMPLE_3
-  end
-end
-
-RSpec.describe RemoveStep do
-  it 'should remove a step if it exists' do
-    expect(RemoveStep.new('CD', 'yield file \'backups\'').rewrite_str SAMPLE_1).to eq <<-CODE
-require 'foo'
-
-module Mod
-  class CD < Import
-
-    def steps
+        def steps
+          yield file 'backups'
+          yield file 'to_add'
+        end
+      end
     end
-  end
-end
-CODE
-  end
+    CODE
+      end
 
-  it 'should not remove a non existing step' do
-    expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str SAMPLE_1).to eq SAMPLE_1
-    expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str SAMPLE_2).to eq SAMPLE_2
-  end
+      it 'should not add an existing step' do
+        expect(AddStep.new('CD', 'yield file \'backups\'').rewrite_str(SAMPLE_1)).to eq SAMPLE_1
+      end
 
-  it 'should not remove a step from a different class' do
-    expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str SAMPLE_3).to eq SAMPLE_3
-  end
-end
+      it 'should create a step method if missing' do
+        expect(AddStep.new('CD', 'yield file \'backups\'').rewrite_str(SAMPLE_2)).to eq SAMPLE_1
+      end
 
-end
+      it 'should not touch a different class' do
+        expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_3)).to eq SAMPLE_3
+      end
+    end
 
-end
+    RSpec.describe RemoveStep do
+      it 'should remove a step if it exists' do
+        expect(RemoveStep.new('CD', 'yield file \'backups\'').rewrite_str(SAMPLE_1)).to eq <<-CODE
+    require 'foo'
+
+    module Mod
+      class CD < Import
+
+        def steps
+        end
+      end
+    end
+    CODE
+      end
+
+      it 'should not remove a non existing step' do
+        expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_1)).to eq SAMPLE_1
+        expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_2)).to eq SAMPLE_2
+      end
+
+      it 'should not remove a step from a different class' do
+        expect(RemoveStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_3)).to eq SAMPLE_3
+      end
+    end
+  end # module Edits
+end # module Setup
