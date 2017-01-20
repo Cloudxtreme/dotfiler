@@ -17,6 +17,19 @@ RSpec.configure do |config|
   config.before(:each) do
     LOGGER.level = :verbose
     Logging.appenders['__rspec__'].layout = Logging.layouts.pattern(pattern: '%.1l: %m\n')
+    @old_stderr = $stderr
+    $stderr = @fake_stderr = StringIO.new
+  end
+
+  config.after(:each) do
+    stderr = @fake_stderr.string
+    stderr.split("\n").each do |line|
+      # Filter out variable not initialized warnings coming out of installed gems.
+      # But still print any other error.
+      vendor_path = File.expand_path File.join(__dir__, '../vendor')
+      puts line unless /#{vendor_path}.*warning: instance variable .* not initialized/.match(line)
+    end
+    $stderr = @old_stderr
   end
 
   def under_windows
@@ -46,6 +59,8 @@ RSpec.configure do |config|
   config.mock_with :rspec do |mocks|
     mocks.verify_partial_doubles = true
   end
+
+  config.warnings = true
 
   config.filter_run :focus
   config.run_all_when_everything_filtered = true
