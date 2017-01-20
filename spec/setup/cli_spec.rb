@@ -29,22 +29,25 @@ end
 
 RSpec.shared_examples 'CLIHelper' do |cli_cls|
   let(:cli_cls) { cli_cls }
+  let(:ctx) { instance_double(SyncContext) }
+  let(:package) { instance_double(Package) }
   let(:backup_manager) { instance_double(Setup::BackupManager) }
 
-  def get_backup_manager(options = {})
-    expect(backup_manager).to receive(:load_backups!)
-    cli_cls.new([], options).tap(&:init_backup_manager).backup_manager
+  def create_backup_manager(options = {})
+    expect(SyncContext).to receive(:new).with(a_hash_including options).and_return ctx
+    expect(ctx).to receive(:with_backup_dir).and_return ctx
+    expect(ctx).to receive(:add_default_applications).and_return ctx
+    expect(ctx).to receive(:package_from_files).and_return package
+    cli_cls.new([], options).create_backup_manager
   end
 
-  describe '#init_backup_manager' do
+  describe '#create_backup_manager' do
     it 'creates backup manager with default parameters when no options given' do
-      expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
-      expect(get_backup_manager).to eq(backup_manager)
+      expect(create_backup_manager).to eq(package)
     end
 
     it 'creates backup manager with passed in options' do
-      expect(Setup::BackupManager).to receive(:from_config).with(an_instance_of(SyncContext)).and_return backup_manager
-      expect(get_backup_manager(dry: true)).to eq(backup_manager)
+      expect(create_backup_manager(dry: true)).to eq(package)
     end
   end
 end
@@ -63,6 +66,7 @@ RSpec.describe './setup' do
   let(:ctx)    { SyncContext.new backup_dir: @dotfiles_dir, restore_dir: File.join(@tmpdir, 'machine') }
 
   def setup(args, config={})
+    config[:on_error] ||= lambda { |e| @exit_reason = e }
     Cli::Program.start args, config
   end
 
@@ -123,20 +127,20 @@ RSpec.describe './setup' do
   def assert_ran_unsuccessfully(result)
     @output_lines = @log_output.readlines
 
-    expect(result).to be false
+    expect(@exit_reason).to_not be nil
   end
 
   def assert_ran_without_errors(result)
     @output_lines = @log_output.readlines
 
-    expect(result).to_not be false
+    expect(@exit_reason).to be nil
     expect(@output_lines).to_not include(start_with 'E:')
   end
 
   def assert_ran_with_errors(result)
     @output_lines = @log_output.readlines
 
-    expect(result).to_not be false
+    expect(@exit_reason).to be nil
     expect(@output_lines).to include(start_with 'E:')
   end
 
@@ -161,6 +165,7 @@ RSpec.describe './setup' do
 
   # Override app constants to redirect the sync to temp folders.
   before(:each) do
+    @exit_reason = nil
     @default_config_root   = File.join(@tmpdir, 'setup.yml')
     @default_restore_dir  = File.join(@tmpdir, 'machine')
     @default_backup_root   = File.join(@tmpdir, 'dotfiles')
@@ -679,6 +684,7 @@ No new packages discovered
 
     describe 'list' do
       it 'should list existing packages' do
+        save_file_content @backups_path, SAMPLE_BACKUP
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
         assert_ran_without_errors setup %w[package list]
 
@@ -718,26 +724,27 @@ code
   end
 
   # Check that corrupting a file will make all commands fail.
-  def assert_commands_fail_if_corrupt(corrupt_file_path)
+  def assert_commands_fail_if_corrupt(corrupt_file_path, commands)
     save_file_content corrupt_file_path, "---\n"
 
-    commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list', 'package edit foo']
     commands.each do |command|
       assert_ran_unsuccessfully setup command.split(' ')
-      expect(@output_lines).to match_array([start_with("E: Could not load \"#{corrupt_file_path}\": ")])
+      expect(@exit_reason).to start_with("Could not load \"#{corrupt_file_path}\": ")
     end
   end
 
   context 'when a global config file is invalid' do
     it 'should fail commands' do
-      assert_commands_fail_if_corrupt @default_config_root
+      commands = ['init', 'sync', 'cleanup', 'status', 'package add', 'package remove', 'package list', 'package edit foo']
+      assert_commands_fail_if_corrupt @backups_path, commands
     end
   end
 
   context 'when a package is invalid' do
     it 'should fail commands' do
-      save_yaml_content @default_config_root, 'backups' => [@dotfiles_dir]
-      assert_commands_fail_if_corrupt File.join(@apps_dir, 'vim.rb')
+      save_file_content @backups_path, SAMPLE_BACKUP
+      commands = ['sync', 'cleanup', 'status']
+      assert_commands_fail_if_corrupt File.join(@apps_dir, 'vim.rb'), commands
     end
   end
 end
