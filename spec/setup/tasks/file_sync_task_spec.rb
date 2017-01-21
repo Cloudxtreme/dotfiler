@@ -1,7 +1,9 @@
 require 'setup/file_sync'
-require 'setup/file_sync_task'
+require 'setup/tasks/file_sync_task'
 require 'setup/io'
 require 'setup/sync_context'
+
+include Setup::Tasks
 
 module Setup
   RSpec.describe FileSyncTask do

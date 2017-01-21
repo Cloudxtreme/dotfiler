@@ -20,22 +20,22 @@ module Setup
     let(:time)                 { instance_double(Time, strftime: '20160404111213') }
     let(:symlink_sync_options) { { backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
     let(:copy_sync_options)    { { backup_path: 'backup/path', restore_path: 'restore/path', copy: true } }
-    let(:info_with_errors)     { get_sync_info status: SyncStatus.new('name', :error, 'err') }
-    let(:info_up_to_date)      { get_sync_info status: SyncStatus.new('name', :up_to_date) }
-    let(:info_restore_files)   { get_sync_info status: SyncStatus.new('name', :restore), backup_directory: false, restore_directory: false }
-    let(:info_backup_files)    { get_sync_info status: SyncStatus.new('name', :backup), backup_directory: false, restore_directory: false }
-    let(:info_restore_dirs)    { get_sync_info status: SyncStatus.new('name', :restore), backup_directory: true, restore_directory: true }
-    let(:info_backup_dirs)     { get_sync_info status: SyncStatus.new('name', :backup), backup_directory: true, restore_directory: true }
-    let(:info_overwrite)       { get_sync_info status: SyncStatus.new('name', :overwrite_data), backup_directory: false, restore_directory: false }
-    let(:info_resync)          { get_sync_info status: SyncStatus.new('name', :resync), backup_directory: false, restore_directory: false }
+    let(:info_with_errors)     { get_sync_info status: :no_sources }
+    let(:info_up_to_date)      { get_sync_info status: :up_to_date }
+    let(:info_restore_files)   { get_sync_info status: :restore, backup_directory: false, restore_directory: false }
+    let(:info_backup_files)    { get_sync_info status: :backup, backup_directory: false, restore_directory: false }
+    let(:info_restore_dirs)    { get_sync_info status: :restore, backup_directory: true, restore_directory: true }
+    let(:info_backup_dirs)     { get_sync_info status: :backup, backup_directory: true, restore_directory: true }
+    let(:info_overwrite)       { get_sync_info status: :overwrite_data, backup_directory: false, restore_directory: false }
+    let(:info_resync)          { get_sync_info status: :resync, backup_directory: false, restore_directory: false }
 
     def file_sync(file_sync_info = nil)
-      expect(FileSyncInfo).to receive(:new).once.and_return file_sync_info unless file_sync_info.nil?
+      expect(FileSync::Info).to receive(:new).once.and_return file_sync_info unless file_sync_info.nil?
       FileSync.new time, io
     end
 
     def get_sync_info(options)
-      instance_double FileSyncInfo, options
+      instance_double FileSync::Info, options
     end
 
     describe '#info' do
@@ -128,7 +128,7 @@ module Setup
     end
   end
 
-  RSpec.describe FileSyncInfo do
+  RSpec.describe FileSync::Info do
     include MockIo
     let(:io)                { instance_double(InputOutput::FileIO) }
     let(:example_options1)  { { enabled: true, backup_path: 'backup/path', restore_path: 'restore/path', copy: false } }
@@ -137,12 +137,10 @@ module Setup
 
     it 'should return errors when files missing' do
       mock_files io, 'backup/path' => nil, 'restore/path' => nil
-      info = FileSyncInfo.new example_options1, io
-      expect(info.status.status_msg).to_not be_nil
+      info = FileSync::Info.new example_options1, io
+      expect(info.status).to eq :no_sources
       expect(info.backup_directory).to be_nil
       expect(info.restore_directory).to be_nil
-      expect(info.symlinked).to be_nil
-      expect(info.status.kind).to eq(:error)
     end
 
     def assert_sync(options, symlinked, expected_status, data1, data2)
@@ -150,12 +148,10 @@ module Setup
 
       mock_files io, 'backup/path' => data1, 'restore/path' => data2
       allow(io).to receive(:identical?).and_return symlinked
-      info = FileSyncInfo.new options, io
-      expect(info.status.status_msg).to be_nil
-      expect(info.symlinked).to be symlinked
+      info = FileSync::Info.new options, io
+      expect(info.status).to eq(expected_status)
       expect(info.backup_directory).to eq(data1 == :directory)
       expect(info.restore_directory).to eq(data2 == :directory)
-      expect(info.status.kind).to eq(expected_status)
     end
 
     it 'should support sync when one file is a directory and another is a file' do

@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class SublimeTextPackage < Setup::Package
+    # Package for Sublime Text 3 application.
+    class SublimeTextPackage < Setup::Tasks::Package
       package_name 'Sublime Text 3'
       platforms [:MACOS, :WINDOWS]
       under_macos   { restore_dir '~/Library/Application Support/Sublime Text 3' }

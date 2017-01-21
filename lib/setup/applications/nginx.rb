@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class NginxPackage < Setup::Package
+    # Package for Nginx application.
+    class NginxPackage < Setup::Tasks::Package
       package_name 'Nginx'
       platforms [:MACOS, :LINUX]
       restore_dir '/usr/local/etc'

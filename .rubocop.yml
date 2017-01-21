@@ -1,6 +1,30 @@
+AllCops:
+  Exclude:
+    - 'bin/**/*'
+    - 'vendor/**/*'
+
+Metrics/AbcSize:
+  Max: 30
+
 Metrics/MethodLength:
   Max: 25
   CountComments: false
 
 Metrics/LineLength:
   Enabled: false
+
+Documentation:
+  Exclude:
+    - 'spec/**/*.rb'
+
+Metrics/ClassLength:
+  Exclude:
+    - 'spec/**/*.rb'
+
+Metrics/ModuleLength:
+  Exclude:
+    - 'spec/**/*.rb'
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*.rb'

@@ -8,13 +8,17 @@ Logging.color_scheme(
     info: :green,
     warn: :yellow,
     error: :red,
-    verbose: :blue })
+    verbose: :blue
+  }
+)
 
 Logging.appenders.stdout(
   'stdout',
   layout: Logging.layouts.pattern(
     pattern: '%l: %m\n',
-    color_scheme: 'default'))
+    color_scheme: 'default'
+  )
+)
 
 LOGGER = Logging.logger['Setup']
 LOGGER.add_appenders 'stdout'

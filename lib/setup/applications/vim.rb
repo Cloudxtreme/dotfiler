@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class VimPackage < Setup::Package
+    # Package for Vim application.
+    class VimPackage < Setup::Tasks::Package
       package_name 'Vim'
 
       def steps

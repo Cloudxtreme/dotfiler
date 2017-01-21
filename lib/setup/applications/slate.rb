@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class SlatePackage < Setup::Package
+    # Package for Slate application.
+    class SlatePackage < Setup::Tasks::Package
       package_name 'Slate'
       platforms [:MACOS, :LINUX]
 

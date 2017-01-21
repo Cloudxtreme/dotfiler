@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class GitPackage < Setup::Package
+    # Package for Git application.
+    class GitPackage < Setup::Tasks::Package
       package_name 'Git'
 
       def steps

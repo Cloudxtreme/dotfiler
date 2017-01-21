@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class VsCodePackage < Setup::Package
+    # Package for Visual Studio Code application.
+    class VsCodePackage < Setup::Tasks::Package
       package_name 'VsCode'
       under_windows { restore_dir '~/AppData/Roaming/Code/User' }
       under_macos   { restore_dir '~/Library/Application Support/Code/User' }

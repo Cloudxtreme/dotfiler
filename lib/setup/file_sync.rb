@@ -1,10 +1,13 @@
+# frozen_string_literal: true
+
 require 'setup/io'
 require 'setup/logging'
-require 'setup/sync_status'
 
 module Setup
   DEFAULT_FILESYNC_OPTIONS = { copy: false, backup_prefix: 'setup-backup' }.freeze
+  MISSING_SOURCES = 'Cannot sync. Missing both backup and restore.'
 
+  # An error raised during sync execution.
   class FileSyncError < RuntimeError
   end
 
@@ -17,23 +20,23 @@ module Setup
 
     def status(options = {})
       options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-      FileSyncInfo.new(options, @io).status
+      Info.new(options, @io).status
     end
 
     def sync!(options = {})
       options = DEFAULT_FILESYNC_OPTIONS.merge(options)
-      sync_info = FileSyncInfo.new(options, @io)
-      return if sync_info.status.kind == :up_to_date
+      sync_info = Info.new(options, @io)
+      return if sync_info.status == :up_to_date
 
-      case sync_info.status.kind
-      when :error then raise FileSyncError.new(sync_info.status.status_msg)
-      when :backup then create_backup_file! sync_info, options
+      case sync_info.status
+      when :no_sources then raise FileSyncError, MISSING_SOURCES
+      when :backup then create_backup_file! options
       when :overwrite_data then create_directory = save_overwrite_file! sync_info, options
       when :resync then @io.rm_rf options[:restore_path]
       end
 
       create_directory ||= sync_info.backup_directory || sync_info.restore_directory
-      create_restore_file! sync_info, options, create_directory
+      create_restore_file! options, create_directory
     end
 
     private
@@ -47,7 +50,7 @@ module Setup
       file_to_keep = options[:on_overwrite].nil? ? :backup : options[:on_overwrite].call(options[:backup_path], options[:restore_path])
       path_to_copy = file_to_keep == :backup ? options[:restore_path] : options[:backup_path]
       save_existing_file! path_to_copy, options
-      create_backup_file! sync_info, options if file_to_keep == :restore
+      create_backup_file! options if file_to_keep == :restore
 
       file_to_keep == :backup ? sync_info.backup_directory : sync_info.restore_directory
     end
@@ -59,7 +62,7 @@ module Setup
       @io.mv path, backup_copy_path
     end
 
-    def create_restore_file!(sync_info, options, is_directory)
+    def create_restore_file!(options, is_directory)
       @io.mkdir_p File.dirname options[:restore_path]
 
       if options[:copy]
@@ -74,47 +77,46 @@ module Setup
       end
     end
 
-    def create_backup_file!(sync_info, options)
+    def create_backup_file!(options)
       LOGGER.verbose "Moving file from \"#{options[:restore_path]}\" to \"#{options[:backup_path]}\""
       @io.mkdir_p File.dirname options[:backup_path]
       @io.mv options[:restore_path], options[:backup_path]
     end
-  end
 
-  # Returns sync information between `restore_path` and `backup_path`.
-  # FileSync should not do any read IO after generating this info file.
-  class FileSyncInfo
-    attr_reader :restore_directory, :backup_directory, :symlinked, :status, :backup_path, :restore_path
+    # Returns sync information between +restore_path+ and +backup_path+.
+    # {FileSync} should not do any read IO after generating this {Info}.
+    class Info
+      attr_reader :restore_directory, :backup_directory, :status
 
-    def initialize(options, io = CONCRETE_IO)
-      name = File.basename options[:restore_path]
-      @backup_path = options[:backup_path]
-      @restore_path = options[:restore_path]
-      @has_restore = io.exist? @restore_path
-      @has_backup = io.exist? @backup_path
-      if !@has_restore && !@has_backup
-        @status = SyncStatus.new name, :error, 'Cannot sync. Missing both backup and restore.'.freeze
-        return
+      def initialize(options, io = CONCRETE_IO)
+        backup_path = options[:backup_path]
+        restore_path = options[:restore_path]
+        has_restore = io.exist? restore_path
+        has_backup = io.exist? backup_path
+        if !has_restore && !has_backup
+          @status = :no_sources
+          return
+        end
+
+        @symlinked = io.identical? backup_path, restore_path
+        @restore_directory = (has_restore && io.directory?(restore_path))
+        @backup_directory = (has_backup && io.directory?(backup_path))
+
+        @status = if !has_restore then :restore
+                  elsif !has_backup then :backup
+                  elsif files_differ?(backup_path, restore_path, io) then :overwrite_data
+                  elsif options[:copy] != @symlinked then :up_to_date
+                  else :resync
+                  end
       end
 
-      @restore_directory = (@has_restore && io.directory?(@restore_path))
-      @backup_directory = (@has_backup && io.directory?(@backup_path))
-      @symlinked = io.identical? @backup_path, @restore_path
+      private
 
-      @status = if !@has_restore then SyncStatus.new name, :restore
-                elsif !@has_backup then SyncStatus.new name, :backup
-                elsif files_differ? io then SyncStatus.new name, :overwrite_data
-                elsif options[:copy] != @symlinked then SyncStatus.new name, :up_to_date
-                else SyncStatus.new name, :resync
-                end
-    end
-
-    private
-
-    # Returns true if two paths might not have the same content.
-    # Returns false if the files have the same content.
-    def files_differ?(io)
-      !@symlinked && (@backup_directory || @restore_directory || io.read(@backup_path) != io.read(@restore_path))
+      # Returns true if two paths might not have the same content.
+      # Returns false if the files have the same content.
+      def files_differ?(backup_path, restore_path, io)
+        !@symlinked && (@backup_directory || @restore_directory || io.read(backup_path) != io.read(restore_path))
+      end
     end
   end
 end # module Setup

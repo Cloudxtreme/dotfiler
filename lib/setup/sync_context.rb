@@ -103,7 +103,7 @@ module Setup
       @options[:logger]
     end
 
-    private
+    private_class_method
 
     def self.packages_to_hash(packages)
       return packages if packages.is_a? Hash

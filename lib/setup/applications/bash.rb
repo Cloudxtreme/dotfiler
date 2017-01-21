@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class BashPackage < Setup::Package
+    # Package for Bash application.
+    class BashPackage < Setup::Tasks::Package
       package_name 'Bash'
 
       def steps

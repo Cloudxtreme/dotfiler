@@ -4,10 +4,12 @@ require 'parser'
 
 module Setup
   module Edits
+    # @api private
     # Utilities which help with rewriting ruby code.
     module RewriterUtils
       include ParserUtils
 
+      # Space indentation used by scripts.
       INDENTATION = 2
 
       def line_range(location)

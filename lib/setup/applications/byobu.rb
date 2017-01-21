@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class ByobuPackage < Setup::Package
+    # Package for Byobu application.
+    class ByobuPackage < Setup::Tasks::Package
       package_name 'Byobu'
       platforms [:MACOS, :LINUX]
       restore_dir '.byobu'

@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class TmuxinatorPackage < Setup::Package
+    # Package for Tmuxinator application.
+    class TmuxinatorPackage < Setup::Tasks::Package
       package_name 'Tmuxinator'
       platforms [:MACOS, :LINUX]
 

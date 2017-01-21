@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class FishPackage < Setup::Package
+    # Package for Fish application.
+    class FishPackage < Setup::Tasks::Package
       package_name 'Fish'
       platforms [:MACOS, :LINUX]
       restore_dir '.config/fish'

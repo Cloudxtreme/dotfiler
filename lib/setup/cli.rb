@@ -1,6 +1,6 @@
-require 'setup/backups'
-require 'setup/extend/tasks'
-require 'setup/package_template'
+require 'setup/sync_utils'
+require 'setup/extend/task_utils'
+require 'setup/templates'
 require 'setup/reporter'
 require 'setup/sync_context'
 
@@ -10,6 +10,8 @@ require 'yaml'
 
 module Setup
   module Cli
+    # @api private
+    # Abstract class that provides common options, initialization logic to the CLI classes.
     class CommonCLI < Thor
       class_option 'help', type: :boolean, desc: 'Print help for a specific command'
       class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
@@ -36,7 +38,7 @@ module Setup
           return help command.name if options[:help]
           @backup_manager = create_backup_manager
           super
-        rescue Setup::InvalidConfigFileError => e
+        rescue Setup::TaskUtils::ImportScriptError => e
           @on_error.call "Could not load \"#{e.path}\": #{e.inner_exception}"
         end
 
@@ -53,6 +55,8 @@ module Setup
       end
     end
 
+    # A CLI class that performs operations on packages.
+    # It modifies the +backups.rb+ file as well as lists packages.
     class Package < CommonCLI
       no_commands do
         def get_context(options)
@@ -112,7 +116,7 @@ module Setup
 
         backups_file = @ctx.io.read backups_file_path
         names.each do |name|
-          if Setup::Backups.find_package_by_name(@backup_manager, name).nil?
+          if Setup::SyncUtils.find_package_by_name(@backup_manager, name).nil?
             LOGGER.error "Package #{name} not found"
           else
             backups_file = Setup::Edits::RemoveStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
@@ -124,13 +128,13 @@ module Setup
       desc 'list', 'Lists packages for which settings can be backed up.'
       def list
         @ctx.logger << "Packages:\n"
-        @ctx.logger << Setup::Status.print_nested(@backup_manager) { |item| [item.name, item.entries.select(&:children?)] }
+        @ctx.logger << Setup::SyncUtils.print_nested(@backup_manager) { |item| [item.name, item.entries.select(&:children?)] }
       end
 
       desc 'discover', 'Discovers packages that can be added'
       def discover
         @ctx.logger << "Discovered packages:\n"
-        discovered_packages = Setup::Backups.discover_packages(@backup_manager).to_a
+        discovered_packages = Setup::SyncUtils.discover_packages(@backup_manager).to_a
         if discovered_packages.empty?
           @ctx.logger << "No new packages discovered\n"
         else
@@ -143,15 +147,16 @@ module Setup
 
       desc 'edit NAME', 'Edit an existing package.'
       def edit(name)
-        package = Setup::Backups.find_package_by_name @backup_manager, name
-        if package.nil? || Setup::Backups.get_source(package).nil?
+        package = Setup::SyncUtils.find_package_by_name @backup_manager, name
+        if package.nil? || Setup::SyncUtils.get_source(package).nil?
           @ctx.logger.warn 'Could not find a package to edit. It might not have been added'
         else
-          Setup::Backups.edit_package package, @ctx.io
+          Setup::SyncUtils.edit_package package
         end
       end
     end
 
+    # A CLI class that executes the setup program.
     class Program < CommonCLI
       no_commands do
         def get_context(options)
@@ -183,7 +188,7 @@ module Setup
       option 'force', type: :boolean
       option 'dry', type: :boolean, default: false, desc: 'Print operations that would be executed by setup.'
       def init(path = '')
-        Setup::Backups.create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
+        Setup::SyncUtils.create_backup @ctx.backup_path(path), @ctx.logger, @ctx.io, force: options[:force]
       end
 
       desc 'sync', 'Synchronize your settings'
@@ -214,7 +219,7 @@ module Setup
           @ctx.logger.warn 'No packages enabled.'
           @ctx.logger.warn 'Use ./setup package add to enable packages.'
         else
-          @ctx.logger << Setup::Status.get_status_str(status)
+          @ctx.logger << Setup::SyncUtils.get_status_str(status)
         end
       end
 

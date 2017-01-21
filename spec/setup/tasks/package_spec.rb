@@ -1,8 +1,8 @@
 # Tests file_backup.rb
 
-require 'setup/extend/tasks'
+require 'setup/extend/task_utils'
 require 'setup/io'
-require 'setup/package'
+require 'setup/tasks/package'
 require 'setup/platform'
 
 module Setup

@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class MySQLPackage < Setup::Package
+    # Package for MySQL application.
+    class MySQLPackage < Setup::Tasks::Package
       package_name 'MySQL'
       platforms [:MACOS, :LINUX]
       restore_dir '/usr/local/etc'

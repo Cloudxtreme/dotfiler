@@ -1,4 +1,4 @@
-require 'setup/package'
+require 'setup/tasks/package'
 require 'setup/sync_context'
 
 module Setup

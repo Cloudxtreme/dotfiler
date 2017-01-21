@@ -1,4 +1,4 @@
-require 'setup/package'
+require 'setup/tasks/package'
 require 'setup/applications/atom'
 require 'setup/applications/bash'
 require 'setup/applications/byobu'

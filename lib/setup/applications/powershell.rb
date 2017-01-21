@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class PowerShellPackage < Setup::Package
+    # Package for PowerShell application.
+    class PowerShellPackage < Setup::Tasks::Package
       package_name 'PowerShell'
       platforms [:WINDOWS]
       restore_dir '~/Documents/WindowsPowerShell'

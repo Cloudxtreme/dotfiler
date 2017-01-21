@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class AtomPackage < Setup::Package
+    # Package for Atom application.
+    class AtomPackage < Setup::Tasks::Package
       package_name 'Atom'
       restore_dir '~/.atom'
 

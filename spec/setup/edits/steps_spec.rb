@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require 'setup/edits/steps'
 
 module Setup
   module Edits
-    SAMPLE_1 = <<-CODE
+    SAMPLE_1 = <<-CODE.freeze
     require 'foo'
 
     module Mod

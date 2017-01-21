@@ -1,10 +1,10 @@
 # This tests the overall appliction integration test.
 require 'setup/applications'
-require 'setup/backups'
+require 'setup/sync_utils'
 require 'setup/cli'
 require 'setup/io'
-require 'setup/package'
-require 'setup/package_template'
+require 'setup/tasks/package'
+require 'setup/templates'
 require 'setup/test_applications'
 
 require 'tmpdir'
@@ -14,7 +14,7 @@ module Setup
 SAMPLE_BACKUP =
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -171,7 +171,7 @@ RSpec.describe './setup' do
       Test::RubocopPackage,
       Test::VimPackage
     ]
-    stub_const 'Setup::Package::DEFAULT_RESTORE_DIR', @default_restore_dir
+    stub_const 'Setup::Tasks::Package::DEFAULT_RESTORE_DIR', @default_restore_dir
 
     # Take over the interactions with console in order to stub out user interaction.
     allow(HighLine).to receive(:new).and_return cmd
@@ -384,8 +384,8 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
       assert_ran_without_errors setup %w(cleanup), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(@output_lines.join).to eq(
-"Nothing to clean.
-")
+'Nothing to clean.
+')
     end
 
     it 'should cleanup old backups' do
@@ -444,7 +444,7 @@ W: Use ./setup package add to enable packages.
 
 bash:
     .test_bashrc: needs sync
-    .test_bash_local: error: Cannot sync. Missing both backup and restore.
+    .test_bash_local: no sources to synchronize
 code:
     .test_vscode: differs
 python:
@@ -465,7 +465,7 @@ vim:
 
 bash:
     .test_bashrc: needs sync
-    .test_bash_local: error: Cannot sync. Missing both backup and restore.
+    .test_bash_local: no sources to synchronize
 code:
     .test_vscode: differs
 python:
@@ -487,7 +487,7 @@ vim:
         assert_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -517,7 +517,7 @@ W: Package already exists
           assert_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -536,7 +536,7 @@ end
         assert_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -570,7 +570,7 @@ end
         save_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -584,7 +584,7 @@ end
         assert_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -597,7 +597,7 @@ end
         save_file_content @backups_path,
 "require 'setup'
 
-class MyBackup < Setup::Package
+class MyBackup < Setup::Tasks::Package
   package_name ''
 
   def steps
@@ -613,7 +613,7 @@ end
       context 'when backups file missing' do
         it 'should not remove any packages and print an error' do
           assert_ran_unsuccessfully setup %w(package remove code vim)
-          expect(File.exist? @backups_path).to be false
+          expect(File.exist?(@backups_path)).to be false
         end
       end
     end
@@ -638,7 +638,7 @@ vim
         save_file_content @applications_path,
 "require 'setup'
 
-class P < Setup::Package
+class P < Setup::Tasks::Package
   package_name 'p'
 
   def steps

@@ -2,6 +2,7 @@ require 'parser'
 
 module Setup
   module Edits
+    # @api private
     module AST
       # An AST builder that specializes the def and class nodes.
       # This allows to get class definitions/method instructions in a consistent manner.

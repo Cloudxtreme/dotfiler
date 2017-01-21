@@ -1,12 +1,12 @@
 require 'setup/applications'
-require 'setup/package_template'
+require 'setup/templates'
 
 module Setup
   module Templates
     RSpec.describe 'package' do
       it 'should get a package' do
         expect(Setup::Templates.package('app', %w(file1 file2))).to eq(
-'class AppPackage < Setup::Package
+'class AppPackage < Setup::Tasks::Package
   package_name \'App\'
 
   def steps

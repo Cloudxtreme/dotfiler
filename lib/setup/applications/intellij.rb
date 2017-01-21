@@ -1,6 +1,7 @@
 module Setup
   module Applications
-    class IntelliJPackage < Setup::Package
+    # Package for IntelliJ idea application.
+    class IntelliJPackage < Setup::Tasks::Package
       package_name 'IntelliJ IDEA'
 
       def steps

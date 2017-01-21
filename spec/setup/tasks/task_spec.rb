@@ -1,4 +1,4 @@
-require 'setup/task'
+require 'setup/tasks/task'
 
 module Setup
   RSpec.describe Task do
