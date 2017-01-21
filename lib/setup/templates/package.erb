@@ -1,9 +1,14 @@
-class <%= package_name.capitalize %>Package < Setup::Tasks::Package
-  package_name '<%= package_name.capitalize %>'
+require 'setup'
+
+class <%= package_class_name %> < Setup::Tasks::Package
+  package_name '<%= package_name %>'
 
   def steps
 <% for file in files %>
-    file '<%= file %>'
+    yield file '<%= file %>'
+<% end %>
+<% for package in packages %>
+    yield package '<%= package %>'
 <% end %>
   end
 end

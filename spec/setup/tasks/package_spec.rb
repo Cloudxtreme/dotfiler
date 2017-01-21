@@ -37,9 +37,8 @@ module Setup
         default_package.file 'a'
 
         expect(default_package.name).to eq('')
-        expect(default_package.should_execute).to be true
-
-        expect(default_package.to_a).to match_array []
+        expect { default_package.should_execute }.to raise_error(NotImplementedError)
+        expect { default_package.to_a }.to raise_error(NotImplementedError)
       end
     end
 

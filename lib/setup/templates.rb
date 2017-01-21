@@ -6,7 +6,6 @@ module Setup
   # Helper methods to generate files contents for different templates.
   module Templates
     APPLICATIONS_TEMPLATE = File.read(File.join(__dir__, 'templates/applications.erb')).untaint.freeze
-    BACKUPS_TEMPLATE = File.read(File.join(__dir__, 'templates/backups.erb')).untaint.freeze
     PACKAGE_TEMPLATE = File.read(File.join(__dir__, 'templates/package.erb')).untaint.freeze
     SYNC_TEMPLATE = File.read(File.join(__dir__, 'templates/sync.erb')).untaint.freeze
 
@@ -19,13 +18,19 @@ module Setup
 
     # @return [String] content of a +backups.rb+ file based on a template.
     def backups
-      ERB.new(BACKUPS_TEMPLATE, 2, '>').result(binding)
+      bind = binding
+      bind.local_variable_set :files, []
+      bind.local_variable_set :packages, []
+      bind.local_variable_set :package_class_name, "MyBackup"
+      bind.local_variable_set :package_name, ''
+      ERB.new(PACKAGE_TEMPLATE, 2, '>').result(bind)
     end
 
     # @return [String] content of a +<package_name>.rb+ file based on a template.
-    def package(package_name, files)
-      # TODO(drognanar): Deal with case sensitivity somewhere
-      ERB.new(PACKAGE_TEMPLATE, 2, '>').result(binding)
+    def package(package_name, files: [], packages: [])
+      bind = binding
+      bind.local_variable_set :package_class_name, "#{package_name.capitalize}Package"
+      ERB.new(PACKAGE_TEMPLATE, 2, '>').result(bind)
     end
 
     # @return [String] content of a +sync.rb+ file based on a template.

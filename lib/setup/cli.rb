@@ -86,7 +86,7 @@ module Setup
           LOGGER.warn 'Package already exists'
         else
           @ctx.io.mkdir_p File.dirname package_path
-          @ctx.io.write package_path, Setup::Templates.package(name, [])
+          @ctx.io.write package_path, Setup::Templates.package(name, files: [])
         end
 
         backups_file = @ctx.io.read backups_file_path

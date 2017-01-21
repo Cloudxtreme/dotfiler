@@ -5,13 +5,15 @@ module Setup
   module Templates
     RSpec.describe 'package' do
       it 'should get a package' do
-        expect(Setup::Templates.package('app', %w(file1 file2))).to eq(
-'class AppPackage < Setup::Tasks::Package
-  package_name \'App\'
+        expect(Setup::Templates.package('app', files: %w(file1 file2))).to eq(
+'require \'setup\'
+
+class AppPackage < Setup::Tasks::Package
+  package_name \'app\'
 
   def steps
-    file \'file1\'
-    file \'file2\'
+    yield file \'file1\'
+    yield file \'file2\'
   end
 end
 ')

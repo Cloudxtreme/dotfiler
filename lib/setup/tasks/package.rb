@@ -63,7 +63,9 @@ module Setup
       end
 
       # @yieldparam subtask [Task] subtasks of this {Package}.
-      def steps; end
+      def steps
+        raise NotImplementedError, 'Should be implemented by a subclass'
+      end
 
       def initialize(parent_ctx)
         ctx = parent_ctx.with_backup_dir(File.join(parent_ctx.backup_path, name))

@@ -74,7 +74,7 @@ RSpec.describe './setup' do
   end
 
   def assert_package_content(path, name, files)
-    assert_file_content path, Setup::Templates.package(name, files)
+    assert_file_content path, Setup::Templates.package(name, files: files)
   end
 
   # Saves a file with the specified content.
@@ -92,7 +92,7 @@ RSpec.describe './setup' do
   end
 
   def save_package_content(path, name, files)
-    save_file_content path, Setup::Templates.package(name, files)
+    save_file_content path, Setup::Templates.package(name, files: files)
   end
 
   # Creates a symlink between files.
@@ -425,7 +425,7 @@ Deleting \"#{ctx.backup_path('vim/setup-backup-1-_test_vimrc')}\"
 
   describe 'status' do
     it 'should print an empty message if no packages exist' do
-      assert_ran_without_errors setup %w(status), package: lambda { |ctx| Package.new ctx }
+      assert_ran_without_errors setup %w(status), package: lambda { |ctx| ItemPackage.new ctx }
 
       expect(@output_lines.join).to eq(
 "Current status:
@@ -677,7 +677,7 @@ code
         save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
         save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
         expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'test.rb')}")
-        assert_ran_without_errors setup %w(package edit Test), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
+        assert_ran_without_errors setup %w(package edit test), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
       it 'should edit global packages' do
