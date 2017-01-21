@@ -30,7 +30,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'highline', ['~> 1.7']
   spec.add_dependency 'logging', ['~> 2.1']
   spec.add_dependency 'parser', ['~> 2.3']
-  spec.add_dependency 'safe_yaml', ['~> 1.0']
   spec.add_dependency 'thor', ['~> 0.19']
 
   spec.add_development_dependency 'awesome_print', ['~> 1.6']
