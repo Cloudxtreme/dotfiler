@@ -18,17 +18,18 @@ module Dotfiler
         steps = node.body.find { |child| child.type == :def && child.location.name.source == 'steps' }
         if steps.nil?
           # This package does not define a steps method. Define one.
-          insert_above node.location.end, "
-def steps
-  #{@step}
-end"
+          insert_above node.location.end, <<-SOURCE.strip_heredoc
+
+            def steps
+              #{@step}
+            end
+          SOURCE
           return
         end
 
         # If a step is not defined by the steps method add it.
-        if steps.body.find_index(ast(@step)).nil?
-          insert_above steps.location.end, @step
-        end
+        step_missing = steps.body.find_index(ast(@step)).nil?
+        insert_above(steps.location.end, @step) if step_missing
       end
     end
 

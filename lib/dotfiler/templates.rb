@@ -10,7 +10,7 @@ module Dotfiler
 
     module_function
 
-    # @return [String] content of a +backups.rb+ file based on a template.
+    # @return [String] content of a `backups.rb` file based on a template.
     def backups
       bind = binding
       bind.local_variable_set :files, []
@@ -20,7 +20,7 @@ module Dotfiler
       ERB.new(PACKAGE_TEMPLATE, 2, '>').result(bind)
     end
 
-    # @return [String] content of a +<package_name>.rb+ file based on a template.
+    # @return [String] content of a `<package_name>.rb` file based on a template.
     def package(package_name, files: [], packages: [])
       package_name ||= ''
       bind = binding
@@ -28,7 +28,7 @@ module Dotfiler
       ERB.new(PACKAGE_TEMPLATE, 2, '>').result(bind)
     end
 
-    # @return [String] content of a +sync.rb+ file based on a template.
+    # @return [String] content of a `sync.rb` file based on a template.
     def sync
       ERB.new(SYNC_TEMPLATE, 2, '>').result(binding)
     end

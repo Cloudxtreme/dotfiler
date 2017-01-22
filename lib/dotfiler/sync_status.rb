@@ -12,7 +12,15 @@ module Dotfiler
   }.freeze
 
   # Current synchronization status of a {Tasks::Task}.
-  class SyncStatus < Struct.new(:name, :kind, :status_msg)
+  class SyncStatus
+    attr_reader :name, :kind, :status_msg
+
+    def initialize(name, kind, status_msg = nil)
+      @name = name
+      @kind = kind
+      @status_msg = status_msg
+    end
+
     def status_str
       kind_str = STATUS_KINDS[kind]
       status_msg.nil? ? "#{name}: #{kind_str}" : "#{name}: #{kind_str}: #{status_msg}"
@@ -24,7 +32,15 @@ module Dotfiler
   end
 
   # Current synchronization status of a {Tasks::Package}.
-  class GroupStatus < Struct.new(:name, :items, :status_msg)
+  class GroupStatus
+    attr_reader :name, :items, :status_msg
+
+    def initialize(name, items, status_msg = nil)
+      @name = name
+      @items = items
+      @status_msg = status_msg
+    end
+
     def kind
       items.map(&:kind).uniq.length == 1 ? items[0].kind : nil
     end

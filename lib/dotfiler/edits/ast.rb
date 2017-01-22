@@ -16,6 +16,10 @@ module Dotfiler
         end
       end
 
+      # An AST node for a declaration (`:class` and `:def` nodes).
+      # It contains a helper method {#body} that returns an array of instructions.
+      #
+      # This unifies cases when a declaration has 0,1 and many children.
       class DefNode < Parser::AST::Node
         attr_reader :body
 

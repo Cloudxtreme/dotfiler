@@ -12,7 +12,7 @@ include Dotfiler
 ENV['THOR_COLUMNS'] = '120'
 ENV['editor'] = 'vim'
 
-$thor_runner = false # rubocop:disable GlobalVars
+$thor_runner = false # rubocop:disable Style/GlobalVars
 $0 = 'dotfiler'
 
 RSpec.configure do |config|

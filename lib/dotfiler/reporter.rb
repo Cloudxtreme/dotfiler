@@ -37,7 +37,7 @@ module Dotfiler
     # @param op [Symbol] the type of an operation that just started.
     # @param item [Task] the task that started the operation.
     # @return (see #start)
-    def end(op, item)
+    def end(op, item) # rubocop:disable Lint/UnusedMethodArgument
       self
     end
   end

@@ -3,28 +3,26 @@ AllCops:
     - 'bin/**/*'
     - 'vendor/**/*'
 
+Documentation: # Do not require documentation from tests
+  Exclude:
+    - 'spec/**/*.rb'
 Metrics/AbcSize:
   Max: 30
-
-Metrics/MethodLength:
-  Max: 25
-  CountComments: false
-
+  Exclude:
+    - 'spec/**/*.rb'
+Metrics/BlockLength:
+  Max: 30
+  Exclude:
+    - 'spec/**/*.rb'
 Metrics/LineLength:
   Enabled: false
-
-Documentation:
-  Exclude:
-    - 'spec/**/*.rb'
-
-Metrics/ClassLength:
-  Exclude:
-    - 'spec/**/*.rb'
-
+Metrics/MethodLength:
+  Max: 30
+  CountComments: false
 Metrics/ModuleLength:
   Exclude:
     - 'spec/**/*.rb'
-
-Metrics/BlockLength:
-  Exclude:
-    - 'spec/**/*.rb'
+Style/MutableConstant:
+  Enabled: false
+Style/GuardClause:
+  Enabled: false

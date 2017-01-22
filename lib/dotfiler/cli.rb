@@ -69,6 +69,23 @@ module Dotfiler
         def get_context(options)
           Dotfiler::SyncContext.new copy: options[:copy], untracked: options[:untracked], reporter: Dotfiler::LoggerReporter.new(LOGGER), logger: LOGGER, dry: options[:dry]
         end
+
+        def create_package(package_name, package_path)
+          packages_dir = File.dirname package_path
+          LOGGER << "Creating a package\n"
+
+          if File.exist?(package_path) && !options[:force]
+            LOGGER.warn 'Package already exists'
+          else
+            @ctx.io.mkdir_p File.dirname package_path
+            @ctx.io.write package_path, Dotfiler::Templates.package(package_name, files: [])
+          end
+
+          backups_file = @ctx.io.read backups_file_path
+          step = "yield package_from_files #{File.join(packages_dir, '*.rb')}"
+          backups_file = Dotfiler::Edits::AddStep.new(backups_class_name, step).rewrite_str backups_file
+          @ctx.io.write backups_file_path, backups_file
+        end
       end
 
       desc 'new <name>', 'Create a package with a given name'
@@ -80,26 +97,14 @@ module Dotfiler
         if dir == '.'
           packages_dir = @ctx.backup_path '_packages'
           package_path = File.join(packages_dir, "#{name_str}.rb")
-          name = name_str
+
+          create_package name_str, package_path
         else
           package_path = @ctx.backup_path(name_str)
-          packages_dir = File.dirname package_path
-          name = File.basename name_str, '.*'
+          package_name = File.basename name_str, '.*'
+
+          create_package package_name, package_path
         end
-
-        LOGGER << "Creating a package\n"
-
-        if File.exist?(package_path) && !options[:force]
-          LOGGER.warn 'Package already exists'
-        else
-          @ctx.io.mkdir_p File.dirname package_path
-          @ctx.io.write package_path, Dotfiler::Templates.package(name, files: [])
-        end
-
-        backups_file = @ctx.io.read backups_file_path
-        step = "yield package_from_files #{File.join(packages_dir, '*.rb')}"
-        backups_file = Dotfiler::Edits::AddStep.new(backups_class_name, step).rewrite_str backups_file
-        @ctx.io.write backups_file_path, backups_file
       end
 
       desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
@@ -204,7 +209,8 @@ module Dotfiler
       def sync
         @ctx.logger << "Syncing:\n"
         @backup_manager.sync!
-        @ctx.logger << "Nothing to sync\n" if @ctx.reporter.events.empty?
+        nothing_to_sync = @ctx.reporter.events.empty?
+        @ctx.logger << "Nothing to sync\n" if nothing_to_sync
       end
 
       desc 'cleanup', 'Cleans up previous backups'
@@ -213,9 +219,8 @@ module Dotfiler
       option 'untracked', type: :boolean
       def cleanup
         @backup_manager.cleanup!
-        if @ctx.reporter.events(:delete).empty?
-          @ctx.logger << "Nothing to clean.\n"
-        end
+        nothing_to_clean = @ctx.reporter.events(:delete).empty?
+        @ctx.logger << "Nothing to clean.\n" if nothing_to_clean
       end
 
       desc 'status', 'Returns the sync status'

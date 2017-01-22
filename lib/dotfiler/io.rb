@@ -11,6 +11,8 @@ require 'forwardable'
 
 module Dotfiler
   module InputOutput
+    # @api private
+    # Common set of IO methods.
     class CommonIO
       extend Forwardable
       def_delegators File, :directory?, :exist?, :identical?
@@ -26,6 +28,7 @@ module Dotfiler
       end
     end
 
+    # This class executes both read and write IO instructions.
     class FileIO < CommonIO
       def_delegators File, :write
       def_delegators FileUtils, :cp_r, :mkdir_p, :mv, :rm_rf
@@ -48,6 +51,7 @@ module Dotfiler
       end
     end
 
+    # This class executes read IO instructions, but only logs write IO instructions.
     class DryIO < CommonIO
       def dry
         true

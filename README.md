@@ -1,25 +1,29 @@
 About
 =====
 
-Dotfiler is a library that allows you to create scripts for syncing dotfiles on your machine, such as the one below:
+Dotfiler is a API for creating scripts that sync dotfiles on your machine, such as the one below:
 
 ```ruby
 #!/usr/bin/env ruby
 
+require 'dotfiler'
+
 # Define what do you want to do when synchronizing your dotfiles.
 class MyBackup << Dotfiler::Tasks::Package
   def steps
+    # Synchronize files
     yield file('.bashrc')
-    yield file('.vimrc')
+    yield file('.vimrc').save_as('vimrc')
 
+    # Synchronize data only on specific OSes/machines
     under_windows    { yield file('Documents/WindowsPowerShell') }
-    under_tag(:work) { yield file('.bash_aliases').save_as('work_aliases.sh') }
+    under_tag(:work) { yield file('.bash_aliases').save_as('bash_aliases_for_work.sh') }
 
-    yield package('firefox') # Synchronize one of provided packages
-    yield package('vim')
-    yield package('emacs')
+    # Synchronize packages provided with dotfiler (vim/sublime text/atom/etc...)
+    yield all_packages
 
-    run do # Execute a custom script
+    # Execute a custom script
+    yield run do
       `ssh-keygen -t rsa -b 4096 -C "<your_email>"` unless File.exist? '~/.ssh'
     end
   end
@@ -32,7 +36,7 @@ Dotfiler::Cli::Program.start ARGV, package: MyBackup
 This library provides ready made packages to synchronize setting for common applications.
 Several of these packages work in a cross platform manner (your Sublime Settings will roam between your Windows, Linux and Mac OS machine).
 
-You can always create custom packages as the one below to synchronize some set of files on *certain OSes*, *certain machines*, or *run custom scripts*.
+You can always create custom packages as the one above to extend the synchronization behavior.
 
 Getting started
 ===============

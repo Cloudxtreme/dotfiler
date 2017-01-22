@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
@@ -7,11 +8,11 @@ require 'dotfiler/platform'
 Gem::Specification.new do |spec|
   spec.name        = Dotfiler::About::APP_NAME
   spec.version     = Dotfiler::About::VERSION
-  spec.authors     = %w(Drognanar)
+  spec.author      = 'Artur Spychaj'
   spec.email       = 'drognanar@gmail.com'
 
-  spec.summary     = 'Settings manager'
-  spec.description = 'Gem to manage setup'
+  spec.summary     = 'Dotfile script generator'
+  spec.description = 'Gem that allows to generate custom dotfile scripts'
   spec.license     = 'MIT'
 
   if spec.respond_to?(:metadata)
@@ -34,6 +35,8 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency 'awesome_print', ['~> 1.6']
   spec.add_development_dependency 'pry', ['~> 0.10']
+  spec.add_development_dependency 'rake', ['~> 10.4']
+  spec.add_development_dependency 'rubocop', ['~> 0.4']
   spec.add_development_dependency 'rspec', ['~> 3.4']
   spec.add_development_dependency 'yard', ['~> 0.9']
   if Dotfiler::Platform.linux? || Dotfiler::Platform.osx?

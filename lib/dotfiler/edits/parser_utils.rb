@@ -1,15 +1,15 @@
 require 'dotfiler/edits/ast'
 
-require 'parser/current'
-
 module Dotfiler
   module Edits
     # @api private
     # Utilities which help with parsing ruby strings into an AST.
     module ParserUtils
       # Returns a parser which should be used to parse ruby files.
+      # The parser is compatible with ruby 2.1 syntax.
       def parser
-        Parser::CurrentRuby.new Dotfiler::Edits::AST::Builder.new
+        require 'parser/ruby21'
+        Parser::Ruby21.new Dotfiler::Edits::AST::Builder.new
       end
 
       # Creates a {::Parser::Source::Buffer} given ruby source code.

@@ -2,7 +2,7 @@ module Dotfiler
   # Method helpers that detect the current machine's OS and run scripts
   # specificically on a particular OS.
   module Platform
-    extend self
+    extend self # rubocop:disable ModuleFunction
 
     # Returns the current machine's OS.
     # @param [string] platform the string representation of current ruby platform.

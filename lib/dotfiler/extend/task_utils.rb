@@ -1,6 +1,8 @@
+require 'dotfiler/applications'
 require 'dotfiler/sync_utils'
 require 'dotfiler/sync_context'
 require 'dotfiler/tasks/file_sync_task'
+require 'dotfiler/tasks/package'
 require 'dotfiler/tasks/proc_task'
 require 'dotfiler/tasks/task'
 
@@ -29,18 +31,19 @@ module Dotfiler
     # @example
     #   file('.vimrc', copy: true)
     def file(path, file_sync_options = {})
-      FileSyncTask.new(path, file_sync_options, ctx)
+      Dotfiler::Tasks::FileSyncTask.new(path, file_sync_options, ctx)
     end
 
     # @return [Tasks::ProcTask] a new {Tasks::ProcTask} that will execute a block when run.
+    # @param name [String] name of the {Tasks::Task}.
     # @yieldparam ctx [SyncContext] context in which the code should run.
     # @example
     #   run { |ctx| ctx.file('.vimrc').sync! }
     def run(name = nil, &block)
-      ProcTask.new(name, ctx, &block)
+      Dotfiler::Tasks::ProcTask.new(name, ctx, &block)
     end
 
-    # @param app_name [String] name of the {Task} to find in {SyncContext}.
+    # @param app_name [String] name of the {Tasks::Task} to find in {SyncContext}.
     # @return [Task] a task defined in {SyncContext#packages} with a corresponding name.
     # @example
     #   package('vim')
@@ -51,7 +54,7 @@ module Dotfiler
     # @return [Task] a task with all {Tasks::Package}s with data to sync.
     def all_packages
       packages = ctx.packages.values.select(&:data?)
-      ItemPackage.new(ctx).tap { |package| package.items = packages }
+      Dotfiler::Tasks::ItemPackage.new(ctx).tap { |package| package.items = packages }
     end
 
     # @return [Task] a dynamically created task created by loading scripts under +packages_glob_rel+
@@ -65,7 +68,7 @@ module Dotfiler
     def package_from_files(packages_glob_rel)
       packages_glob = ctx.backup_path packages_glob_rel
       packages = get_packages(packages_glob, ctx)
-      packages.length == 1 ? packages[0] : ItemPackage.new(ctx).tap { |package| package.items = packages }
+      packages.length == 1 ? packages[0] : Dotfiler::Tasks::ItemPackage.new(ctx).tap { |package| package.items = packages }
     end
 
     private
@@ -104,11 +107,12 @@ module Dotfiler
 
   # Add task helper methods into classes that contain context.
 
-  class SyncContext
+  class SyncContext # rubocop:disable Documentation
     include TaskUtils
 
+    # Adds {Dotfiler::APPLICATIONS} to the current {SyncContext}.
     def add_default_applications
-      add_packages_from_cls APPLICATIONS
+      add_packages_from_cls Dotfiler::APPLICATIONS
     end
 
     def ctx
@@ -117,7 +121,7 @@ module Dotfiler
   end
 
   module Tasks
-    class Task
+    class Task # rubocop:disable Documentation
       include TaskUtils
     end
   end

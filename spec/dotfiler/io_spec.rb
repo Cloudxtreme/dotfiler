@@ -27,7 +27,8 @@ end
 # Otherwise rspec throws the NotImplementedException.
 if Platform.windows?
   begin
-    old_verbose, $VERBOSE = $VERBOSE, nil
+    old_verbose = $VERBOSE
+    $VERBOSE = nil
     def File.symlink(_, _)
       raise 'Not supported on windows'
     end
