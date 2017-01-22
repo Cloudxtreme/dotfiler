@@ -1,0 +1,14 @@
+require 'dotfiler'
+
+class <%= package_class_name %> < Dotfiler::Tasks::Package
+  package_name '<%= package_name %>'
+
+  def steps
+<% for file in files %>
+    yield file '<%= file %>'
+<% end %>
+<% for package in packages %>
+    yield package '<%= package %>'
+<% end %>
+  end
+end

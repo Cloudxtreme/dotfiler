@@ -1,8 +1,8 @@
-require 'setup/logging'
-require 'setup/platform'
+require 'dotfiler/logging'
+require 'dotfiler/platform'
 
 require 'rspec/logging_helper'
-if Setup::Platform.macos? || Setup::Platform.linux?
+if Dotfiler::Platform.macos? || Dotfiler::Platform.linux?
   require 'simplecov'
   SimpleCov.start
 end
@@ -11,11 +11,11 @@ ENV['THOR_COLUMNS'] = '120'
 ENV['editor'] = 'vim'
 
 $thor_runner = false
-$0 = 'setup'
+$0 = 'dotfiler'
 
 RSpec.configure do |config|
   include RSpec::LoggingHelper
-  config.capture_log_messages from: 'Setup'
+  config.capture_log_messages from: 'Dotfiler'
 
   config.before(:each) do
     LOGGER.level = :verbose
