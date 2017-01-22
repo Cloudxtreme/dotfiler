@@ -4,7 +4,7 @@ require 'dotfiler/edits/steps'
 
 module Dotfiler
   module Edits
-    SAMPLE_1 = <<-CODE.freeze
+    SAMPLE_1 = <<-CODE.strip_heredoc.freeze
     require 'foo'
 
     module Mod
@@ -17,7 +17,7 @@ module Dotfiler
     end
     CODE
 
-    SAMPLE_2 = <<-CODE
+    SAMPLE_2 = <<-CODE.strip_heredoc.freeze
     require 'foo'
 
     module Mod
@@ -26,7 +26,7 @@ module Dotfiler
     end
     CODE
 
-    SAMPLE_3 = <<-CODE
+    SAMPLE_3 = <<-CODE.strip_heredoc.freeze
     require 'foo'
 
     module Mod
@@ -40,19 +40,19 @@ module Dotfiler
 
     RSpec.describe AddStep do
       it 'should add a step' do
-        expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_1)).to eq <<-CODE
-    require 'foo'
+        expect(AddStep.new('CD', 'yield file \'to_add\'').rewrite_str(SAMPLE_1)).to eq <<-CODE.strip_heredoc
+          require 'foo'
 
-    module Mod
-      class CD < Import
+          module Mod
+            class CD < Import
 
-        def steps
-          yield file 'backups'
-          yield file 'to_add'
-        end
-      end
-    end
-    CODE
+              def steps
+                yield file 'backups'
+                yield file 'to_add'
+              end
+            end
+          end
+        CODE
       end
 
       it 'should not add an existing step' do
@@ -70,17 +70,17 @@ module Dotfiler
 
     RSpec.describe RemoveStep do
       it 'should remove a step if it exists' do
-        expect(RemoveStep.new('CD', 'yield file \'backups\'').rewrite_str(SAMPLE_1)).to eq <<-CODE
-    require 'foo'
+        expect(RemoveStep.new('CD', 'yield file \'backups\'').rewrite_str(SAMPLE_1)).to eq <<-CODE.strip_heredoc
+          require 'foo'
 
-    module Mod
-      class CD < Import
+          module Mod
+            class CD < Import
 
-        def steps
-        end
-      end
-    end
-    CODE
+              def steps
+              end
+            end
+          end
+        CODE
       end
 
       it 'should not remove a non existing step' do

@@ -41,7 +41,7 @@ module Dotfiler
     #
     # @return [String] location on disk where the {Tasks::Package#steps} was defined.
     def self.get_source(item)
-      return nil if (item.nil? || item.class.instance_methods(false).find_index(:steps).nil?)
+      return nil if item.nil? || item.class.instance_methods(false).find_index(:steps).nil?
       item.method(:steps).source_location[0]
     end
 

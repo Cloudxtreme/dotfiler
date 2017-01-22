@@ -35,10 +35,10 @@ module Dotfiler
         expect(io).to receive(:entries).with('/backup/dir').ordered.and_return ['a']
 
         SyncUtils.create_backup '/backup/dir', ctx.logger, io
-        expect(@log_output.readlines.join).to eq(
-"Creating a backup at \"/backup/dir\"
-W: Cannot create backup. The folder /backup/dir already exists and is not empty.
-")
+        expect(@log_output.readlines.join).to eq <<-OUTPUT.strip_heredoc
+          Creating a backup at \"/backup/dir\"
+          W: Cannot create backup. The folder /backup/dir already exists and is not empty.
+        OUTPUT
       end
 
       it 'should create backup if force passed' do
@@ -103,11 +103,11 @@ W: Cannot create backup. The folder /backup/dir already exists and is not empty.
         status1 = SyncStatus.new 'name1', :up_to_date
         status2 = SyncStatus.new 'name2', :no_sources
         group = GroupStatus.new 'group', [status1, status2]
-        expect(SyncUtils.get_status_str(group)).to eq(
-'group:
-    name1: up to date
-    name2: no sources to synchronize
-')
+        expect(SyncUtils.get_status_str(group)).to eq <<-STATUS.strip_heredoc
+          group:
+              name1: up to date
+              name2: no sources to synchronize
+        STATUS
       end
 
       it 'should handle subgroups' do
@@ -116,13 +116,13 @@ W: Cannot create backup. The folder /backup/dir already exists and is not empty.
         status3 = SyncStatus.new 'name3', :backup
         group1 = GroupStatus.new 'group1', [status1, status2]
         group = GroupStatus.new 'group', [group1, status3]
-        expect(SyncUtils.get_status_str(group)).to eq(
-'group:
-    group1:
-        name1: up to date
-        name2: no sources to synchronize
-    name3: needs sync
-')
+        expect(SyncUtils.get_status_str(group)).to eq <<-STATUS.strip_heredoc
+          group:
+              group1:
+                  name1: up to date
+                  name2: no sources to synchronize
+              name3: needs sync
+        STATUS
       end
 
       it 'should collapse empty names' do
@@ -136,16 +136,16 @@ W: Cannot create backup. The folder /backup/dir already exists and is not empty.
         group2 = GroupStatus.new 'group2', [status3]
         group3 = GroupStatus.new 'group3', [status4, status5, group2]
         group = GroupStatus.new nil, [group1, group3, status6]
-        expect(SyncUtils.get_status_str(group)).to eq(
-'name1: up to date
-name2: no sources to synchronize
-group3:
-    name4: needs sync
-    name5: needs sync
-    group2:
-        name3: needs sync
-name6: differs
-')
+        expect(SyncUtils.get_status_str(group)).to eq <<-STATUS.strip_heredoc
+          name1: up to date
+          name2: no sources to synchronize
+          group3:
+              name4: needs sync
+              name5: needs sync
+              group2:
+                  name3: needs sync
+          name6: differs
+        STATUS
       end
     end
   end

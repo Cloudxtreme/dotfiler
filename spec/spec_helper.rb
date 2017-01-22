@@ -10,7 +10,7 @@ end
 ENV['THOR_COLUMNS'] = '120'
 ENV['editor'] = 'vim'
 
-$thor_runner = false
+$thor_runner = false # rubocop:disable GlobalVars
 $0 = 'dotfiler'
 
 RSpec.configure do |config|
@@ -30,7 +30,7 @@ RSpec.configure do |config|
       # Filter out variable not initialized warnings coming out of installed gems.
       # But still print any other error.
       vendor_path = File.expand_path File.join(__dir__, '../vendor')
-      puts line unless /#{vendor_path}.*warning: instance variable .* not initialized/.match(line)
+      puts line unless line =~ /#{vendor_path}.*warning: instance variable .* not initialized/
     end
     $stderr = @old_stderr
   end

@@ -15,7 +15,7 @@ module Dotfiler
       bind = binding
       bind.local_variable_set :files, []
       bind.local_variable_set :packages, []
-      bind.local_variable_set :package_class_name, "MyBackup"
+      bind.local_variable_set :package_class_name, 'MyBackup'
       bind.local_variable_set :package_name, ''
       ERB.new(PACKAGE_TEMPLATE, 2, '>').result(bind)
     end
