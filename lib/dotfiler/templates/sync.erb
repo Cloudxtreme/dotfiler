@@ -1,3 +1,1 @@
-require_relative './backup.rb'
-
-Dotfiler::Cli::Program.start ARGV, package: lambda { |ctx| MyBackup.new ctx }
+Dotfiler::Cli::Program.start ARGV, package: 'backups.rb'

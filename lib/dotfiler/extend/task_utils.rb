@@ -1,7 +1,7 @@
 require 'dotfiler/sync_utils'
+require 'dotfiler/sync_context'
 require 'dotfiler/tasks/file_sync_task'
 require 'dotfiler/tasks/proc_task'
-require 'dotfiler/sync_context'
 require 'dotfiler/tasks/task'
 
 module Dotfiler
@@ -40,11 +40,18 @@ module Dotfiler
       ProcTask.new(name, ctx, &block)
     end
 
+    # @param app_name [String] name of the {Task} to find in {SyncContext}.
     # @return [Task] a task defined in {SyncContext#packages} with a corresponding name.
     # @example
     #   package('vim')
     def package(app_name)
       ctx.packages[app_name]
+    end
+
+    # @return [Task] a task with all {Tasks::Package}s with data to sync.
+    def all_packages
+      packages = ctx.packages.values.select(&:data?)
+      ItemPackage.new(ctx).tap { |package| package.items = packages }
     end
 
     # @return [Task] a dynamically created task created by loading scripts under +packages_glob_rel+

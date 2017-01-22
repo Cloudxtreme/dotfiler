@@ -33,7 +33,8 @@ RSpec.shared_examples 'CLIHelper' do |cli_cls|
     expect(SyncContext).to receive(:new).with(a_hash_including(options)).and_return ctx
     expect(ctx).to receive(:with_backup_dir).and_return ctx
     expect(ctx).to receive(:add_default_applications).and_return ctx
-    expect(ctx).to receive(:package_from_files).and_return package
+    expect(ctx).to receive(:backup_path).with('backups.rb').and_return 'path/backups.rb'
+    expect(ctx).to receive(:package_from_files).with('path/backups.rb').and_return package
     cli_cls.new([], options).create_backup_manager
   end
 
@@ -87,12 +88,8 @@ RSpec.describe './dotfiler' do
     save_file_content path, Dotfiler::Templates.backups
   end
 
-  def save_applications_content(path, applications)
-    save_file_content path, Dotfiler::Templates.applications(applications)
-  end
-
-  def save_package_content(path, name, files)
-    save_file_content path, Dotfiler::Templates.package(name, files: files)
+  def save_package_content(path, name, files: [], packages: [])
+    save_file_content path, Dotfiler::Templates.package(name, files: files, packages: packages)
   end
 
   # Creates a symlink between files.
@@ -265,7 +262,7 @@ Options:
   describe 'sync' do
     it 'should sync with restore overwrite' do
       save_file_content @backups_path, SAMPLE_BACKUP
-      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+      save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
 
       expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
       assert_ran_with_errors dotfiler %w(sync --verbose), package: lambda { |ctx| ctx.package_from_files @backups_path }
@@ -304,7 +301,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
     it 'should sync with backup overwrite' do
       save_file_content @backups_path, SAMPLE_BACKUP
-      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+      save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
 
       expect(get_overwrite_choice).to receive(:choice).with(:b).and_yield
       assert_ran_with_errors dotfiler %w(sync --verbose), package: lambda { |ctx| ctx.package_from_files @backups_path }
@@ -342,7 +339,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
 
     it 'should not sync if the task is disabled' do
       save_file_content @backups_path, SAMPLE_BACKUP
-      save_applications_content @applications_path, []
+      save_package_content @applications_path, nil, packages: []
       assert_ran_without_errors dotfiler %w(sync), package: lambda { |ctx| ctx.package_from_files @backups_path }
 
       expect(File.exist?(ctx.backup_path('vim/_test_vimrc'))).to be false
@@ -355,7 +352,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
     context 'when --copy' do
       it 'should generate file copies instead of symlinks' do
         save_file_content @backups_path, SAMPLE_BACKUP
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::PythonPackage, Test::RubocopPackage, Test::VimPackage]
+        save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
 
         expect(get_overwrite_choice).to receive(:choice).with(:r).and_yield
         assert_ran_with_errors dotfiler %w(sync --copy), package: lambda { |ctx| ctx.package_from_files @backups_path }
@@ -371,7 +368,7 @@ V: Symlinking \"#{ctx.backup_path('vim/_test_vimrc')}\" with \"#{ctx.restore_pat
   describe 'cleanup' do
     let(:cleanup_files) { ['bash/setup-backup-1-_test_bash_local', 'vim/setup-backup-1-_test_vimrc'].map(&ctx.method(:backup_path)) }
     before(:each) do
-      save_applications_content @applications_path, [Test::BashPackage, Test::VimPackage]
+      save_package_content @applications_path, nil, packages: ['bash', 'vim']
     end
 
     def create_cleanup_files
@@ -436,7 +433,7 @@ W: Use ./dotfiler package add to enable packages.
     end
 
     it 'should print status' do
-      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+      save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
       assert_ran_without_errors dotfiler %w(status), dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
@@ -457,7 +454,7 @@ vim:
     end
 
     it 'should print verbose status' do
-      save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+      save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
       assert_ran_without_errors dotfiler %w(status --verbose), dir: @dotfiles_dir, package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
       expect(@output_lines.join).to eq(
@@ -499,7 +496,7 @@ end
 
       it 'should not touch an existing package' do
         save_backups_content @backups_path
-        save_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test2', files: ['a']
         assert_ran_without_errors dotfiler %w(package new test)
         assert_package_content ctx.backup_path('_packages/test.rb'), 'test2', ['a']
 
@@ -580,7 +577,7 @@ class MyBackup < Dotfiler::Tasks::Package
 end
 "
 
-        assert_ran_without_errors dotfiler %w(package remove code vim), package: lambda { |ctx| ctx.package_from_files @backups_path }
+        assert_ran_without_errors dotfiler %w(package remove code vim), package: @backups_path
         assert_file_content @backups_path,
 "require 'dotfiler'
 
@@ -661,7 +658,7 @@ No new packages discovered
     describe 'list' do
       it 'should list existing packages' do
         save_file_content @backups_path, SAMPLE_BACKUP
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage]
+        save_package_content @applications_path, nil, packages: ['bash', 'code']
         assert_ran_without_errors dotfiler %w(package list)
 
         expect(@output_lines.join).to eq(
@@ -674,15 +671,15 @@ code
 
     describe 'edit' do
       it 'should allow to edit a package' do
-        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', files: []
+        save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
         expect(CONCRETE_IO).to receive(:system).with("vim #{File.join(@apps_dir, 'test.rb')}")
         assert_ran_without_errors dotfiler %w(package edit test), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
       end
 
       it 'should edit global packages' do
-        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', files: []
+        save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
         package_path = Test::BashPackage.instance_method(:steps).source_location[0]
         expect(CONCRETE_IO).to receive(:system).with("vim #{package_path}")
 
@@ -690,8 +687,8 @@ code
       end
 
       it 'should print a warning if package missing' do
-        save_package_content ctx.backup_path('_packages/test.rb'), 'test', []
-        save_applications_content @applications_path, [Test::BashPackage, Test::CodePackage, Test::VimPackage, Test::PythonPackage, Test::RubocopPackage]
+        save_package_content ctx.backup_path('_packages/test.rb'), 'test', files: []
+        save_package_content @applications_path, nil, packages: ['bash', 'code', 'python', 'rubocop', 'vim']
         assert_ran_without_errors dotfiler %w(package edit unknown), package: lambda { |ctx| ctx.package_from_files '_packages/*.rb' }
 
         expect(@output_lines.join).to eq("W: Could not find a package to edit. It might not have been added\n")

@@ -16,7 +16,7 @@ module Dotfiler
       class_option 'help', type: :boolean, desc: 'Print help for a specific command'
       class_option 'verbose', type: :boolean, desc: 'Print verbose information to stdout'
 
-      attr_reader :backup_manager
+      attr_reader :backup_manager, :backups_file_path
 
       def initialize(args = [], opts = {}, config = {})
         super
@@ -43,14 +43,21 @@ module Dotfiler
         end
 
         def create_backup_manager
-          if @package_constructor.is_a? Class then @package_constructor.new @ctx
-          elsif @package_constructor.is_a? Proc then @package_constructor.call @ctx
-          else @ctx.package_from_files('backups.rb')
+          if @package_constructor.is_a? Class
+            @package_constructor.new @ctx
+          elsif @package_constructor.is_a? Proc
+            @package_constructor.call @ctx
+          elsif @package_constructor.is_a? String
+            @backups_file_path = @package_constructor if File.exist? @package_constructor
+            @ctx.package_from_files(@package_constructor)
+          else
+            @backups_file_path = @ctx.backup_path('backups.rb')
+            @ctx.package_from_files(@backups_file_path)
           end
         end
 
-        def backups_file_path
-          @ctx.backup_path 'backups.rb'
+        def backups_class_name
+          @backup_manager.class.name.split('::').last
         end
       end
     end
@@ -67,7 +74,7 @@ module Dotfiler
       desc 'new <name>', 'Create a package with a given name'
       option 'force', type: :boolean
       def new(name_str)
-        return @on_error.call 'Cannot find backup file.' unless @ctx.io.exist? backups_file_path
+        return @on_error.call 'Cannot find backup file.' unless !backups_file_path.nil? && @ctx.io.exist?(backups_file_path)
 
         dir = File.dirname name_str
         if dir == '.'
@@ -91,20 +98,20 @@ module Dotfiler
 
         backups_file = @ctx.io.read backups_file_path
         step = "yield package_from_files #{File.join(packages_dir, '*.rb')}"
-        backups_file = Dotfiler::Edits::AddStep.new('MyBackup', step).rewrite_str backups_file
+        backups_file = Dotfiler::Edits::AddStep.new(backups_class_name, step).rewrite_str backups_file
         @ctx.io.write backups_file_path, backups_file
       end
 
       desc 'add [<names>...]', 'Adds app\'s settings to the backup.'
       def add(*names)
-        return @on_error.call 'Cannot find backup file.' unless @ctx.io.exist? backups_file_path
+        return @on_error.call 'Cannot find backup file.' unless !backups_file_path.nil? && @ctx.io.exist?(backups_file_path)
 
         backups_file = @ctx.io.read backups_file_path
         names.each do |name|
           if @backup_manager.package(name).nil?
             LOGGER.error "Package #{name} not found"
           else
-            backups_file = Dotfiler::Edits::AddStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
+            backups_file = Dotfiler::Edits::AddStep.new(backups_class_name, "yield package '#{name}'").rewrite_str backups_file
           end
         end
         @ctx.io.write backups_file_path, backups_file
@@ -112,14 +119,14 @@ module Dotfiler
 
       desc 'remove [<name>...]', 'Removes app\'s settings from the backup.'
       def remove(*names)
-        return @on_error.call 'Cannot find backup file.' unless @ctx.io.exist? backups_file_path
+        return @on_error.call 'Cannot find backup file.' unless !backups_file_path.nil? && @ctx.io.exist?(backups_file_path)
 
         backups_file = @ctx.io.read backups_file_path
         names.each do |name|
           if Dotfiler::SyncUtils.find_package_by_name(@backup_manager, name).nil?
             LOGGER.error "Package #{name} not found"
           else
-            backups_file = Dotfiler::Edits::RemoveStep.new('MyBackup', "yield package '#{name}'").rewrite_str backups_file
+            backups_file = Dotfiler::Edits::RemoveStep.new(backups_class_name, "yield package '#{name}'").rewrite_str backups_file
           end
         end
         @ctx.io.write backups_file_path, backups_file
