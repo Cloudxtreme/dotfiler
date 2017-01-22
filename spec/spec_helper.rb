@@ -7,6 +7,8 @@ if Dotfiler::Platform.macos? || Dotfiler::Platform.linux?
   SimpleCov.start
 end
 
+include Dotfiler
+
 ENV['THOR_COLUMNS'] = '120'
 ENV['editor'] = 'vim'
 

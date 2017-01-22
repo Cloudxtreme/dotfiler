@@ -2,8 +2,6 @@ require 'dotfiler/applications'
 require 'dotfiler/sync_context'
 require 'dotfiler/io'
 
-include Dotfiler
-
 RSpec.describe APPLICATIONS do
   let(:ctx) { SyncContext.new backup_dir: '/backup', restore_dir: '/restore', io: DRY_IO }
 

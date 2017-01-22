@@ -10,8 +10,6 @@ require 'dotfiler/test_applications'
 
 require 'tmpdir'
 
-include Dotfiler
-
 SAMPLE_BACKUP = <<-CODE.strip_heredoc
   require 'dotfiler'
 
