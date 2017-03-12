@@ -11,6 +11,14 @@ pipeline {
         stage('Test') {
             steps {
                 sh 'bundler exec rspec'
+                archiveArtifacts artifacts: 'coverage/*'
+            }
+        }
+
+        stage('Document') {
+            steps {
+                sh 'bundler exec rake yard'
+                archiveArtifacts artifacts: 'doc/*'
             }
         }
     }
