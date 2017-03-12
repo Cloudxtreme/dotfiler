@@ -151,7 +151,9 @@ module Dotfiler
           @ctx.logger << "No new packages discovered\n"
         else
           discovered_packages.each do |package|
-            @ctx.logger << package
+            # We need to dup the package as logging will fail if the string is frozen
+            # And the string encoding is different from logger encoding
+            @ctx.logger << package.dup
             @ctx.logger << "\n"
           end
         end
