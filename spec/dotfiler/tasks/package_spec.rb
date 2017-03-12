@@ -41,14 +41,16 @@ RSpec.describe Package do
 
   describe 'simple package' do
     it 'should sync single file' do
-      package.items << package.file('a')
+      under_windows do
+        package.items << package.file('a')
 
-      expect(package.name).to eq('Package')
-      expect(package.platforms).to eq [:WINDOWS]
+        expect(package.name).to eq('Package')
+        expect(package.platforms).to eq [:WINDOWS]
 
-      sync_items = package.to_a
-      expect(sync_items).to match_array [an_instance_of(FileSyncTask)]
-      expect(sync_items[0].backup_path).to eq(package.ctx.backup_path('a'))
+        sync_items = package.to_a
+        expect(sync_items).to match_array [an_instance_of(FileSyncTask)]
+        expect(sync_items[0].backup_path).to eq(package.ctx.backup_path('a'))
+      end
     end
   end
 
