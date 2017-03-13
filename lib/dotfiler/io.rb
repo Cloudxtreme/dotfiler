@@ -1,6 +1,3 @@
-# TODO(drognanar): Can we have a more lightweight abstraction?
-# TODO(drognanar): Instead of abstracting IO abstract some classes into DRY and FILE?
-
 # An IO abstraction.
 # Used to switch between actual run/dry run/test run.
 require 'dotfiler/logging'
