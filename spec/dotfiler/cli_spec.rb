@@ -128,7 +128,7 @@ RSpec.describe './dotfiler' do
   def overwrite_choice
     instance_double('menu').tap do |menu|
       expect(cmd).to receive(:choose).and_yield menu
-      expect(menu).to receive(:prompt=).with('Keep back up, restore, back up for all, restore for all?')
+      expect(menu).to receive(:prompt=).with('Keep back up, restore?')
       allow(menu).to receive(:choice).with(:b)
       allow(menu).to receive(:choice).with(:r)
       allow(menu).to receive(:choice).with(:ba)

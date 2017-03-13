@@ -178,16 +178,13 @@ module Dotfiler
         end
 
         def ask_overwrite(backup_path, restore_path)
-          # TODO(drognanar): Persist answers (ba) and (br).
           LOGGER.warn 'Needs to overwrite a file'
           LOGGER.warn "Backup: \"#{backup_path}\""
           LOGGER.warn "Restore: \"#{restore_path}\""
           @cli.choose do |menu|
-            menu.prompt = 'Keep back up, restore, back up for all, restore for all?'
+            menu.prompt = 'Keep back up, restore?'
             menu.choice(:b) { return :backup }
             menu.choice(:r) { return :restore }
-            menu.choice(:ba) { return :backup }
-            menu.choice(:br) { return :restore }
           end
         end
 
